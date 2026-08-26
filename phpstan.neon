@@ -1,0 +1,38 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+    - vendor/spaze/phpstan-disallowed-calls/extension.neon
+
+parameters:
+    level: 6
+
+    paths:
+        - app
+        - config
+        - database
+        - routes
+
+    # 'tests' is deliberately excluded: Pest binds its closures to Tests\TestCase
+    # at runtime via pest()->extend(), which PHPStan cannot see, so every
+    # $this->get() in a test would be a false positive. Pest is the gate on test code.
+
+    # CLAUDE.md §9 — "Larastan and Pint in CI reject debug helpers; errors go to
+    # log and Sentry, never the response." The predecessor shipped dd($e) in an
+    # admin login catch block. This makes that a build failure, not a code review.
+    disallowedFunctionCalls:
+        - function: 'dd()'
+          message: 'log it or use Debugbar; never ship a debug helper (CLAUDE.md §9)'
+        - function: 'dump()'
+          message: 'log it or use Debugbar; never ship a debug helper (CLAUDE.md §9)'
+        - function: 'var_dump()'
+          message: 'log it or use Debugbar; never ship a debug helper (CLAUDE.md §9)'
+        - function: 'print_r()'
+          message: 'log it or use Debugbar; never ship a debug helper (CLAUDE.md §9)'
+        - function: 'ray()'
+          message: 'log it or use Debugbar; never ship a debug helper (CLAUDE.md §9)'
+        - function: 'eval()'
+          message: 'never'
+        - function: 'exit()'
+          message: 'throw or return a response instead'
+        - function: 'die()'
+          message: 'throw or return a response instead'
+
