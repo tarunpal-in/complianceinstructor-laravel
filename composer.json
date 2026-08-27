@@ -1,11 +1,14 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/laravel",
+    "name": "complianceinstructor/platform",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
+    "description": "Compliance Instructor — continuing-education (CEU) training platform.",
     "keywords": [
         "laravel",
-        "framework"
+        "filament",
+        "ceu",
+        "training",
+        "webinars"
     ],
     "license": "MIT",
     "require": {

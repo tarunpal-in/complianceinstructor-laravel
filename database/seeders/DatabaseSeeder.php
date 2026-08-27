@@ -4,24 +4,34 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
+/**
+ * CLAUDE.md §4 rule 1 — `migrate:fresh --seed` must ALWAYS produce a working,
+ * demoable app. No exceptions. CI asserts this on every push.
+ *
+ * §5.9 makes seed data a deliverable: working alone, the seeded database IS the
+ * QA environment and the client-review environment. The realistic catalogue
+ * seeders (30 webinars, 8 speakers, 5 industries, 4 plans, 60 orders) land in P1
+ * alongside the schema.
+ */
 class DatabaseSeeder extends Seeder
 {
     use WithoutModelEvents;
 
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
-        // User::factory(10)->create();
+        $this->call(RolePermissionSeeder::class);
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        $admin = User::firstOrCreate(
+            ['email' => 'onlyclientwork@gmail.com'],
+            ['name' => 'Administrator', 'password' => 'password'],
+        );
+
+        $admin->forceFill(['email_verified_at' => now()])->save();
+        $admin->syncRoles(UserRole::SuperAdmin->value);
     }
 }
