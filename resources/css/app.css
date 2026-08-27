@@ -3,7 +3,80 @@
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
+/*
+ | Compliance Instructor — public site tokens
+ |
+ | Derived from design-ui/Homepage.pdf. CLAUDE.md §7 P0 still owns the formal
+ | brand lock, so these are read off the comp rather than handed down from a
+ | brand guide — expect one revision round once P0 signs off.
+ |
+ | Three families do all the work in the design: navy for chrome and headings,
+ | amber for every call to action, cream for the alternating section grounds.
+ */
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+
+    --color-navy-50: #f2f6fa;
+    --color-navy-100: #e3ecf4;
+    --color-navy-200: #c2d5e7;
+    --color-navy-300: #92b5d3;
+    --color-navy-400: #5b8dba;
+    --color-navy-500: #386da1;
+    --color-navy-600: #2a5686;
+    --color-navy-700: #23456d;
+    --color-navy-800: #1d3a5a;
+    --color-navy-900: #12314f;
+    --color-navy-950: #0b1f34;
+
+    --color-gold-50: #fff9ed;
+    --color-gold-100: #fff1d4;
+    --color-gold-200: #ffdfa8;
+    --color-gold-300: #ffc871;
+    --color-gold-400: #fdaa38;
+    --color-gold-500: #f5a623;
+    --color-gold-600: #e08706;
+    --color-gold-700: #b96609;
+    --color-gold-800: #96500f;
+    --color-gold-900: #7b4310;
+
+    --color-cream-50: #fefbf6;
+    --color-cream-100: #fdf7ef;
+    --color-cream-200: #faedde;
+    --color-cream-300: #f5dfc6;
+}
+
+/*
+ | The hero and footer carry a subtle dot field in the comp. Rendering it as a
+ | background-image keeps it out of the markup entirely, so it never reaches a
+ | screen reader and costs no requests.
+ */
+@utility bg-dot-field {
+    background-image: radial-gradient(currentColor 1px, transparent 1px);
+    background-size: 16px 16px;
+}
+
+/*
+ | Respect the OS setting. CLAUDE.md §7 P9 audits for WCAG AA, and honouring
+ | reduced-motion is part of that rather than a nicety.
+ */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+/* Alpine hides x-cloak elements until it initialises; without this rule the
+   mobile menu and dropdowns flash open on first paint. */
+[x-cloak] {
+    display: none !important;
 }
