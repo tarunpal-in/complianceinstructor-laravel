@@ -1,0 +1,53 @@
+@import '../../../../vendor/filament/filament/resources/css/theme.css';
+
+@source '../../../../app/Filament/**/*';
+@source '../../../../resources/views/filament/**/*';
+
+/*
+ | Compliance Instructor — admin panel theme
+ |
+ | Provisional. CLAUDE.md §7 P0 locks brand and design direction with the
+ | client; this exists so the topbar layout is ours rather than Filament's
+ | default, and so there is somewhere for the brand pass to land later.
+ */
+
+/* Filament ships `.fi-topbar-end { margin-inline-start: auto }`, which pins
+   search, notifications and the avatar together on the right. Letting the group
+   span the free space instead lets the search field sit centred, with the
+   notification bell and avatar staying hard right. */
+.fi-topbar-end {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.fi-topbar-end .fi-global-search {
+    margin-inline: auto;
+    flex: 0 1 28rem;
+    min-width: 0;
+}
+
+.fi-topbar-end .fi-global-search-ctn {
+    width: 100%;
+}
+
+/* Below `md` the sidebar collapses and horizontal space is scarce; let search
+   use whatever is left rather than reserving a centred column for it. */
+@media (max-width: 48rem) {
+    .fi-topbar-end .fi-global-search {
+        margin-inline: 0 auto;
+        flex: 1 1 auto;
+    }
+}
+
+/* The theme switcher is lifted out of the user-menu dropdown into the topbar
+   (see AdminPanelProvider's GLOBAL_SEARCH_AFTER render hook), so it needs to
+   not shrink when the search field claims the middle. */
+.fi-topbar-end .fi-theme-switcher {
+    flex: none;
+}
+
+/* The switcher now lives in the topbar, so hide the copy Filament renders
+   inside the user-menu dropdown rather than offering the same control twice. */
+.fi-dropdown-panel .fi-theme-switcher {
+    display: none;
+}
