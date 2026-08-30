@@ -51,13 +51,14 @@ it('derives the webinar date badge and body from one date', function (): void {
 
     // First card: badge day + month, then the same date spelled out in the body.
     expect($html)
-        ->toContain('>22</span>')
-        ->toContain('>Sep<')
+        ->toContain('<strong>22</strong>')
+        ->toContain('<span>SEP</span>')
         ->toContain('Sep 22, 2026');
 });
 
 it('provides a skip link and a labelled main landmark', function (): void {
+    // The comp anchors the brand link and skip link to <main id="top">.
     $this->get('/')
         ->assertSee('Skip to content')
-        ->assertSee('id="main"', escape: false);
+        ->assertSee('<main id="top">', escape: false);
 });

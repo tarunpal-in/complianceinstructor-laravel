@@ -8,9 +8,15 @@ export default defineConfig({
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.js', 'resources/css/filament/admin/theme.css'],
             refresh: true,
+            // The comp specifies DM Sans for body and Manrope for headings.
+            // Served through Bunny rather than Google Fonts: same faces, no
+            // third-party tracking on every page load.
             fonts: [
-                bunny('Instrument Sans', {
-                    weights: [400, 500, 600],
+                bunny('DM Sans', {
+                    weights: [400, 500, 600, 700],
+                }),
+                bunny('Manrope', {
+                    weights: [600, 700, 800],
                 }),
             ],
         }),
