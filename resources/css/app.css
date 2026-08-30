@@ -95,10 +95,19 @@ h1, h2 { font-family: 'DM Sans', sans-serif; letter-spacing: -0.055em; }
 .hero-copy { position: relative; z-index: 1; }
 .eyebrow { color: #0b578c; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; margin-bottom: 19px; }
 .eyebrow.gold { color: #d89303; background: #fff1cd; display: inline-block; padding: 10px 15px; border-radius: 22px; letter-spacing: 0.035em; margin-bottom: 25px; }
-/* 570px in the reference, against its narrower 1200px container. At 1570px that
-   cap strands "from" on a line of its own; the comp sets "Stay Ahead — Learn
-   from" as one line, which needs ~610px. */
-h1 { font-size: 56px; line-height: 1.06; margin-bottom: 25px; max-width: 700px; }
+/* Hero heading, to spec: DM Sans Bold 700, 54px / 60px, -1.5px tracking.
+   The -1.5px overrides the -0.055em shared with h2 — at 54px that shorthand
+   worked out to about -3px, so this is noticeably looser and the line runs
+   wider. max-width stays 700px, which still holds "Stay Ahead — Learn from"
+   on one line at the new tracking. */
+h1 {
+    font-weight: 700;
+    font-size: 54px;
+    line-height: 60px;
+    letter-spacing: -1.5px;
+    margin-bottom: 25px;
+    max-width: 700px;
+}
 h1 span { color: #0c5484; }
 .hero-lede { color: #78808f; font-size: 17px; line-height: 1.45; max-width: 590px; margin-bottom: 35px; }
 .hero-buttons { display: flex; gap: 14px; margin-bottom: 48px; }
@@ -369,7 +378,9 @@ h1 span { color: #0c5484; }
 }
 
 @media (max-width: 430px) {
-    h1 { font-size: 43px; }
+    /* The 60px leading is set for 54px type; at 43px it would open to 1.4 and
+       the two lines would drift apart. Scaled to keep the same ratio. */
+    h1 { font-size: 43px; line-height: 48px; }
     .hero-buttons { flex-direction: column; }
     .button { width: 100%; }
     .stats { flex-wrap: wrap; }
