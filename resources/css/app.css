@@ -191,11 +191,14 @@ h1 span { color: #0c5484; }
 /* Held to 1200px rather than the 1570px the other sections use. Overrides
    .section's max-width — same specificity, later in the file. */
 .process { max-width: var(--container-narrow); padding-bottom: 120px; }
-.process-grid { margin-top: 62px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
-.process-card { border: 1px solid #e3e6eb; padding: 35px 36px; min-height: 250px; border-radius: 14px; position: relative; box-shadow: 0 9px 19px #17324c09; }
+.process-grid { margin-top: 62px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.process-card { border: 1px solid #e3e6eb; padding: 35px 28px; min-height: 250px; border-radius: 14px; position: relative; box-shadow: 0 9px 19px #17324c09; }
 .step-number { position: absolute; top: 19px; right: 24px; color: #ffefc9; font: bold 45px 'DM Sans'; }
 .process-icon { width: 57px; height: 57px; display: grid; place-items: center; color: #f2a716; background: #fff6e5; border-radius: 15px; margin-bottom: 24px; }
-.process-card h3 { color: #075488; font-size: 24px; margin-bottom: 12px; }
+/* Card title, to spec: DM Sans Bold 700, 24px / 32px, -0.3px tracking.
+   Weight is stated rather than left to the UA default — Tailwind's preflight
+   resets heading weight to inherit, which would drop this to body 400. */
+.process-card h3 { color: #075488; font-weight: 700; font-size: 24px; line-height: 32px; letter-spacing: -0.3px; margin-bottom: 12px; }
 .process-card p { color: #818997; font-size: 16px; line-height: 1.48; margin: 0; }
 
 /* Upcoming webinars ------------------------------------------------------- */
