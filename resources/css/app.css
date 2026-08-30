@@ -43,6 +43,11 @@
        footer) reproduce it as symmetric padding so their backgrounds still
        run edge to edge. */
     --container: 1570px;
+
+    /* Narrower column for sections that read better held in, rather than run
+       to the full width. Currently How It Works. */
+    --container-narrow: 1200px;
+
     --gutter: 32px;
 }
 
@@ -183,7 +188,9 @@ h1 span { color: #0c5484; }
 .text-link { display: flex; gap: 8px; align-items: center; color: #0c5788; font-weight: 700; font-size: 14px; padding-bottom: 5px; }
 
 /* How It Works ------------------------------------------------------------ */
-.process { padding-bottom: 120px; }
+/* Held to 1200px rather than the 1570px the other sections use. Overrides
+   .section's max-width — same specificity, later in the file. */
+.process { max-width: var(--container-narrow); padding-bottom: 120px; }
 .process-grid { margin-top: 62px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
 .process-card { border: 1px solid #e3e6eb; padding: 35px 36px; min-height: 250px; border-radius: 14px; position: relative; box-shadow: 0 9px 19px #17324c09; }
 .step-number { position: absolute; top: 19px; right: 24px; color: #ffefc9; font: bold 45px 'DM Sans'; }
