@@ -85,12 +85,20 @@ h1, h2 { font-family: 'DM Sans', sans-serif; letter-spacing: -0.055em; }
 .search-panel input { width: 100%; border: 0; outline: 0; font-size: 13px; }
 
 /* Hero ------------------------------------------------------------------- */
-.hero { position: relative; overflow: hidden; background: linear-gradient(180deg, #fff9ed 0%, #fffaf0 70%, #fff 100%); min-height: 745px; padding: 78px 0 54px; }
+/* The reference ends this gradient on #fff, which bleaches the panel out well
+   before the content does — "Recognized by" and the accreditation chips land on
+   what reads as white, so the hero looks like it stops short. The comp keeps the
+   warm ground to the bottom edge, so the white stop is gone and the gradient
+   only shifts between two cream tones. */
+.hero { position: relative; overflow: hidden; background: linear-gradient(180deg, #fff9ed 0%, #fffaf0 100%); min-height: 745px; padding: 78px 0 54px; }
 .hero-inner { position: relative; z-index: 1; max-width: var(--container); margin: auto; display: grid; grid-template-columns: 1fr 1.13fr; gap: 50px; align-items: center; }
 .hero-copy { position: relative; z-index: 1; }
 .eyebrow { color: #0b578c; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; margin-bottom: 19px; }
 .eyebrow.gold { color: #d89303; background: #fff1cd; display: inline-block; padding: 10px 15px; border-radius: 22px; letter-spacing: 0.035em; margin-bottom: 25px; }
-h1 { font-size: 56px; line-height: 1.06; margin-bottom: 25px; max-width: 570px; }
+/* 570px in the reference, against its narrower 1200px container. At 1570px that
+   cap strands "from" on a line of its own; the comp sets "Stay Ahead — Learn
+   from" as one line, which needs ~610px. */
+h1 { font-size: 56px; line-height: 1.06; margin-bottom: 25px; max-width: 700px; }
 h1 span { color: #0c5484; }
 .hero-lede { color: #78808f; font-size: 17px; line-height: 1.45; max-width: 590px; margin-bottom: 35px; }
 .hero-buttons { display: flex; gap: 14px; margin-bottom: 48px; }
