@@ -98,7 +98,11 @@ h1, h2 { font-family: 'DM Sans', sans-serif; letter-spacing: -0.055em; }
 .hero { position: relative; overflow: hidden; background: linear-gradient(180deg, #fff9ed 0%, #fffaf0 100%); min-height: 745px; padding: 78px 0 54px; }
 .hero-inner { position: relative; z-index: 1; max-width: var(--container); margin: auto; display: grid; grid-template-columns: 1fr 1.13fr; gap: 50px; align-items: center; }
 .hero-copy { position: relative; z-index: 1; }
-.eyebrow { color: #0b578c; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; margin-bottom: 19px; }
+/* Section eyebrow, to spec: DM Sans SemiBold 600, 12.5px / 18.75px, 1px
+   tracking, uppercase. Alignment is left to the .centered / .split modifiers
+   on .section-heading rather than baked in here, so the left-aligned sections
+   (Upcoming Webinars, Success Stories) keep their alignment. */
+.eyebrow { color: #054376; font-weight: 600; font-size: 12.5px; line-height: 18.75px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 19px; }
 .eyebrow.gold { color: #d89303; background: #fff1cd; display: inline-block; padding: 10px 15px; border-radius: 22px; letter-spacing: 0.035em; margin-bottom: 25px; }
 /* Hero heading, to spec: DM Sans Bold 700, 54px / 60px, -1.5px tracking.
    The -1.5px overrides the -0.055em shared with h2 — at 54px that shorthand
@@ -178,8 +182,13 @@ h1 span { color: #0c5484; }
 
 /* Section scaffolding ----------------------------------------------------- */
 .section { max-width: var(--container); margin: auto; padding: 105px 0; }
-.section-heading h2 { font-size: 44px; margin-bottom: 14px; line-height: 1.08; }
-.section-heading p { color: #7b8490; font-size: 16px; line-height: 1.5; }
+/* Section heading, to spec: DM Sans Bold 700, 48px / 56px, -0.8px tracking.
+   The -0.8px overrides the -0.055em shared by h1/h2 (this selector is more
+   specific), so h1 keeps its own -1.5px. */
+.section-heading h2 { color: #1a1a2e; font-weight: 700; font-size: 48px; line-height: 56px; letter-spacing: -0.8px; margin-bottom: 14px; }
+
+/* Section subtitle, to spec: DM Sans Regular 400, 16px / 27.2px, no tracking. */
+.section-heading p { color: #6b7280; font-weight: 400; font-size: 16px; line-height: 27.2px; letter-spacing: 0; }
 .section-heading.centered { text-align: center; }
 .section-heading.centered p { max-width: 650px; margin: 0 auto; }
 .section-heading.split { display: flex; justify-content: space-between; align-items: end; margin-bottom: 32px; }
@@ -367,7 +376,8 @@ h1 span { color: #0c5484; }
     .stats span { font-size: 11px; }
     .recognized { flex-wrap: wrap; }
     .section { padding-top: 78px; padding-bottom: 78px; }
-    .section-heading h2 { font-size: 36px; }
+    /* 56px leading is set for 48px type; scaled to hold the ratio at 36px. */
+    .section-heading h2 { font-size: 36px; line-height: 42px; }
     .section-heading.split { display: block; }
     .section-heading.split .text-link { margin-top: 20px; }
     .process-grid, .category-grid, .benefit-grid, .story-grid, .plans-grid { grid-template-columns: 1fr; }
