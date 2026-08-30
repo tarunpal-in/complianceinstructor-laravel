@@ -1,6 +1,19 @@
 @props(['stats' => [], 'bodies' => []])
 
 <section class="hero" id="home">
+    {{-- Decorative dot field. Seven clusters scattered behind the content, as
+         marked up in the comp — purely ornamental, so the whole layer is inert
+         to pointers and hidden from assistive tech. --}}
+    <div class="hero-decor" aria-hidden="true">
+        <span class="dot-grid d1"></span>
+        <span class="dot-grid d2"></span>
+        <span class="dot-grid d3"></span>
+        <span class="dot-grid d4"></span>
+        <span class="dot-grid d5"></span>
+        <span class="dot-grid d6"></span>
+        <span class="dot-grid d7"></span>
+    </div>
+
     <div class="hero-inner">
         <div class="hero-copy">
             <div class="eyebrow gold">• #1 COMPLIANCE TRAINING PLATFORM</div>

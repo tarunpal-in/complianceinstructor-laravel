@@ -85,8 +85,8 @@ h1, h2 { font-family: 'DM Sans', sans-serif; letter-spacing: -0.055em; }
 .search-panel input { width: 100%; border: 0; outline: 0; font-size: 13px; }
 
 /* Hero ------------------------------------------------------------------- */
-.hero { background: linear-gradient(180deg, #fff9ed 0%, #fffaf0 70%, #fff 100%); min-height: 745px; padding: 78px 0 54px; }
-.hero-inner { max-width: var(--container); margin: auto; display: grid; grid-template-columns: 1fr 1.13fr; gap: 50px; align-items: center; }
+.hero { position: relative; overflow: hidden; background: linear-gradient(180deg, #fff9ed 0%, #fffaf0 70%, #fff 100%); min-height: 745px; padding: 78px 0 54px; }
+.hero-inner { position: relative; z-index: 1; max-width: var(--container); margin: auto; display: grid; grid-template-columns: 1fr 1.13fr; gap: 50px; align-items: center; }
 .hero-copy { position: relative; z-index: 1; }
 .eyebrow { color: #0b578c; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; margin-bottom: 19px; }
 .eyebrow.gold { color: #d89303; background: #fff1cd; display: inline-block; padding: 10px 15px; border-radius: 22px; letter-spacing: 0.035em; margin-bottom: 25px; }
@@ -117,17 +117,39 @@ h1 span { color: #0c5484; }
 .image-overlay { position: absolute; inset: 0; border-radius: 16px; background: linear-gradient(180deg, transparent 55%, #0714264d); pointer-events: none; }
 .dot-grid { width: 66px; height: 66px; background-image: radial-gradient(#f6c758 2px, transparent 2px); background-size: 20px 20px; opacity: 0.65; }
 .hero-dots { position: absolute; top: -22px; right: 74px; z-index: 1; }
+
+/*
+ | Hero dot field
+ |
+ | The comp scatters seven of these clusters across the hero, not the single one
+ | the reference implementation has: one above and left of the image, one on each
+ | outer edge, and four along the bottom under the copy. They sit on their own
+ | layer beneath the content and are purely decorative, so the layer is inert to
+ | pointers and hidden from assistive tech.
+ |
+ | Positions are percentages of the hero width so the scatter holds as the
+ | viewport changes; nudge any single cluster without disturbing the rest.
+ */
+.hero-decor { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.hero-decor .dot-grid { position: absolute; }
+.hero-decor .d1 { top: 4px;    left: 47%;  width: 260px; height: 180px; }
+.hero-decor .d2 { top: 360px;  left: 0;    width: 130px; height: 160px; }
+.hero-decor .d3 { top: 120px;  right: 0;   width: 150px; height: 300px; }
+.hero-decor .d4 { top: 558px;  left: 25%;  width: 140px; height: 60px; }
+.hero-decor .d5 { top: 558px;  left: 38%;  width: 230px; height: 160px; }
+.hero-decor .d6 { top: 556px;  left: 72%;  width: 120px; height: 130px; }
+.hero-decor .d7 { top: 552px;  left: 85%;  width: 150px; height: 120px; }
 .float-card, .rating-card { position: absolute; display: flex; align-items: center; gap: 9px; background: white; border-radius: 13px; padding: 10px 13px; box-shadow: 0 10px 28px #26395020; z-index: 2; }
 .float-card strong, .float-card small, .rating-card strong, .rating-card small { display: block; }
 .float-card strong { font-size: 12px; }
 .float-card small { color: #8b92a1; font-size: 10px; margin-top: 3px; }
 .certificate { top: 40px; left: -30px; }
 .approved { top: 255px; right: -26px; }
-.live { left: -1px; bottom: 20px; }
+.live { left: -80px; bottom: 20px; }
 .mini-icon { width: 35px; height: 35px; border-radius: 9px; display: grid; place-items: center; }
 .mini-icon.blue { color: #0c80d4; background: #eaf5ff; }
 .mini-icon.green { color: #10b77c; background: #d9fff0; }
-.rating-card { top: 304px; left: -240px; width: 68px; flex-direction: column; gap: 2px; padding: 12px 8px; }
+.rating-card { top: 304px; left: -336px; width: 68px; flex-direction: column; gap: 2px; padding: 12px 8px; }
 .rating-card strong { font-size: 18px; }
 .rating-card span { color: #f5ad18; font-size: 10px; letter-spacing: -2px; }
 .rating-card small { color: #969eaa; font-size: 10px; }
