@@ -152,42 +152,116 @@
  | Sidebar
  |-----------------------------------------------------------------------------
  |
- | Filament sets `.fi-sidebar { lg:bg-transparent }`, so on desktop the sidebar
- | shows the same page background as the content area and the two read as one
- | surface. Giving it its own ground and a hard edge separates navigation from
- | work, which is what the panel was missing.
+ | Filament sets `.fi-sidebar { bg-white lg:bg-transparent }`, so on desktop the
+ | sidebar rendered the page background and read as the same surface as the
+ | content. A few percent of tint was not enough to separate them.
  |
- | Same specificity as Filament's rule, declared later, so no !important.
+ | It is now a dark navy panel — the same family as the public site's promo bar
+ | and benefits band — against a light content area, with the brand gold marking
+ | the active item, as it marks the primary action on the public site.
+ |
+ | Applied unconditionally rather than inside a `lg` query so the mobile
+ | off-canvas panel matches; Filament's own rule is overridden at equal
+ | specificity by being declared later, so nothing needs !important.
  */
-@media (min-width: 1024px) {
-    .fi-sidebar {
-        background-color: #f7f9fc;
-        border-inline-end: 1px solid var(--color-gray-200);
-    }
+.fi-sidebar {
+    --ci-sidebar-ink: #dbe7f2;
+    --ci-sidebar-ink-muted: #8fb2cf;
+    --ci-sidebar-heading: #7ea6c9;
 
-    .dark .fi-sidebar {
-        background-color: #0b1220;
-        border-inline-end-color: rgb(255 255 255 / 0.06);
-    }
+    background-color: #0b2b48;
+    background-image: linear-gradient(180deg, #0d3557 0%, #092740 100%);
+    border-inline-end: 1px solid rgb(255 255 255 / 0.07);
 }
 
-/* Group labels read as dividers rather than as items, so the eye separates the
-   eight groups without counting them. */
+/* Same treatment in dark mode: the panel is already the dark surface, so it
+   only needs to sit a shade deeper than the page behind it. */
+.dark .fi-sidebar {
+    background-image: linear-gradient(180deg, #0a2a45 0%, #071e33 100%);
+}
+
+/* Group headings read as dividers rather than as items, so the eye separates
+   the eight groups without counting them. */
 .fi-sidebar-group-label {
     font-size: 0.6875rem;
     font-weight: 700;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.09em;
     text-transform: uppercase;
-    color: var(--color-gray-400);
+    color: var(--ci-sidebar-heading);
 }
 
-/* The active item gets a filled pill, so the current location is obvious
-   against the tinted ground rather than relying on a faint tint alone. */
+.fi-sidebar-group-btn .fi-icon {
+    color: var(--ci-sidebar-heading);
+}
+
+/* Items ------------------------------------------------------------------- */
+.fi-sidebar-item-label {
+    color: var(--ci-sidebar-ink);
+}
+
+.fi-sidebar-item-btn > .fi-icon {
+    color: var(--ci-sidebar-ink-muted);
+}
+
+.fi-sidebar-item-btn:hover {
+    background-color: rgb(255 255 255 / 0.07);
+}
+
+.fi-sidebar-item-btn:hover .fi-sidebar-item-label,
+.fi-sidebar-item-btn:hover > .fi-icon {
+    color: #ffffff;
+}
+
+.fi-sidebar-item-btn:focus-visible {
+    outline: 2px solid var(--color-gold, #f8ad1b);
+    outline-offset: -2px;
+}
+
+/* Active — brand gold, matching the primary action on the public site. The
+   label carries its own colour (text-gray-700 by default), so setting it on the
+   button alone leaves dark text on a bright ground; both are set explicitly. */
 .fi-sidebar-item.fi-active .fi-sidebar-item-btn {
-    background-color: var(--color-primary-600);
-    color: var(--color-white);
+    background-color: #f8ad1b;
+    box-shadow: 0 6px 16px rgb(248 173 27 / 0.25);
 }
 
-.fi-sidebar-item.fi-active .fi-sidebar-item-btn .fi-icon {
-    color: var(--color-white);
+.fi-sidebar-item.fi-active .fi-sidebar-item-btn .fi-sidebar-item-label,
+.fi-sidebar-item.fi-active .fi-sidebar-item-btn > .fi-icon {
+    color: #0b2540;
+    font-weight: 600;
+}
+
+.fi-sidebar-item.fi-active .fi-sidebar-item-btn:hover {
+    background-color: #ffbb3d;
+}
+
+/* Collapse / close controls sit on the navy, so they need light ink too. */
+.fi-sidebar .fi-icon-btn,
+.fi-sidebar-close-collapse-sidebar-btn,
+.fi-sidebar-open-collapse-sidebar-btn {
+    color: var(--ci-sidebar-ink-muted);
+}
+
+.fi-sidebar .fi-icon-btn:hover {
+    background-color: rgb(255 255 255 / 0.07);
+    color: #ffffff;
+}
+
+/* A default scrollbar reads as a light gash down a dark panel. */
+.fi-sidebar-nav {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(255 255 255 / 0.16) transparent;
+}
+
+.fi-sidebar-nav::-webkit-scrollbar {
+    width: 6px;
+}
+
+.fi-sidebar-nav::-webkit-scrollbar-thumb {
+    background-color: rgb(255 255 255 / 0.16);
+    border-radius: 3px;
+}
+
+.fi-sidebar-nav::-webkit-scrollbar-track {
+    background: transparent;
 }
