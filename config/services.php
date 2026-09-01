@@ -37,4 +37,16 @@ return [
         ],
     ],
 
+    /*
+     * CLAUDE.md §8 improvement #1 — PayPal as the second gateway behind the same
+     * PaymentGateway contract as Stripe. Read through config, never env() at the
+     * point of use, so config:cache does not blank them in production.
+     */
+    'paypal' => [
+        'mode' => env('PAYPAL_MODE', 'sandbox'),
+        'client_id' => env('PAYPAL_CLIENT_ID'),
+        'client_secret' => env('PAYPAL_CLIENT_SECRET'),
+        'webhook_id' => env('PAYPAL_WEBHOOK_ID'),
+    ],
+
 ];

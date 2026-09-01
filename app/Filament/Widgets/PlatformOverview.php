@@ -20,6 +20,14 @@ class PlatformOverview extends StatsOverviewWidget
 {
     protected static ?int $sort = -10;
 
+    /**
+     * Rendered with the page rather than in a follow-up Livewire request.
+     * Filament lazy-loads widgets by default, which is right for the trend
+     * charts coming in P8 but wrong for a couple of indexed counts above the
+     * fold — it costs a round trip and a layout shift for nothing.
+     */
+    protected static bool $isLazy = false;
+
     protected function getStats(): array
     {
         $total = User::query()->count();
