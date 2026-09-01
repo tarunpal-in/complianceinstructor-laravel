@@ -39,15 +39,155 @@
     }
 }
 
-/* The theme switcher is lifted out of the user-menu dropdown into the topbar
-   (see AdminPanelProvider's GLOBAL_SEARCH_AFTER render hook), so it needs to
-   not shrink when the search field claims the middle. */
-.fi-topbar-end .fi-theme-switcher {
+/* The switcher lives in the topbar now (AdminPanelProvider's
+   GLOBAL_SEARCH_AFTER render hook), so hide the copy Filament renders inside
+   the user-menu dropdown rather than offering the same control twice. */
+.fi-dropdown-panel .fi-theme-switcher {
+    display: none;
+}
+
+/*
+ |-----------------------------------------------------------------------------
+ | Theme switcher
+ |-----------------------------------------------------------------------------
+ |
+ | One trigger showing the active mode, opening a menu on hover or click, in
+ | place of Filament's three side-by-side buttons.
+ */
+.ci-theme {
+    position: relative;
     flex: none;
 }
 
-/* The switcher now lives in the topbar, so hide the copy Filament renders
-   inside the user-menu dropdown rather than offering the same control twice. */
-.fi-dropdown-panel .fi-theme-switcher {
-    display: none;
+.ci-theme-trigger {
+    display: grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.5rem;
+    color: var(--color-gray-500);
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s;
+}
+
+.ci-theme-trigger:hover {
+    background-color: var(--color-gray-100);
+    color: var(--color-gray-700);
+}
+
+.ci-theme-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+    flex: none;
+}
+
+/* Padding rather than margin, so the pointer never leaves the hover target on
+   its way from the trigger down into the menu. */
+.ci-theme-menu {
+    position: absolute;
+    inset-inline-end: 0;
+    top: 100%;
+    padding-top: 0.5rem;
+    z-index: 40;
+}
+
+.ci-theme-menu-panel {
+    min-width: 10rem;
+    padding: 0.25rem;
+    border-radius: 0.75rem;
+    background-color: var(--color-white);
+    box-shadow: 0 10px 30px rgb(15 23 42 / 0.12);
+    outline: 1px solid var(--color-gray-950-05, rgb(2 6 23 / 0.05));
+}
+
+.ci-theme-item {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    width: 100%;
+    padding: 0.5rem 0.625rem;
+    border-radius: 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--color-gray-700);
+    cursor: pointer;
+    text-align: start;
+}
+
+.ci-theme-item:hover {
+    background-color: var(--color-gray-50);
+}
+
+.ci-theme-item-active {
+    color: var(--color-primary-600);
+}
+
+.ci-theme-check {
+    width: 1rem;
+    height: 1rem;
+    margin-inline-start: auto;
+    flex: none;
+}
+
+.dark .ci-theme-trigger:hover {
+    background-color: rgb(255 255 255 / 0.06);
+    color: var(--color-gray-200);
+}
+
+.dark .ci-theme-menu-panel {
+    background-color: var(--color-gray-900);
+    outline-color: rgb(255 255 255 / 0.1);
+}
+
+.dark .ci-theme-item {
+    color: var(--color-gray-300);
+}
+
+.dark .ci-theme-item:hover {
+    background-color: rgb(255 255 255 / 0.05);
+}
+
+/*
+ |-----------------------------------------------------------------------------
+ | Sidebar
+ |-----------------------------------------------------------------------------
+ |
+ | Filament sets `.fi-sidebar { lg:bg-transparent }`, so on desktop the sidebar
+ | shows the same page background as the content area and the two read as one
+ | surface. Giving it its own ground and a hard edge separates navigation from
+ | work, which is what the panel was missing.
+ |
+ | Same specificity as Filament's rule, declared later, so no !important.
+ */
+@media (min-width: 1024px) {
+    .fi-sidebar {
+        background-color: #f7f9fc;
+        border-inline-end: 1px solid var(--color-gray-200);
+    }
+
+    .dark .fi-sidebar {
+        background-color: #0b1220;
+        border-inline-end-color: rgb(255 255 255 / 0.06);
+    }
+}
+
+/* Group labels read as dividers rather than as items, so the eye separates the
+   eight groups without counting them. */
+.fi-sidebar-group-label {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-gray-400);
+}
+
+/* The active item gets a filled pill, so the current location is obvious
+   against the tinted ground rather than relying on a faint tint alone. */
+.fi-sidebar-item.fi-active .fi-sidebar-item-btn {
+    background-color: var(--color-primary-600);
+    color: var(--color-white);
+}
+
+.fi-sidebar-item.fi-active .fi-sidebar-item-btn .fi-icon {
+    color: var(--color-white);
 }
