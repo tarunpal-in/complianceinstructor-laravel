@@ -80,3 +80,34 @@ it('exposes users to global search', function (): void {
     expect(App\Filament\Resources\Users\UserResource::getGloballySearchableAttributes())
         ->toBe(['name', 'email']);
 });
+
+/**
+ * The sidebar shape was agreed with the client before the resources behind it
+ * exist. These pin it so a stub cannot be dropped silently when its resource
+ * lands, and so Forum and Quizzes — both cut (§13) — cannot reappear.
+ */
+it('renders the agreed navigation groups', function (string $group): void {
+    $this->actingAs(userWithRole(UserRole::SuperAdmin))
+        ->get('/admin')
+        ->assertSee($group, escape: false);
+})->with(['Catalogue', 'Sales', 'Memberships', 'Learners', 'Content', 'Inbox', 'Reports', 'System']);
+
+it('renders the agreed navigation items', function (string $item): void {
+    $this->actingAs(userWithRole(UserRole::SuperAdmin))
+        ->get('/admin')
+        ->assertSee($item, escape: false);
+})->with([
+    'Webinars', 'Packages', 'Speakers', 'Industries',
+    'Orders', 'Payments', 'Coupons',
+    'Plans', 'Subscriptions',
+    'Customers', 'Entitlements', 'Certificates',
+    'Pages', 'Blog',
+    'Leads', 'Subscribers', 'Inquiries',
+    'Settings', 'Activity Log', 'Backups',
+]);
+
+it('does not offer Forum or Quizzes, which were cut', function (string $gone): void {
+    $this->actingAs(userWithRole(UserRole::SuperAdmin))
+        ->get('/admin')
+        ->assertDontSee($gone, escape: false);
+})->with(['Forum', 'Quizzes']);

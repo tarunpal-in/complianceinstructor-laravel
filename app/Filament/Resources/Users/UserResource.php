@@ -31,6 +31,13 @@ class UserResource extends Resource
 
     protected static string|null|UnitEnum $navigationGroup = 'Learners';
 
+    /**
+     * Listed as Customers, the slot it occupies in the agreed sidebar. It still
+     * lists every user; the role filter that narrows it, and the separate
+     * Staff & Roles screen, arrive with P5.
+     */
+    protected static ?string $navigationLabel = 'Customers';
+
     protected static ?string $recordTitleAttribute = 'name';
 
     protected static ?int $navigationSort = 10;
