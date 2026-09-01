@@ -70,7 +70,7 @@ it('renders the topbar chrome on the dashboard', function (): void {
 
     expect($html)
         ->toContain('fi-topbar')          // topbar itself
-        ->toContain('ci-theme-trigger')   // single theme control, replaces Filament's three
+        ->toContain('ci-theme-toggle')    // single theme control, replaces Filament's three
         ->toContain('fi-global-search')   // search, centre
         ->toContain('fi-user-menu')       // avatar, right
         ->toContain('fi-sidebar');        // left navigation
