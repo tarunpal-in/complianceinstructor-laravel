@@ -44,9 +44,19 @@ class User extends Authenticatable implements FilamentUser
      *
      * Never mass-assignable: `preferences` is deliberately absent from
      * #[Fillable], so a request cannot write it.
+     *
+     * The raw attribute bag is checked first because Model::shouldBeStrict()
+     * throws MissingAttributeException for a column the instance never loaded —
+     * which is every instance when the migration has not been run yet. Reading
+     * a preference is not worth a 500 on every admin page, so an absent column
+     * yields the default. Writing one still fails loudly, as it should.
      */
     public function preference(string $key, mixed $default = null): mixed
     {
+        if (! array_key_exists('preferences', $this->getAttributes())) {
+            return $default;
+        }
+
         return data_get($this->preferences, $key, $default);
     }
 

@@ -132,3 +132,18 @@ it('keeps settings away from roles without the permission', function (): void {
         ->get('/admin/settings')
         ->assertForbidden();
 });
+
+/**
+ * Reading a preference must not depend on the column existing. Under
+ * Model::shouldBeStrict() an unloaded attribute throws, which before this guard
+ * meant an unrun migration took down every admin page rather than degrading.
+ */
+it('falls back to the default when the column is not loaded', function (): void {
+    $user = userWithRole(UserRole::SuperAdmin);
+
+    // An instance selected without the column, as happens before the migration.
+    $partial = User::query()->select(['id', 'name', 'email'])->findOrFail($user->id);
+
+    expect($partial->preference(SetupChecklist::DISMISSED, false))->toBeFalse()
+        ->and($partial->preference('anything', 'fallback'))->toBe('fallback');
+});
