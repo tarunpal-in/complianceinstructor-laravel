@@ -97,7 +97,7 @@ h1, h2 { font-family: 'DM Sans', sans-serif; letter-spacing: -0.055em; }
 .brand-mark svg { color: white; }
 .nav-links { display: flex; align-items: center; gap: 27px; margin-left: 8px; flex: 1; }
 /* Nav items — DM Sans Medium 500, 14px / 20px. Family inherits from :root. */
-.nav-links a { display: flex; align-items: center; gap: 4px; font-size: 14px; font-weight: 500; line-height: 20px; color: #24293a; white-space: nowrap; transition: color 0.2s; }
+.nav-links a { display: flex; align-items: center; gap: 4px; font-size: 16px; font-weight: 500; line-height: 20px; color: #24293a; white-space: nowrap; transition: color 0.2s; }
 .nav-links a:hover { color: #0c4d80; }
 .nav-actions { margin-left: auto; display: flex; align-items: center; gap: 19px; }
 .icon-button, .mobile-menu { border: 0; background: none; padding: 4px; cursor: pointer; color: #1b2030; display: grid; place-items: center; }

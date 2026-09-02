@@ -72,3 +72,63 @@ it('disappears once nothing is outstanding', function (): void {
     // card must still be visible. This is the guard against it vanishing early.
     expect(SetupChecklist::canView())->toBeTrue();
 });
+
+/**
+ * Skipping must be permanent and per account — one admin opting out should not
+ * decide it for a colleague — and it must not become a one-way door.
+ */
+it('offers a skip control', function (): void {
+    $this->actingAs(userWithRole(UserRole::SuperAdmin))
+        ->get('/admin')
+        ->assertSee('wire:click="dismiss"', escape: false);
+});
+
+it('stays hidden once dismissed', function (): void {
+    $admin = userWithRole(UserRole::SuperAdmin);
+    $this->actingAs($admin);
+
+    expect(SetupChecklist::canView())->toBeTrue();
+
+    $admin->setPreference(SetupChecklist::DISMISSED, true);
+
+    expect(SetupChecklist::canView())->toBeFalse();
+    $this->get('/admin')->assertDontSee('Getting started');
+});
+
+it('does not dismiss it for other admins', function (): void {
+    $first = userWithRole(UserRole::SuperAdmin);
+    $first->setPreference(SetupChecklist::DISMISSED, true);
+
+    $second = userWithRole(UserRole::SuperAdmin);
+
+    $this->actingAs($second);
+    expect(SetupChecklist::canView())->toBeTrue();
+});
+
+it('keeps the list reachable in settings after skipping', function (): void {
+    $admin = userWithRole(UserRole::SuperAdmin);
+    $admin->setPreference(SetupChecklist::DISMISSED, true);
+
+    $this->actingAs($admin)
+        ->get('/admin/settings')
+        ->assertSuccessful()
+        ->assertSee('Setup checklist')
+        ->assertSee('Show on dashboard');
+});
+
+it('restores it to the dashboard from settings', function (): void {
+    $admin = userWithRole(UserRole::SuperAdmin);
+    $admin->setPreference(SetupChecklist::DISMISSED, true);
+    $this->actingAs($admin);
+
+    Livewire\Livewire::test(App\Filament\Pages\Settings::class)
+        ->call('toggleChecklist');
+
+    expect($admin->fresh()->preference(SetupChecklist::DISMISSED))->toBeFalse();
+});
+
+it('keeps settings away from roles without the permission', function (): void {
+    $this->actingAs(userWithRole(UserRole::ContentEditor))
+        ->get('/admin/settings')
+        ->assertForbidden();
+});

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Filament\Widgets;
 
 use App\Models\User;
+use Filament\Notifications\Notification;
+use Filament\Pages\Dashboard;
 use Filament\Widgets\Widget;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -43,16 +45,50 @@ class SetupChecklist extends Widget
     protected static bool $isLazy = false;
 
     /**
+     * The preference key that hides this card for good, per account.
+     */
+    public const DISMISSED = 'dashboard.setup_checklist_dismissed';
+
+    /**
      * Super Admin only — `view_any_setting` is held by no other role. Hidden
-     * once complete so a finished panel is not carrying a row of ticks forever.
+     * once dismissed, and once nothing is outstanding, so a finished panel is
+     * not carrying a row of ticks forever.
      */
     public static function canView(): bool
     {
-        if (! auth()->user()?->can('view_any_setting')) {
+        $user = auth()->user();
+
+        if (! $user?->can('view_any_setting')) {
+            return false;
+        }
+
+        if ($user->preference(self::DISMISSED, false)) {
             return false;
         }
 
         return (new self)->outstanding() > 0;
+    }
+
+    /**
+     * Hide the card permanently for this account.
+     *
+     * Stored per user rather than site-wide: one admin skipping setup should not
+     * decide it for a colleague. The list itself stays reachable at
+     * System > Settings, where it can be switched back on.
+     */
+    public function dismiss(): void
+    {
+        auth()->user()?->setPreference(self::DISMISSED, true);
+
+        Notification::make()
+            ->title('Setup checklist hidden')
+            ->body('You can see it again, and bring it back to the dashboard, from System → Settings.')
+            ->success()
+            ->send();
+
+        // canView() is evaluated when the dashboard composes its widgets, so a
+        // Livewire re-render alone would leave the card on screen.
+        $this->redirect(Dashboard::getUrl());
     }
 
     /**

@@ -114,7 +114,8 @@ class AdminPanelProvider extends PanelProvider
      * same group and sort position, so the sidebar never reshuffles under the
      * client.
      *
-     * Customers is absent because UserResource already occupies that slot.
+     * Customers and Settings are absent: UserResource and the Settings page
+     * already occupy those slots.
      *
      * Not yet permission-gated — real resources gate on `view_any_*` through
      * their own can* methods (§8). Stubs are visible to any admin role until
@@ -150,7 +151,6 @@ class AdminPanelProvider extends PanelProvider
 
             ['Reports', 10, 'Reports', Heroicon::OutlinedChartBar],
 
-            ['System', 10, 'Settings', Heroicon::OutlinedCog6Tooth],
             ['System', 20, 'Staff & Roles', Heroicon::OutlinedShieldCheck],
             ['System', 30, 'Activity Log', Heroicon::OutlinedClipboardDocumentList],
             ['System', 40, 'Backups', Heroicon::OutlinedArchiveBox],

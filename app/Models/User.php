@@ -40,6 +40,25 @@ class User extends Authenticatable implements FilamentUser
     }
 
     /**
+     * Read one key out of the per-user preference bag.
+     *
+     * Never mass-assignable: `preferences` is deliberately absent from
+     * #[Fillable], so a request cannot write it.
+     */
+    public function preference(string $key, mixed $default = null): mixed
+    {
+        return data_get($this->preferences, $key, $default);
+    }
+
+    public function setPreference(string $key, mixed $value): void
+    {
+        $preferences = $this->preferences ?? [];
+        data_set($preferences, $key, $value);
+
+        $this->forceFill(['preferences' => $preferences])->save();
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
@@ -49,6 +68,7 @@ class User extends Authenticatable implements FilamentUser
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'preferences' => 'array',
         ];
     }
 }
