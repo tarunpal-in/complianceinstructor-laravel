@@ -6,6 +6,14 @@
 @endphp
 
 <x-filament-panels::page>
+    <form wire:submit="save">
+        {{ $this->form }}
+
+        <div class="mt-6">
+            <x-filament::button type="submit">Save changes</x-filament::button>
+        </div>
+    </form>
+
     <section class="rounded-xl bg-white shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
         <header class="flex flex-wrap items-center justify-between gap-4 border-b border-gray-100 px-6 py-4 dark:border-white/10">
             <div>
