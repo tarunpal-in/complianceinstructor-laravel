@@ -299,7 +299,7 @@ h1 span { color: #0c5484; }
  |
  | The mask fades cards in and out at the edges instead of cutting them off.
  */
-.faculty-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 35px; position: relative; height: 620px; overflow: hidden; -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 9%, #000 91%, transparent 100%); mask-image: linear-gradient(180deg, transparent 0, #000 9%, #000 91%, transparent 100%); }
+.faculty-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 282px)); justify-content: end; gap: 35px; position: relative; height: 620px; overflow: hidden; -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 9%, #000 91%, transparent 100%); mask-image: linear-gradient(180deg, transparent 0, #000 9%, #000 91%, transparent 100%); }
 .faculty-track { will-change: transform; animation: faculty-down 44s linear infinite; }
 .faculty-track.is-up { animation-name: faculty-up; }
 .faculty-cards:hover .faculty-track, .faculty-cards:focus-within .faculty-track { animation-play-state: paused; }
@@ -315,9 +315,11 @@ h1 span { color: #0c5484; }
 }
 
 .faculty-card { border: 1px solid #dbe3f7; padding: 14px; border-radius: 9px; box-shadow: 0 6px 15px #253a5e09; margin-bottom: 35px; background: #fff; }
-/* Capped at 254 square. The column is wider than that at the current
-   container, so the image is centred rather than left with slack beside it. */
-.faculty-card img { width: 100%; max-width: 254px; aspect-ratio: 1; height: auto; max-height: 254px; margin-inline: auto; object-fit: cover; border-radius: 6px; display: block; }
+/* 254 square with no gutter beside it: the column is 282px and the card pads
+   14px a side, so a full-width image lands on 254 exactly. Capping the image
+   instead left 34px of auto margin either side. minmax lets the column shrink
+   below 282 on narrow screens rather than overflowing. */
+.faculty-card img { width: 100%; aspect-ratio: 1; height: auto; object-fit: cover; border-radius: 6px; display: block; }
 .faculty-card h3 { font-size: 17px; margin: 15px 0 5px; }
 .faculty-card p { color: #828996; font-size: 11px; line-height: 1.4; margin: 0 0 7px; }
 .faculty-card a { color: #0b5a8e; font-size: 12px; font-weight: 700; }
