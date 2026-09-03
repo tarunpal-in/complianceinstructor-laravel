@@ -10,7 +10,6 @@
         ['label' => 'Speakers', 'chevron' => false],
         ['label' => 'Memberships', 'chevron' => false],
         ['label' => 'Blog', 'chevron' => false],
-        ['label' => 'Quiz', 'chevron' => false],
         ['label' => 'Help', 'chevron' => false],
     ];
 @endphp

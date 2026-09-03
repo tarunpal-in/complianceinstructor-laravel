@@ -34,9 +34,9 @@ class RolePermissionSeeder extends Seeder
         // Learners
         'user', 'entitlement', 'certificate',
         // Content
-        'page', 'post', 'forum_thread', 'navigation', 'redirect', 'seo_meta',
+        'page', 'post', 'navigation', 'redirect', 'seo_meta',
         // Engagement
-        'quiz', 'lead', 'subscriber', 'inquiry',
+        'lead', 'subscriber', 'inquiry',
         // System
         'role', 'setting',
     ];
@@ -101,8 +101,7 @@ class RolePermissionSeeder extends Seeder
             UserRole::ContentEditor => [
                 ...$this->crudFor([
                     'webinar', 'package', 'speaker', 'industry', 'accreditation',
-                    'page', 'post', 'forum_thread', 'navigation', 'redirect', 'seo_meta',
-                    'quiz',
+                    'page', 'post', 'navigation', 'redirect', 'seo_meta',
                 ]),
                 'view_any_lead', 'view_lead',
             ],

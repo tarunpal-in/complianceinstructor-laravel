@@ -2,7 +2,7 @@
     $columns = [
         'Company' => ['About Us', 'Speakers', 'Blog', 'Careers', 'Press'],
         'Training' => ['Live Webinars', 'Recorded Webinars', 'Packages', 'Memberships'],
-        'Resources' => ['FAQ', 'Forum', 'Quiz', 'Help Center', 'Contact'],
+        'Resources' => ['FAQ', 'Help Center', 'Contact'],
         'Legal' => ['Terms of Service', 'Privacy Policy', 'Refund Policy', 'Cookie Policy'],
     ];
 @endphp
