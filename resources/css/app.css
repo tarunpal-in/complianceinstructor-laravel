@@ -273,7 +273,19 @@ h1 span { color: #0c5484; }
 
 /* Faculty ----------------------------------------------------------------- */
 .faculty { display: grid; grid-template-columns: 1fr 1fr; gap: 90px; min-height: 650px; align-items: center; }
-.faculty-copy p { max-width: 610px; font-size: 17px; color: #7b8490; line-height: 1.55; margin-bottom: 34px; }
+
+/* This heading sits in .faculty-copy, not .section-heading, so the 48px rule
+   never reached it and it rendered at the browser default — a gap inherited
+   from the reference. Same spec as every other section heading; alignment stays
+   left, since the section is a two-column layout with the copy beside the
+   cards. */
+.faculty-copy h2 { font-weight: 700; font-size: 48px; line-height: 56px; letter-spacing: -0.8px; margin-bottom: 14px; }
+
+/* Body copy, to spec: DM Sans Regular 400, 16px / 24px, no tracking. */
+.faculty-copy p { max-width: 610px; font-weight: 400; font-size: 16px; line-height: 24px; letter-spacing: 0; color: #7b8490; margin-bottom: 34px; }
+
+/* 14px here against the 12.5px the other eyebrows use — per spec. */
+.faculty-copy .eyebrow { font-size: 14px; }
 .faculty-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 35px; position: relative; }
 .faculty-card { border: 1px solid #dbe3f7; padding: 14px; border-radius: 9px; box-shadow: 0 6px 15px #253a5e09; }
 .faculty-card:nth-child(2), .faculty-card:nth-child(4) { transform: translateY(-35px); }
@@ -395,7 +407,8 @@ h1 span { color: #0c5484; }
     .recognized { flex-wrap: wrap; }
     .section { padding-top: 78px; padding-bottom: 78px; }
     /* 56px leading is set for 48px type; scaled to hold the ratio at 36px. */
-    .section-heading h2 { font-size: 36px; line-height: 42px; }
+    .section-heading h2,
+    .faculty-copy h2 { font-size: 36px; line-height: 42px; }
     .section-heading.split { display: block; }
     .section-heading.split .text-link { margin-top: 20px; }
     .process-grid, .category-grid, .benefit-grid, .story-grid, .plans-grid { grid-template-columns: 1fr; }
