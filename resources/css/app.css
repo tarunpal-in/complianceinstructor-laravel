@@ -288,10 +288,34 @@ h1 span { color: #0c5484; }
 /* Body copy, to spec: DM Sans Regular 400, 16px / 24px, no tracking. */
 .faculty-copy p { max-width: 610px; font-weight: 400; font-size: 16px; line-height: 24px; letter-spacing: 0; color: #7b8490; margin-bottom: 34px; }
 
-.faculty-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 35px; position: relative; }
-.faculty-card { border: 1px solid #dbe3f7; padding: 14px; border-radius: 9px; box-shadow: 0 6px 15px #253a5e09; }
-.faculty-card:nth-child(2), .faculty-card:nth-child(4) { transform: translateY(-35px); }
-.faculty-card img { width: 100%; height: 150px; object-fit: cover; border-radius: 6px; display: block; }
+/*
+ | Two columns scrolling in opposite directions.
+ |
+ | Each track holds its set of cards twice and translates by exactly -50%, which
+ | is one full set — so the loop has no seam. That exactness depends on spacing
+ | coming from margin-bottom on the cards rather than `gap` on the track: a gap
+ | sits only *between* items, so half the track height would be one set plus half
+ | a gap, and the loop would jump.
+ |
+ | The mask fades cards in and out at the edges instead of cutting them off.
+ */
+.faculty-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 35px; position: relative; height: 620px; overflow: hidden; -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 9%, #000 91%, transparent 100%); mask-image: linear-gradient(180deg, transparent 0, #000 9%, #000 91%, transparent 100%); }
+.faculty-track { will-change: transform; animation: faculty-down 44s linear infinite; }
+.faculty-track.is-up { animation-name: faculty-up; }
+.faculty-cards:hover .faculty-track, .faculty-cards:focus-within .faculty-track { animation-play-state: paused; }
+
+@keyframes faculty-up {
+    from { transform: translateY(0); }
+    to { transform: translateY(-50%); }
+}
+
+@keyframes faculty-down {
+    from { transform: translateY(-50%); }
+    to { transform: translateY(0); }
+}
+
+.faculty-card { border: 1px solid #dbe3f7; padding: 14px; border-radius: 9px; box-shadow: 0 6px 15px #253a5e09; margin-bottom: 35px; background: #fff; }
+.faculty-card img { width: 100%; aspect-ratio: 1; height: auto; object-fit: cover; border-radius: 6px; display: block; }
 .faculty-card h3 { font-size: 17px; margin: 15px 0 5px; }
 .faculty-card p { color: #828996; font-size: 11px; line-height: 1.4; margin: 0 0 7px; }
 .faculty-card a { color: #0b5a8e; font-size: 12px; font-weight: 700; }
@@ -419,7 +443,12 @@ h1 span { color: #0c5484; }
     .webinar-card { max-width: 500px; margin: auto; width: 100%; }
     .benefit-grid { gap: 28px; }
     .faculty { display: flex; flex-direction: column; gap: 55px; align-items: stretch; }
-    .faculty-cards { width: 100%; }
+    /* No marquee on a phone: a 620px scrolling column is hard to read and hard
+       to stop. The columns become a plain grid, and the duplicate set that
+       exists only to make the loop seamless is removed. */
+    .faculty-cards { width: 100%; height: auto; overflow: visible; -webkit-mask-image: none; mask-image: none; }
+    .faculty-track { animation: none; }
+    .faculty-card[aria-hidden="true"] { display: none; }
     .credential-grid { flex-direction: column; align-items: center; gap: 16px; }
     .credential-grid > div { width: 240px; }
     .callback { flex-direction: column; align-items: flex-start; gap: 20px; padding: 24px; }
@@ -439,7 +468,6 @@ h1 span { color: #0c5484; }
     .stats { flex-wrap: wrap; }
     .stats div { min-width: 43%; }
     .faculty-cards { gap: 15px; }
-    .faculty-card:nth-child(2), .faculty-card:nth-child(4) { transform: none; }
     .footer-links { gap: 14px; padding: 22px 15px; }
     .footer-intro form { flex-direction: column; gap: 8px; }
     .footer-intro form button { height: 40px; }
