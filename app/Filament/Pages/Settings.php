@@ -81,23 +81,27 @@ class Settings extends Page implements HasForms
                             ->required()
                             ->maxLength(160)
                             ->helperText('Use :code where the coupon code should appear. It renders in bold.')
-                            ->visible(fn (callable $get): bool => (bool) $get('promo_bar_enabled')),
+                            ->visible(fn (callable $get): bool => (bool) $get('promo_bar_enabled'))
+                            ->dehydratedWhenHidden(),
 
                         TextInput::make('promo_bar_code')
                             ->label('Coupon code')
                             ->maxLength(40)
                             ->helperText('Displayed only. Coupons are still validated server-side at checkout.')
-                            ->visible(fn (callable $get): bool => (bool) $get('promo_bar_enabled')),
+                            ->visible(fn (callable $get): bool => (bool) $get('promo_bar_enabled'))
+                            ->dehydratedWhenHidden(),
 
                         ColorPicker::make('promo_bar_background_color')
                             ->label('Background colour')
                             ->required()
-                            ->visible(fn (callable $get): bool => (bool) $get('promo_bar_enabled')),
+                            ->visible(fn (callable $get): bool => (bool) $get('promo_bar_enabled'))
+                            ->dehydratedWhenHidden(),
 
                         ColorPicker::make('promo_bar_text_color')
                             ->label('Text colour')
                             ->required()
-                            ->visible(fn (callable $get): bool => (bool) $get('promo_bar_enabled')),
+                            ->visible(fn (callable $get): bool => (bool) $get('promo_bar_enabled'))
+                            ->dehydratedWhenHidden(),
 
                         TextInput::make('promo_bar_font_size')
                             ->label('Font size')
@@ -108,7 +112,8 @@ class Settings extends Page implements HasForms
                             ->minValue(10)
                             ->maxValue(20)
                             ->suffix('px')
-                            ->visible(fn (callable $get): bool => (bool) $get('promo_bar_enabled')),
+                            ->visible(fn (callable $get): bool => (bool) $get('promo_bar_enabled'))
+                            ->dehydratedWhenHidden(),
                     ])
                     ->columns(2),
             ]);
@@ -130,12 +135,17 @@ class Settings extends Page implements HasForms
     {
         $data = $this->getForm('form')?->getState() ?? [];
 
+        // Fields hidden behind the enabled toggle keep their state via
+        // dehydratedWhenHidden(), but a save must not depend on that: an
+        // absent key falls back to what is already stored.
+        $value = static fn (string $key, string $setting, mixed $fallback): mixed => $data[$key] ?? Setting::get($setting, $fallback);
+
         Setting::set('promo_bar.enabled', (bool) $data['promo_bar_enabled'], 'boolean');
-        Setting::set('promo_bar.text', (string) $data['promo_bar_text'], 'string');
-        Setting::set('promo_bar.code', (string) ($data['promo_bar_code'] ?? ''), 'string');
-        Setting::set('promo_bar.background_color', (string) $data['promo_bar_background_color'], 'color');
-        Setting::set('promo_bar.text_color', (string) $data['promo_bar_text_color'], 'color');
-        Setting::set('promo_bar.font_size', (int) $data['promo_bar_font_size'], 'integer');
+        Setting::set('promo_bar.text', (string) $value('promo_bar_text', 'promo_bar.text', ''), 'string');
+        Setting::set('promo_bar.code', (string) $value('promo_bar_code', 'promo_bar.code', ''), 'string');
+        Setting::set('promo_bar.background_color', (string) $value('promo_bar_background_color', 'promo_bar.background_color', '#0c4d80'), 'color');
+        Setting::set('promo_bar.text_color', (string) $value('promo_bar_text_color', 'promo_bar.text_color', '#ffffff'), 'color');
+        Setting::set('promo_bar.font_size', (int) $value('promo_bar_font_size', 'promo_bar.font_size', 14), 'integer');
 
         Notification::make()->title('Settings saved')->success()->send();
     }

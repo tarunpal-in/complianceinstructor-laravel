@@ -94,3 +94,51 @@ it('serves settings from one cached read', function (): void {
 
     expect(DB::getQueryLog())->toBeEmpty();
 });
+
+/**
+ * Filament drops hidden fields from form state, so saving with the bar toggled
+ * off used to throw "Undefined array key promo_bar_text". The fields now
+ * dehydrate while hidden, and save() falls back to stored values regardless —
+ * so turning the bar off must never wipe the message or the colours.
+ */
+it('saves with the bar disabled without losing the other values', function (): void {
+    Setting::set('promo_bar.text', 'Keep me with :code.', 'string');
+    Setting::set('promo_bar.background_color', '#101820', 'color');
+    Setting::set('promo_bar.font_size', 16, 'integer');
+
+    $admin = User::factory()->create();
+    $admin->assignRole(UserRole::SuperAdmin->value);
+
+    Livewire\Livewire::actingAs($admin)
+        ->test(Settings::class)
+        ->set('data.promo_bar_enabled', false)
+        ->call('save')
+        ->assertHasNoFormErrors()
+        ->assertOk();
+
+    Setting::flush();
+
+    expect(Setting::get('promo_bar.enabled'))->toBeFalse()
+        ->and(Setting::get('promo_bar.text'))->toBe('Keep me with :code.')
+        ->and(Setting::get('promo_bar.background_color'))->toBe('#101820')
+        ->and(Setting::get('promo_bar.font_size'))->toBe(16);
+});
+
+it('re-enables the bar with its previous styling intact', function (): void {
+    Setting::set('promo_bar.enabled', false, 'boolean');
+    Setting::set('promo_bar.text_color', '#abcdef', 'color');
+
+    $admin = User::factory()->create();
+    $admin->assignRole(UserRole::SuperAdmin->value);
+
+    Livewire\Livewire::actingAs($admin)
+        ->test(Settings::class)
+        ->set('data.promo_bar_enabled', true)
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    Setting::flush();
+
+    expect(Setting::get('promo_bar.enabled'))->toBeTrue()
+        ->and(Setting::get('promo_bar.text_color'))->toBe('#abcdef');
+});
