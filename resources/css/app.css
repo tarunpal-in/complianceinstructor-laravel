@@ -120,8 +120,12 @@ h1, h2 { font-family: 'DM Sans', sans-serif; letter-spacing: -0.055em; }
    tracking, uppercase. Alignment is left to the .centered / .split modifiers
    on .section-heading rather than baked in here, so the left-aligned sections
    (Upcoming Webinars, Success Stories) keep their alignment. */
-.eyebrow { color: #054376; font-weight: 600; font-size: 12.5px; line-height: 18.75px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 19px; }
-.eyebrow.gold { color: #d89303; background: #fff1cd; display: inline-block; padding: 10px 15px; border-radius: 22px; letter-spacing: 0.035em; margin-bottom: 25px; }
+.eyebrow { color: #054376; font-weight: 600; font-size: 14px; line-height: 18.75px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 19px; }
+
+/* The hero badge is a pill rather than a section label, so it keeps the 12.5px
+   it was already setting at — raising it with the others would push the pill
+   noticeably larger. Pinned rather than inherited so that stays deliberate. */
+.eyebrow.gold { color: #d89303; background: #fff1cd; display: inline-block; padding: 10px 15px; border-radius: 22px; font-size: 12.5px; letter-spacing: 0.035em; margin-bottom: 25px; }
 /* Hero heading, to spec: DM Sans Bold 700, 54px / 60px, -1.5px tracking.
    The -1.5px overrides the -0.055em shared with h2 — at 54px that shorthand
    worked out to about -3px, so this is noticeably looser and the line runs
@@ -284,8 +288,6 @@ h1 span { color: #0c5484; }
 /* Body copy, to spec: DM Sans Regular 400, 16px / 24px, no tracking. */
 .faculty-copy p { max-width: 610px; font-weight: 400; font-size: 16px; line-height: 24px; letter-spacing: 0; color: #7b8490; margin-bottom: 34px; }
 
-/* 14px here against the 12.5px the other eyebrows use — per spec. */
-.faculty-copy .eyebrow { font-size: 14px; }
 .faculty-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 35px; position: relative; }
 .faculty-card { border: 1px solid #dbe3f7; padding: 14px; border-radius: 9px; box-shadow: 0 6px 15px #253a5e09; }
 .faculty-card:nth-child(2), .faculty-card:nth-child(4) { transform: translateY(-35px); }
