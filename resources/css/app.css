@@ -340,7 +340,7 @@ h1 span { color: #0c5484; }
 .socials { display: flex; gap: 18px; color: #075386; margin-top: 22px; }
 .footer-links { border: 1px solid #f4e0b6; background: white; border-radius: 15px; padding: 30px 18px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 25px; }
 .footer-links h4, .payments strong { color: #105888; font-size: 13px; letter-spacing: 0.1em; margin: 0 0 19px; }
-.footer-links a { display: block; font-size: 13px; margin: 0 0 15px; }
+.footer-links a { display: block; font-size: 15px; margin: 0 0 15px; }
 .payments { margin-left: 406px; margin-top: 32px; border: 1px solid #f4e0b6; border-radius: 15px; padding: 19px 18px; display: flex; justify-content: space-between; align-items: center; }
 .payments strong { margin: 0; }
 .payments div { display: flex; gap: 12px; align-items: center; }
