@@ -128,7 +128,6 @@ class AdminPanelProvider extends PanelProvider
     {
         /** @var array<int, array{0: string, 1: int, 2: string, 3: Heroicon}> $items */
         $items = [
-            ['Catalogue', 10, 'Webinars', Heroicon::OutlinedVideoCamera],
             ['Catalogue', 20, 'Packages', Heroicon::OutlinedCube],
 
             ['Sales', 10, 'Orders', Heroicon::OutlinedShoppingBag],

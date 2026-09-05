@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 /**
+ * @property-read \Illuminate\Database\Eloquent\Relations\Pivot|null $pivot
+ *
  * CLAUDE.md §5.3 — an accrediting body: HRCI, SHRM, CPE, APA.
  *
  * §12 has their credit rules "prescribed and not negotiable", so credits live
