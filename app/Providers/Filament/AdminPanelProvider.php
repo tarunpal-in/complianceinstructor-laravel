@@ -114,8 +114,9 @@ class AdminPanelProvider extends PanelProvider
      * same group and sort position, so the sidebar never reshuffles under the
      * client.
      *
-     * Customers and Settings are absent: UserResource and the Settings page
-     * already occupy those slots.
+     * Absent because a real resource or page already occupies the slot:
+     * Customers, Settings, Speakers, Industries — and Accreditations, which
+     * the resource adds to Catalogue.
      *
      * Not yet permission-gated — real resources gate on `view_any_*` through
      * their own can* methods (§8). Stubs are visible to any admin role until
@@ -129,8 +130,6 @@ class AdminPanelProvider extends PanelProvider
         $items = [
             ['Catalogue', 10, 'Webinars', Heroicon::OutlinedVideoCamera],
             ['Catalogue', 20, 'Packages', Heroicon::OutlinedCube],
-            ['Catalogue', 30, 'Speakers', Heroicon::OutlinedMicrophone],
-            ['Catalogue', 40, 'Industries', Heroicon::OutlinedBuildingOffice2],
 
             ['Sales', 10, 'Orders', Heroicon::OutlinedShoppingBag],
             ['Sales', 20, 'Payments', Heroicon::OutlinedCreditCard],
