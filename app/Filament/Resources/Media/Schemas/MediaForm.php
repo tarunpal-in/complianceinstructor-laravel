@@ -13,6 +13,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Text;
+use Filament\Schemas\Components\View;
 use Filament\Schemas\Schema;
 use Illuminate\Support\HtmlString;
 
@@ -27,6 +28,8 @@ class MediaForm
     public static function configure(Schema $schema): Schema
     {
         return $schema->components([
+
+            View::make('filament.schemas.media-preview')->columnSpanFull(),
 
             Section::make()->columns(2)->schema([
                 TextInput::make('name')

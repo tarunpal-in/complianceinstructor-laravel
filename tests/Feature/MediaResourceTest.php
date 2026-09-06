@@ -176,6 +176,105 @@ it('ignores settings that are not media references', function (): void {
     expect(MediaUsage::query()->count())->toBe(0);
 });
 
+// Folders ---------------------------------------------------------------------
+
+/**
+ * A client tidying their filing should not lose the files they were filing.
+ * Deleting a folder relocates its contents; the delete guard still protects
+ * anything actually in use.
+ */
+it('moves files to Uncategorised when their folder is deleted', function (): void {
+    $folder = MediaFolder::factory()->create(['name' => 'Old campaign']);
+    $media = Media::factory()->create(['model_id' => $folder->id]);
+
+    // An empty list means every folder except Uncategorised is gone.
+    $result = app(App\Actions\Media\SyncMediaFolders::class)([]);
+
+    expect($result['deleted'])->toBe(1)
+        ->and($result['relocated'])->toBe(1)
+        ->and($media->fresh()?->model_id)->toBe(MediaFolder::uncategorised()->id)
+        ->and(Media::query()->find($media->id))->not->toBeNull();
+});
+
+it('renames and creates folders from one list', function (): void {
+    $existing = MediaFolder::factory()->create(['name' => 'Brnad']);
+
+    $result = app(App\Actions\Media\SyncMediaFolders::class)([
+        ['id' => $existing->id, 'name' => 'Brand', 'parent_id' => null],
+        ['id' => null, 'name' => 'Speakers', 'parent_id' => null],
+    ]);
+
+    expect($result['renamed'])->toBe(1)
+        ->and($result['created'])->toBe(1)
+        ->and($existing->fresh()?->name)->toBe('Brand')
+        ->and($existing->fresh()?->slug)->toBe('brand');
+});
+
+/**
+ * One level of nesting is a filing system; three is where files get lost. A
+ * parent that is itself nested is flattened rather than quietly accepted.
+ */
+it('refuses to nest a folder more than one level deep', function (): void {
+    $top = MediaFolder::factory()->create(['name' => 'Marketing']);
+    $child = MediaFolder::factory()->create(['name' => 'Campaigns', 'parent_id' => $top->id]);
+
+    app(App\Actions\Media\SyncMediaFolders::class)([
+        ['id' => $top->id, 'name' => 'Marketing', 'parent_id' => null],
+        ['id' => $child->id, 'name' => 'Campaigns', 'parent_id' => $top->id],
+        ['id' => null, 'name' => 'Spring', 'parent_id' => $child->id],
+    ]);
+
+    expect(MediaFolder::query()->where('name', 'Spring')->first()?->parent_id)->toBeNull();
+});
+
+it('does not let a folder become its own parent', function (): void {
+    $folder = MediaFolder::factory()->create(['name' => 'Brand']);
+
+    app(App\Actions\Media\SyncMediaFolders::class)([
+        ['id' => $folder->id, 'name' => 'Brand', 'parent_id' => $folder->id],
+    ]);
+
+    expect($folder->fresh()?->parent_id)->toBeNull();
+});
+
+// Audit trail -----------------------------------------------------------------
+
+/**
+ * §9 — the predecessor had no audit trail. "Who deleted the handout" is the
+ * question this exists to answer.
+ */
+it('logs who deleted a file', function (): void {
+    $user = userWithRole(UserRole::SuperAdmin);
+    $this->actingAs($user);
+
+    $media = Media::factory()->create(['name' => 'Accreditation Statement']);
+    app(DeleteLibraryMedia::class)($media);
+
+    $entry = Spatie\Activitylog\Models\Activity::query()
+        ->where('log_name', 'media')
+        ->where('event', 'deleted')
+        ->latest('id')
+        ->first();
+
+    expect($entry)->not->toBeNull()
+        ->and($entry?->causer_id)->toBe($user->id);
+});
+
+/**
+ * Conversions rewrite generated_conversions on every upload. Logging the whole
+ * model would bury the events anyone actually looks for under machine noise.
+ */
+it('does not log conversion bookkeeping as a change', function (): void {
+    $this->actingAs(userWithRole(UserRole::SuperAdmin));
+
+    $media = Media::factory()->create();
+    $before = Spatie\Activitylog\Models\Activity::query()->where('log_name', 'media')->count();
+
+    $media->forceFill(['generated_conversions' => ['thumb' => true]])->save();
+
+    expect(Spatie\Activitylog\Models\Activity::query()->where('log_name', 'media')->count())->toBe($before);
+});
+
 // Seed data -------------------------------------------------------------------
 
 /**

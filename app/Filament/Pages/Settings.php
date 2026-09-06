@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Pages;
 
+use App\Filament\Forms\Components\MediaPicker;
 use App\Filament\Widgets\SetupChecklist;
 use App\Models\Setting;
 use BackedEnum;
@@ -54,6 +55,11 @@ class Settings extends Page implements HasForms
         // getForm() rather than $this->form: the property is magic on
         // InteractsWithForms and invisible to static analysis.
         $this->getForm('form')?->fill([
+            'brand_logo_media_id' => Setting::mediaId('brand.logo_media_id'),
+            'brand_logo_dark_media_id' => Setting::mediaId('brand.logo_dark_media_id'),
+            'brand_favicon_media_id' => Setting::mediaId('brand.favicon_media_id'),
+            'brand_og_default_media_id' => Setting::mediaId('brand.og_default_media_id'),
+
             'promo_bar_enabled' => (bool) Setting::get('promo_bar.enabled', true),
             'promo_bar_text' => Setting::get('promo_bar.text'),
             'promo_bar_code' => Setting::get('promo_bar.code'),
@@ -68,6 +74,27 @@ class Settings extends Page implements HasForms
         return $schema
             ->statePath('data')
             ->components([
+                Section::make('Brand')
+                    ->description('Picked from the media library, so replacing a file there updates it everywhere at once.')
+                    ->schema([
+                        MediaPicker::make('brand_logo_media_id')
+                            ->label('Logo')
+                            ->helperText('Shown in the header and on invoices.'),
+
+                        MediaPicker::make('brand_logo_dark_media_id')
+                            ->label('Logo (dark backgrounds)')
+                            ->helperText('Optional. Used in the footer and anywhere the background is dark.'),
+
+                        MediaPicker::make('brand_favicon_media_id')
+                            ->label('Favicon')
+                            ->helperText('A square PNG or SVG. Browsers cache these hard, so a change can take a while to show.'),
+
+                        MediaPicker::make('brand_og_default_media_id')
+                            ->label('Default social image')
+                            ->helperText('Used when a page has no image of its own. 1200×630 works everywhere.'),
+                    ])
+                    ->columns(2),
+
                 Section::make('Promo bar')
                     ->description('The strip above the header on every public page.')
                     ->schema([
@@ -139,6 +166,19 @@ class Settings extends Page implements HasForms
         // dehydratedWhenHidden(), but a save must not depend on that: an
         // absent key falls back to what is already stored.
         $value = static fn (string $key, string $setting, mixed $fallback): mixed => $data[$key] ?? Setting::get($setting, $fallback);
+
+        // Written before the promo bar so that saving with no brand images
+        // selected still clears any stale usage rows for them.
+        foreach ([
+            'brand_logo_media_id' => 'brand.logo_media_id',
+            'brand_logo_dark_media_id' => 'brand.logo_dark_media_id',
+            'brand_favicon_media_id' => 'brand.favicon_media_id',
+            'brand_og_default_media_id' => 'brand.og_default_media_id',
+        ] as $field => $setting) {
+            $mediaId = $data[$field] ?? null;
+
+            Setting::set($setting, filled($mediaId) ? (int) $mediaId : null, 'media_id');
+        }
 
         Setting::set('promo_bar.enabled', (bool) $data['promo_bar_enabled'], 'boolean');
         Setting::set('promo_bar.text', (string) $value('promo_bar_text', 'promo_bar.text', ''), 'string');

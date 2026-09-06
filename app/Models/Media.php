@@ -11,6 +11,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\MediaLibrary\MediaCollections\Models\Media as SpatieMedia;
 
 /**
@@ -30,10 +32,27 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media as SpatieMedia;
 class Media extends SpatieMedia
 {
     /** @use HasFactory<MediaFactory> */
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     /** The collection every library file lives in. */
     public const LIBRARY_COLLECTION = 'library';
+
+    /**
+     * §9 — the predecessor had no audit trail at all.
+     *
+     * Deliberately narrow. `generated_conversions` and `responsive_images` are
+     * rewritten by the conversion pipeline on every upload, so logging the whole
+     * model would bury the two events anyone will ever look for — who replaced
+     * the logo, and who deleted the handout — under machine noise.
+     */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['name', 'file_name', 'size', 'hash', 'model_id', 'custom_properties'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->useLogName('media');
+    }
 
     /** @return HasMany<MediaUsage, $this> */
     public function usages(): HasMany

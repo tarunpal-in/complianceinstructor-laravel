@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Media\Pages;
 use App\Actions\Media\DeleteLibraryMedia;
 use App\Actions\Media\ReplaceLibraryMedia;
 use App\Actions\Media\StoreLibraryMedia;
+use App\Actions\Media\SyncMediaFolders;
 use App\Filament\Resources\Media\MediaResource;
 use App\Models\Media;
 use App\Models\MediaFolder;
@@ -16,7 +17,10 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Support\Icons\Heroicon;
@@ -65,7 +69,7 @@ class ListMedia extends ListRecords
     {
         return [
             $this->uploadAction(),
-            $this->newFolderAction(),
+            $this->manageFoldersAction(),
             $this->viewModeAction(),
         ];
     }
@@ -135,37 +139,84 @@ class ListMedia extends ListRecords
             });
     }
 
-    private function newFolderAction(): Action
+    /**
+     * Create, rename, re-nest, reorder and delete, in one list.
+     *
+     * A repeater rather than a folder resource of its own: folders are a filing
+     * aid for one screen, not a thing worth its own sidebar item and its own
+     * CRUD pages.
+     */
+    private function manageFoldersAction(): Action
     {
-        return Action::make('newFolder')
-            ->label('New folder')
-            ->icon(Heroicon::OutlinedFolderPlus)
+        return Action::make('folders')
+            ->label('Folders')
+            ->icon(Heroicon::OutlinedFolder)
             ->color('gray')
-            ->visible(fn (): bool => auth()->user()?->can('create_media') ?? false)
+            ->visible(fn (): bool => auth()->user()?->can('update_media') ?? false)
+            ->modalHeading('Folders')
+            ->modalDescription('Deleting a folder never deletes what is in it — those files move to Uncategorised.')
+            ->modalSubmitActionLabel('Save folders')
+            ->fillForm(fn (): array => [
+                'folders' => MediaFolder::query()
+                    ->where('slug', '!=', 'uncategorised')
+                    ->orderBy('sort_order')
+                    ->orderBy('name')
+                    ->get()
+                    ->map(fn (MediaFolder $folder): array => [
+                        'id' => $folder->id,
+                        'name' => $folder->name,
+                        'parent_id' => $folder->parent_id,
+                    ])
+                    ->all(),
+            ])
             ->schema([
-                \Filament\Forms\Components\TextInput::make('name')
-                    ->required()
-                    ->maxLength(60),
+                Repeater::make('folders')
+                    ->hiddenLabel()
+                    ->addActionLabel('Add folder')
+                    ->reorderable()
+                    ->columns(2)
+                    ->itemLabel(fn (array $state): ?string => $state['name'] ?? null)
+                    ->schema([
+                        Hidden::make('id'),
 
-                Select::make('parent_id')
-                    ->label('Inside')
-                    ->placeholder('Top level')
-                    // Only top-level folders may be parents. One level of
-                    // nesting is a filing system; three is where files get lost.
-                    ->options(fn (): array => MediaFolder::query()
-                        ->whereNull('parent_id')
-                        ->orderBy('name')
-                        ->pluck('name', 'id')
-                        ->all()),
+                        TextInput::make('name')
+                            ->required()
+                            ->maxLength(60),
+
+                        Select::make('parent_id')
+                            ->label('Inside')
+                            ->placeholder('Top level')
+                            // Only top-level folders may be parents. One level of
+                            // nesting is a filing system; three is where files
+                            // get lost.
+                            ->options(fn (): array => MediaFolder::query()
+                                ->whereNull('parent_id')
+                                ->where('slug', '!=', 'uncategorised')
+                                ->orderBy('name')
+                                ->pluck('name', 'id')
+                                ->all()),
+                    ]),
             ])
             ->action(function (array $data): void {
-                MediaFolder::create([
-                    'name' => $data['name'],
-                    'slug' => \Illuminate\Support\Str::slug((string) $data['name']),
-                    'parent_id' => $data['parent_id'] ?? null,
+                /** @var array<int, array{id: int|string|null, name: string, parent_id: int|string|null}> $rows */
+                $rows = $data['folders'] ?? [];
+
+                $result = app(SyncMediaFolders::class)($rows);
+
+                $parts = array_filter([
+                    $result['created'] > 0 ? "{$result['created']} added" : null,
+                    $result['renamed'] > 0 ? "{$result['renamed']} renamed" : null,
+                    $result['deleted'] > 0 ? "{$result['deleted']} deleted" : null,
+                    $result['relocated'] > 0 ? "{$result['relocated']} file(s) moved to Uncategorised" : null,
                 ]);
 
-                Notification::make()->title('Folder created')->success()->send();
+                Notification::make()
+                    ->title('Folders saved')
+                    ->body($parts === [] ? null : implode(' · ', $parts))
+                    ->success()
+                    ->send();
+
+                $this->resetTable();
             });
     }
 
