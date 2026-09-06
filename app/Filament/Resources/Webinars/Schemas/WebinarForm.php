@@ -12,9 +12,11 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Callout;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Schema;
+use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Throwable;
@@ -29,6 +31,18 @@ class WebinarForm
     public static function configure(Schema $schema): Schema
     {
         return $schema->components([
+
+            // Purchase options, credits and deliverables are relation managers,
+            // and a relation manager has nowhere to write until the webinar has
+            // an id — so none of them can appear on this page. Saying so here is
+            // cheaper than the client hunting for fields that cannot exist yet.
+            Callout::make('Pricing, credits and files come next')
+                ->description('Save this webinar first. Its purchase options, CEU credits and deliverables are added on the screen you land on afterwards, and it cannot be published without them.')
+                ->icon(Heroicon::OutlinedInformationCircle)
+                ->color('info')
+                ->columnSpanFull()
+                ->visible(fn (string $operation): bool => $operation === 'create'),
+
             Tabs::make()->columnSpanFull()->tabs([
 
                 Tab::make('Details')->schema([

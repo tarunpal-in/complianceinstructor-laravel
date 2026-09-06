@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 use App\Enums\UserRole;
 use App\Enums\WebinarStatus;
+use App\Enums\WebinarType;
+use App\Filament\Resources\Webinars\Pages\CreateWebinar;
 use App\Filament\Resources\Webinars\Pages\EditWebinar;
+use App\Filament\Resources\Webinars\WebinarResource;
 use App\Models\Accreditation;
 use App\Models\Offering;
+use App\Models\Speaker;
 use App\Models\Webinar;
 use Database\Seeders\RolePermissionSeeder;
 
@@ -52,6 +56,43 @@ it('renders the list without lazy loading relations', function (): void {
     $this->actingAs(userWithRole(UserRole::SuperAdmin))
         ->get('/admin/webinars')
         ->assertSuccessful();
+});
+
+/**
+ * Purchase options, credits and deliverables are relation managers, so they
+ * exist only on the edit page. Redirecting to the index after create would drop
+ * the client on a list with a half-built webinar and no sign of what is missing.
+ */
+it('sends you to the edit page after creating a webinar', function (): void {
+    $speaker = Speaker::factory()->create();
+
+    Livewire\Livewire::actingAs(userWithRole(UserRole::SuperAdmin))
+        ->test(CreateWebinar::class)
+        ->fillForm([
+            'type' => WebinarType::Recorded->value,
+            'title' => 'Wage and Hour Essentials',
+            'slug' => 'wage-and-hour-essentials',
+            'speaker_id' => $speaker->id,
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $webinar = Webinar::query()->where('slug', 'wage-and-hour-essentials')->firstOrFail();
+
+    expect($webinar->status)->toBe(WebinarStatus::Draft);
+
+    Livewire\Livewire::actingAs(userWithRole(UserRole::SuperAdmin))
+        ->test(CreateWebinar::class)
+        ->fillForm([
+            'type' => WebinarType::Recorded->value,
+            'title' => 'Second One',
+            'slug' => 'second-one',
+            'speaker_id' => $speaker->id,
+        ])
+        ->call('create')
+        ->assertRedirect(WebinarResource::getUrl('edit', [
+            'record' => Webinar::query()->where('slug', 'second-one')->firstOrFail(),
+        ]));
 });
 
 // The publish gate ----------------------------------------------------------
