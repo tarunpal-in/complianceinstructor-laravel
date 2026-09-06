@@ -71,6 +71,21 @@ class WebinarResource extends Resource
         ];
     }
 
+    /**
+     * Offerings first: it is where the money is, and where a webinar most
+     * often fails to be publishable.
+     *
+     * @return array<int, class-string>
+     */
+    public static function getRelations(): array
+    {
+        return [
+            RelationManagers\OfferingsRelationManager::class,
+            RelationManagers\AccreditationsRelationManager::class,
+            RelationManagers\AssetsRelationManager::class,
+        ];
+    }
+
     public static function getPages(): array
     {
         return [
