@@ -427,7 +427,77 @@ rest are §9 and §7 P9 obligations that get more expensive the longer they wait
 
 ---
 
-## 11. Open decisions
+## 11. What was built, and where it differs from this plan
+
+Built 2026-09-06/07. Everything in Tiers 1–3 is in, plus the brand settings from
+Tier 4. Five decisions changed during the build; each is here because the plan
+would otherwise read as wrong rather than superseded.
+
+### 11.1 PDF thumbnails do not use Imagick
+
+§6.1 called for `spatie/pdf-to-image` plus `php-imagick`. Instead
+`App\Media\PdfPageImageGenerator` shells out to **poppler's `pdftoppm`**, falling
+back to **Ghostscript**, and replaces spatie's `Pdf` generator in
+`config/media-library.php`.
+
+Imagick delegates PDF rendering to Ghostscript anyway, so the extension adds a
+layer that renders nothing — and it drags in the `policy.xml` trap §6.1 warned
+about. Dropping it means one apt package (`poppler-utils`), no PHP extension, and
+no silent failure mode that looks like a missing Ghostscript. Neither binary is
+present on this machine, so the generator reports itself unavailable and files
+fall back to a mime icon, exactly as intended.
+
+### 11.2 Extracted text lives in a sidecar table
+
+§4 put `extracted_text` on `media`. It is now `media_documents` (media_id
+primary key, page_count, extracted_text, extracted_at, extract_error).
+
+A grid selects every column of sixty rows to draw sixty thumbnails. A MEDIUMTEXT
+on `media` would make that query haul sixty document bodies it never renders.
+
+### 11.3 No FULLTEXT index
+
+§4 specified one. Dropped, for two reasons: tests run on SQLite, which has no
+such index; and MySQL's default `innodb_ft_min_token_size` of 3 plus its stopword
+list would silently drop exactly the terms this catalogue is searched by —
+*FMLA*, *I-9*, *OSHA*. A LIKE scan over a few thousand rows is well inside what an
+admin search can afford, and `laravel/scout` is already in the stack if it is
+outgrown.
+
+### 11.4 Brand settings came forward from Tier 4
+
+`Setting` is the first model to implement `ReferencesMedia`, so the logo, dark
+logo, favicon and default social image are picked from the library and write
+`media_usages`. This was Tier 4 item 15; doing it now means the delete guard has
+something real to guard from day one rather than waiting for P6.
+
+### 11.5 The picker is a select, not a modal browser
+
+`App\Filament\Forms\Components\MediaPicker` is a searchable select over library
+files, not the modal browser Tier 4 item 13 describes. It is enough for four
+brand fields. The page builder at P6 will want the full modal, and this class is
+where it goes.
+
+### Not built
+
+| Item | Why |
+|---|---|
+| Private disk + signed route | Nothing can be marked private yet, so the route would guard an empty set. `config/media.php` holds `private_disk` and `signed_url_minutes` ready for it. The two things it protects — webinar recordings and certificates — are out of this system by §2 |
+| Storage-usage widget | Cosmetic; the list view sorts by size, which answers the same question |
+| "Choose from library" on webinar/speaker/industry | Tier 4 item 14, wanted at P6 alongside the modal picker |
+| Image editor (crop/rotate) | Filament ships it; one call on the replace flow when someone asks |
+| Document version history | Still an open decision — see below |
+
+### Server requirements, restated
+
+`docs/deployment.md` needs: **`poppler-utils`** (PDF thumbnails; Ghostscript is
+the fallback), `upload_max_filesize` and `post_max_size` at 128M, nginx
+`client_max_body_size 128m`, and Horizon running so conversions and extraction
+actually happen. No Imagick, no ffmpeg.
+
+---
+
+## 12. Open decisions
 
 1. **Document version history.** Replace-in-place overwrites. For a compliance
    business there is an argument for keeping the previous file and being able to
