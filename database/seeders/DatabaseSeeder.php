@@ -27,6 +27,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RolePermissionSeeder::class,
             SettingSeeder::class,
+            MediaLibrarySeeder::class,
         ]);
 
         $admin = User::firstOrCreate(

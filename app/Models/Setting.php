@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Contracts\ReferencesMedia;
+use App\Models\Concerns\RecordsMediaUsage;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
@@ -16,9 +18,25 @@ use Illuminate\Support\Facades\Schema;
  * dozen queries. The cache is dropped whenever a row is written, so a save is
  * visible on the next request without a manual clear.
  */
-class Setting extends Model
+class Setting extends Model implements ReferencesMedia
 {
+    use RecordsMediaUsage;
+
     private const CACHE_KEY = 'settings.all';
+
+    /**
+     * Settings whose value is a media id, and what to call that use.
+     *
+     * The logo and the favicon are the most-referenced files on the site and the
+     * ones a client is most likely to tidy away by accident, so they are exactly
+     * what the delete guard should be protecting.
+     */
+    public const MEDIA_KEYS = [
+        'brand.logo_media_id' => 'brand.logo',
+        'brand.logo_dark_media_id' => 'brand.logo (dark)',
+        'brand.favicon_media_id' => 'brand.favicon',
+        'brand.og_default_media_id' => 'brand.social image',
+    ];
 
     protected $fillable = ['group', 'key', 'value', 'type'];
 
@@ -100,6 +118,36 @@ class Setting extends Model
         $value = static::get($key);
 
         return is_numeric($value) ? (int) max($min, min($max, (int) $value)) : $fallback;
+    }
+
+    /**
+     * The media id this row holds, if it is one of the brand media settings.
+     *
+     * @return array<string, int|null>
+     */
+    public function mediaUsageMap(): array
+    {
+        $dotted = "{$this->group}.{$this->key}";
+        $context = self::MEDIA_KEYS[$dotted] ?? null;
+
+        if ($context === null || ! is_numeric($this->value)) {
+            return [];
+        }
+
+        return [$context => (int) $this->value];
+    }
+
+    /**
+     * A media id held in settings, or null.
+     *
+     * Validated as numeric before use: the value column is JSON and an admin
+     * typo would otherwise reach a query as a string.
+     */
+    public static function mediaId(string $key): ?int
+    {
+        $value = static::get($key);
+
+        return is_numeric($value) ? (int) $value : null;
     }
 
     /**

@@ -11,6 +11,14 @@ parameters:
         - database
         - routes
 
+    # Larastan defaults this to empty, which means no string is ever recognised
+    # as a view-string and every ->view('...') is reported as a type error.
+    # Pointing it at the view root also buys real checking: a typo'd or deleted
+    # Blade path becomes a build failure instead of a 500 on a page nobody
+    # visited before the client did.
+    viewDirectories:
+        - resources/views
+
     # 'tests' is deliberately excluded: Pest binds its closures to Tests\TestCase
     # at runtime via pest()->extend(), which PHPStan cannot see, so every
     # $this->get() in a test would be a false positive. Pest is the gate on test code.

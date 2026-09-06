@@ -34,7 +34,7 @@ class RolePermissionSeeder extends Seeder
         // Learners
         'user', 'entitlement', 'certificate',
         // Content
-        'page', 'post', 'navigation', 'redirect', 'seo_meta',
+        'page', 'post', 'navigation', 'redirect', 'seo_meta', 'media',
         // Engagement
         'lead', 'subscriber', 'inquiry',
         // System
@@ -101,7 +101,7 @@ class RolePermissionSeeder extends Seeder
             UserRole::ContentEditor => [
                 ...$this->crudFor([
                     'webinar', 'package', 'speaker', 'industry', 'accreditation',
-                    'page', 'post', 'navigation', 'redirect', 'seo_meta',
+                    'page', 'post', 'navigation', 'redirect', 'seo_meta', 'media',
                 ]),
                 'view_any_lead', 'view_lead',
             ],
@@ -109,7 +109,7 @@ class RolePermissionSeeder extends Seeder
             // Everything that touches money, plus reporting and exports.
             UserRole::Finance => [
                 ...$this->crudFor(['order', 'payment', 'coupon', 'subscription', 'offering']),
-                ...$this->readFor(['webinar', 'package', 'membership_plan', 'user', 'entitlement']),
+                ...$this->readFor(['webinar', 'package', 'membership_plan', 'user', 'entitlement', 'media']),
                 'refund_payment', 'manage_manual_payment', 'view_reports',
                 'export_data', 'view_activity_log',
             ],
@@ -118,7 +118,7 @@ class RolePermissionSeeder extends Seeder
             UserRole::Support => [
                 ...$this->readFor([
                     'order', 'payment', 'user', 'entitlement', 'certificate',
-                    'subscription', 'webinar', 'package', 'inquiry',
+                    'subscription', 'webinar', 'package', 'inquiry', 'media',
                 ]),
                 'grant_entitlement', 'revoke_entitlement', 'impersonate_user',
                 'update_inquiry',
