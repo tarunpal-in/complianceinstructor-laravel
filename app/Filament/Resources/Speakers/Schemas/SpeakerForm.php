@@ -45,6 +45,14 @@ class SpeakerForm
                         ->maxLength(255)
                         ->helperText('Shown under their name — "HR Compliance Specialist".'),
 
+                    TextInput::make('credentials')
+                        ->label('Credentials')
+                        ->maxLength(120)
+                        // Separate from the job title because they answer
+                        // different questions, and a CEU buyer is mostly asking
+                        // this one.
+                        ->helperText('Post-nominals, shown highlighted under the role — "CPA · SHRM-SCP".'),
+
                     TextInput::make('linkedin_url')
                         ->label('LinkedIn')
                         ->url()

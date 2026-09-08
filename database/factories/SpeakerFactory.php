@@ -24,6 +24,9 @@ class SpeakerFactory extends Factory
                 'HR Compliance Specialist', 'Payroll Operations Lead',
                 'EHS Director', 'Employment Counsel', 'Executive Leadership Coach',
             ]),
+            'credentials' => fake()->randomElement([
+                'CPA · SHRM-SCP', 'SHRM-SCP', 'PHR · SHRM-CP', 'JD · SHRM-SCP', 'CPP · CPA',
+            ]),
             'bio' => fake()->paragraphs(2, true),
             'linkedin_url' => 'https://www.linkedin.com/in/'.Str::slug($name),
             'is_active' => true,

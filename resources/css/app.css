@@ -483,3 +483,196 @@ h1 span { color: #0c5484; }
 }
 
 [x-cloak] { display: none !important; }
+
+/* ==========================================================================
+   Webinar detail page — design-ui/Webinar Page.pdf
+
+   Namespaced `wd-` throughout: the homepage already owns .webinar-card,
+   .webinar-body and .speaker, and this page needs its own version of all
+   three. The palette is the site's — #054376 navy, #f4b139 amber, #1a1a2e ink —
+   sampled from the comp and identical to the homepage tokens.
+   ========================================================================== */
+
+.wd-crumbs { max-width: var(--container); margin: auto; padding: 14px max(var(--gutter), 0px); }
+.wd-crumbs ol { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; list-style: none; font-size: 13px; color: #6b7280; }
+.wd-crumbs li + li::before { content: '›'; margin-right: 8px; color: #9aa3af; }
+.wd-crumbs a { color: #054376; text-decoration: none; }
+.wd-crumbs a:hover { text-decoration: underline; }
+.wd-crumbs [aria-current] { color: #1a1a2e; }
+
+/* Hero ------------------------------------------------------------------ */
+
+.wd-hero { position: relative; background-size: cover; background-position: center; padding: 46px max(var(--gutter), calc((100% - var(--container)) / 2)) 60px; overflow: hidden; }
+/* A wash on its own element rather than a gradient on the section, so the
+   client can swap the banner without anyone restating the overlay. Without it
+   a light photo drops the H1 below AA contrast (§7 P9). */
+.wd-hero-tint { position: absolute; inset: 0; background: linear-gradient(90deg, #054376f2 0%, #054376e0 46%, #0a4a7ac4 100%); }
+.wd-hero-inner { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 1fr) 470px; gap: 60px; align-items: start; }
+.wd-hero-copy { color: #fff; padding-top: 8px; }
+
+.wd-badges { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 22px; }
+.wd-badge { display: inline-flex; align-items: center; gap: 7px; background: #fdf1d8; color: #996601; font-size: 12px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; padding: 7px 15px; border-radius: 999px; }
+.wd-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+.wd-hero h1 { color: #fff; max-width: 720px; margin-bottom: 20px; }
+.wd-summary { max-width: 700px; font-size: 17px; line-height: 27px; color: #e8eef5; margin-bottom: 30px; }
+
+.wd-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 40px; border: 1px solid #ffffff59; border-radius: 14px; padding: 24px 28px; max-width: 720px; margin-bottom: 30px; }
+.wd-facts dt { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #cfdcea; margin-bottom: 6px; }
+.wd-facts dd { font-size: 16px; font-weight: 700; color: #fff; }
+
+.wd-hero-actions { display: flex; flex-wrap: wrap; gap: 14px; }
+.wd-hero-actions .btn-primary,
+.wd-hero-actions .btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 9px; height: 48px; padding: 0 26px; border-radius: 8px; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; text-decoration: none; }
+.wd-hero-actions .btn-primary { background: #f4b139; color: #1a1a2e; border: 1px solid #f4b139; }
+.wd-hero-actions .btn-primary:hover { background: #e9a72c; }
+.wd-hero-actions .btn-ghost { background: transparent; color: #fff; border: 1px solid #ffffff8c; }
+.wd-hero-actions .btn-ghost:hover { background: #ffffff1f; }
+
+/* Purchase panel -------------------------------------------------------- */
+
+.purchase-panel { background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 18px 44px #04213c40; }
+.purchase-head { display: flex; align-items: center; justify-content: center; gap: 10px; background: #212121; color: #fff; font-size: 16px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; padding: 18px; }
+.purchase-empty { padding: 26px 22px; color: #6b7280; font-size: 14px; text-align: center; }
+
+.purchase-rows { list-style: none; padding: 4px 22px 0; }
+.purchase-row { display: grid; grid-template-columns: minmax(0, 1fr) auto 68px; align-items: center; gap: 12px; padding: 13px 0; border-bottom: 1px solid #eef0f4; }
+.purchase-row:last-child { border-bottom: 0; }
+.purchase-option { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.purchase-option-icon { color: #2f6fd0; flex: none; }
+.purchase-option label { font-size: 15px; color: #0d2b4e; cursor: pointer; }
+.purchase-price { font-size: 15px; font-weight: 700; color: #054376; }
+.purchase-qty { height: 38px; width: 68px; border: 1px solid #d7dbe3; border-radius: 7px; padding: 0 8px; font: inherit; font-size: 14px; color: #1a1a2e; background: #fff; }
+
+/* Tooltip — WCAG 2.1 §1.4.13: keyboard reachable, Escape-dismissible, and it
+   survives the pointer travelling onto it. */
+.purchase-help { position: relative; display: inline-flex; flex: none; }
+.purchase-help button { display: grid; place-items: center; width: 20px; height: 20px; border: 1px solid #b9c0cb; border-radius: 50%; background: #fff; color: #7a8494; cursor: help; padding: 0; }
+.purchase-help button:hover { color: #054376; border-color: #054376; }
+.purchase-tip { position: absolute; bottom: calc(100% + 9px); left: 50%; transform: translateX(-50%); width: 250px; background: #1a1a2e; color: #fff; font-size: 13px; line-height: 19px; padding: 10px 12px; border-radius: 8px; box-shadow: 0 10px 26px #0b16293d; z-index: 4; }
+.purchase-tip::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 6px solid transparent; border-top-color: #1a1a2e; }
+
+.purchase-total { display: flex; align-items: center; justify-content: space-between; background: #f5f7fb; border-radius: 8px; margin: 16px 22px 0; padding: 14px 18px; }
+.purchase-total span { font-size: 15px; color: #5b6472; }
+.purchase-total strong { font-size: 21px; font-weight: 700; color: #054376; }
+
+.purchase-cta { display: block; width: calc(100% - 44px); margin: 14px 22px 0; height: 52px; border: 0; border-radius: 8px; background: #f4b139; color: #1a1a2e; font: inherit; font-size: 16px; font-weight: 700; cursor: pointer; }
+.purchase-cta:hover:not(:disabled) { background: #e9a72c; }
+.purchase-cta:disabled { background: #eef0f4; color: #98a1ae; cursor: not-allowed; }
+
+.purchase-trust { display: flex; flex-wrap: wrap; justify-content: center; gap: 18px; padding: 14px 20px 20px; }
+.purchase-trust span { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: #98a1ae; }
+
+/* Tab bar --------------------------------------------------------------- */
+
+.wd-tabs { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: #f4b139; position: sticky; top: 0; z-index: 6; }
+.wd-tabs a { display: flex; align-items: center; justify-content: center; text-align: center; min-height: 64px; padding: 10px 14px; font-size: 15px; color: #212121; text-decoration: none; }
+.wd-tabs a:hover { background: #efa62a; }
+.wd-tabs a.is-active { background: #054376; color: #fff; font-weight: 700; }
+
+/* Body ------------------------------------------------------------------ */
+
+.wd-layout { max-width: var(--container); margin: auto; padding: 46px max(var(--gutter), 0px) 90px; display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 44px; align-items: start; }
+
+.wd-section { scroll-margin-top: 84px; margin-bottom: 42px; }
+.wd-section:focus { outline: none; }
+.wd-section h2 { color: #054376; font-size: 26px; line-height: 34px; font-weight: 700; margin-bottom: 16px; }
+.wd-section p { font-size: 15px; line-height: 25px; color: #4a5462; margin-bottom: 14px; padding-left: 18px; border-left: 2px solid #eef1f5; }
+.wd-empty { font-size: 15px; color: #6b7280; }
+
+/* Speaker --------------------------------------------------------------- */
+
+.wd-speaker { display: grid; grid-template-columns: 300px minmax(0, 1fr); border: 1px solid #e6eaf0; border-radius: 14px; overflow: hidden; }
+.wd-speaker-aside { background: #054376; color: #fff; text-align: center; padding: 32px 26px; }
+.wd-speaker-aside img,
+.wd-speaker-portrait-none { width: 100%; max-width: 216px; aspect-ratio: 1; object-fit: cover; border: 3px solid #f4b139; border-radius: 10px; margin: 0 auto 22px; display: block; }
+.wd-speaker-portrait-none { display: grid; place-items: center; background: #0a4f86; color: #7fa6c8; }
+.wd-speaker-aside h3 { font-size: 19px; font-weight: 700; margin-bottom: 6px; }
+.wd-speaker-role { font-size: 14px; color: #bed2e4; margin-bottom: 6px; }
+.wd-speaker-creds { font-size: 14px; font-weight: 700; color: #f4b139; }
+.wd-speaker-body { padding: 30px 32px; }
+.wd-speaker-rating { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 700; color: #054376; margin-bottom: 16px; }
+.wd-speaker-stars { display: inline-flex; gap: 2px; color: #f4b139; }
+.wd-speaker-stars svg { fill: currentColor; }
+.wd-speaker-body p:not(.wd-speaker-rating) { font-size: 15px; line-height: 25px; color: #4a5462; margin-bottom: 14px; }
+
+/* Notices --------------------------------------------------------------- */
+
+.wd-notice { border-radius: 10px; padding: 18px 22px; margin-bottom: 20px; }
+.wd-notice svg { flex: none; vertical-align: -3px; margin-right: 8px; }
+.wd-notice p { font-size: 14px; line-height: 23px; }
+.wd-notice h3 { display: flex; align-items: center; font-size: 15px; font-weight: 700; margin-bottom: 10px; }
+.wd-notice-amber { background: #ffeecc; }
+.wd-notice-amber p { color: #8a5a06; font-weight: 600; }
+.wd-notice-blue { background: #ebf0f4; }
+.wd-notice-blue h3 { color: #054376; }
+.wd-notice-blue p { color: #3f4b59; }
+
+/* Similar webinars rail -------------------------------------------------- */
+
+.wd-rail { position: sticky; top: 84px; border: 1px solid #e6eaf0; border-radius: 14px; padding: 22px 20px; max-height: calc(100vh - 104px); overflow-y: auto; }
+.wd-rail-title { font-size: 20px; font-weight: 700; color: #054376; margin-bottom: 18px; }
+.wd-rail-empty { font-size: 14px; color: #6b7280; }
+
+.wd-card { position: relative; border: 1px solid #eceff3; border-radius: 12px; overflow: hidden; margin-bottom: 20px; background: #fff; }
+.wd-card:last-child { margin-bottom: 0; }
+.wd-card-media { position: relative; aspect-ratio: 16 / 9; background: #dbe3ec; }
+.wd-card-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.wd-card-media-none { width: 100%; height: 100%; background: linear-gradient(135deg, #cfdcea, #eef2f7); }
+
+.wd-card-date { position: absolute; top: 14px; left: 14px; background: #fff; border-radius: 10px; padding: 9px 12px 7px; text-align: center; line-height: 1; box-shadow: 0 6px 16px #0b18291f; }
+.wd-card-date svg { color: #f4b139; display: block; margin: 0 auto 4px; }
+.wd-card-day { display: block; font-size: 22px; font-weight: 700; color: #1a1a2e; }
+.wd-card-month { display: block; font-size: 12px; font-weight: 700; color: #f4b139; text-transform: uppercase; letter-spacing: 0.6px; margin-top: 3px; padding-top: 4px; border-top: 2px solid #f4b139; }
+
+.wd-card-type { position: absolute; top: 14px; right: 14px; display: inline-flex; align-items: center; gap: 6px; background: #fff; color: #a3231f; font-size: 11px; font-weight: 700; letter-spacing: 0.7px; text-transform: uppercase; padding: 6px 13px; border-radius: 999px; }
+.wd-card-type::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+.wd-card-creds { position: absolute; left: 14px; bottom: 14px; display: flex; gap: 8px; }
+.wd-card-creds span { background: #fff; border-radius: 7px; padding: 5px 11px; font-size: 12px; font-weight: 700; }
+
+.wd-card-body { padding: 18px 16px 16px; }
+.wd-card-body h3 { font-size: 16px; line-height: 23px; font-weight: 700; margin-bottom: 14px; }
+.wd-card-body h3 a { color: #1a1a2e; text-decoration: none; }
+.wd-card-body h3 a:hover { color: #054376; }
+
+.wd-card-speaker { display: flex; align-items: center; gap: 12px; background: #fef7eb; border-radius: 9px; padding: 11px 12px; margin-bottom: 14px; }
+.wd-card-speaker img,
+.wd-card-speaker-none { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; flex: none; }
+.wd-card-speaker-none { display: grid; place-items: center; background: #e6dcc9; color: #a08a63; }
+.wd-card-speaker-label { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; color: #2f6fd0; margin-bottom: 3px; }
+.wd-card-speaker-name { font-size: 13px; font-weight: 700; color: #1a1a2e; }
+.wd-card-speaker-role { font-size: 12px; color: #8b93a0; margin-top: 2px; }
+
+.wd-card-cta { display: block; text-align: center; border: 1px solid #f4b139; color: #d99b1c; border-radius: 7px; padding: 10px; font-size: 13px; font-weight: 700; text-decoration: none; }
+.wd-card:hover .wd-card-cta { background: #f4b139; color: #1a1a2e; }
+
+@media (max-width: 1180px) {
+    .wd-hero-inner { grid-template-columns: minmax(0, 1fr); gap: 34px; }
+    .purchase-panel { max-width: 470px; }
+    .wd-layout { grid-template-columns: minmax(0, 1fr); }
+    /* Sticky is pointless once the rail is stacked under the content. */
+    .wd-rail { position: static; max-height: none; }
+}
+
+@media (max-width: 780px) {
+    .wd-hero { padding-top: 30px; padding-bottom: 40px; }
+    .wd-facts { grid-template-columns: minmax(0, 1fr); gap: 18px; padding: 20px; }
+    /* Five equal columns become an unreadable 60px each; scrolling keeps every
+       label whole, and the browser scrolls the active one into view. */
+    .wd-tabs { grid-auto-columns: max-content; overflow-x: auto; scrollbar-width: none; }
+    .wd-tabs::-webkit-scrollbar { display: none; }
+    .wd-tabs a { min-height: 54px; padding: 10px 20px; white-space: nowrap; font-size: 14px; }
+    .wd-speaker { grid-template-columns: minmax(0, 1fr); }
+    .wd-section h2 { font-size: 22px; line-height: 30px; }
+    .wd-layout { padding-top: 32px; padding-bottom: 56px; }
+}
+
+@media (max-width: 430px) {
+    .purchase-rows { padding-left: 16px; padding-right: 16px; }
+    .purchase-row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 8px; }
+    .purchase-qty { grid-column: 2; }
+    .purchase-total, .purchase-cta { margin-left: 16px; margin-right: 16px; }
+    .purchase-cta { width: calc(100% - 32px); }
+    .wd-section p { padding-left: 14px; }
+}

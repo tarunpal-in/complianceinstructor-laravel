@@ -120,6 +120,68 @@ class Webinar extends Model implements HasMedia
     // Behaviour -------------------------------------------------------------
 
     /**
+     * The long-form sections, in the order the comp stacks them.
+     *
+     * Empty ones are dropped rather than rendered as a heading with nothing
+     * under it — the client will not always have four sections of copy, and a
+     * bare heading reads as a fault.
+     *
+     * The anchors are what the tab bar scrolls to, so they are stable strings
+     * and not derived from the heading text.
+     *
+     * @return array<int, array{id: string, heading: string, body: string}>
+     */
+    public function contentSections(): array
+    {
+        $candidates = [
+            ['id' => 'overview', 'heading' => 'Webinar Overview', 'body' => $this->overview],
+            ['id' => 'highlights', 'heading' => 'Session Highlights', 'body' => $this->session_highlights],
+            ['id' => 'why-attend', 'heading' => 'Why You Should Attend', 'body' => $this->why_attend],
+            ['id' => 'who-attends', 'heading' => 'Who Should Attend', 'body' => $this->who_should_attend],
+        ];
+
+        return array_values(array_filter(
+            $candidates,
+            static fn (array $section): bool => trim((string) $section['body']) !== '',
+        ));
+    }
+
+    /**
+     * Whether the public detail page may render this.
+     *
+     * Draft and archived webinars keep their slugs, so without this they would
+     * resolve through route-model binding and quietly publish an unfinished
+     * session.
+     */
+    public function isPubliclyVisible(): bool
+    {
+        return in_array($this->status->value, WebinarStatus::publicValues(), true);
+    }
+
+    /**
+     * The accrediting bodies as the hero shows them — "HRCI, SHRM & CPE".
+     *
+     * Bodies only; the credit hours sit on the pivot and differ per body, so a
+     * single summary line cannot carry them honestly.
+     */
+    public function creditBodies(): string
+    {
+        $codes = $this->accreditations->pluck('code')->all();
+
+        if ($codes === []) {
+            return 'Not accredited';
+        }
+
+        if (count($codes) === 1) {
+            return $codes[0];
+        }
+
+        $last = array_pop($codes);
+
+        return implode(', ', $codes).' & '.$last;
+    }
+
+    /**
      * The attendee notice shown on the detail page.
      *
      * Per-webinar text wins; otherwise the site-wide default from Settings.

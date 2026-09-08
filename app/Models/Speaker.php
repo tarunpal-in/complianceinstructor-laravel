@@ -24,7 +24,7 @@ class Speaker extends Model implements HasMedia
     use HasFactory, InteractsWithMedia, SoftDeletes;
 
     protected $fillable = [
-        'name', 'slug', 'title', 'bio', 'linkedin_url', 'is_active',
+        'name', 'slug', 'title', 'credentials', 'bio', 'linkedin_url', 'is_active',
     ];
 
     protected function casts(): array

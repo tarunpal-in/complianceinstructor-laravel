@@ -35,6 +35,28 @@ class Accreditation extends Model
         ];
     }
 
+    /**
+     * The chip colour on a webinar card.
+     *
+     * The comp gives each body its own colour — HRCI amber, SHRM green — so the
+     * chips read as accreditation marks rather than generic tags. Derived from
+     * the code rather than stored: §1 fixes the set at HRCI, SHRM, CPE and APA,
+     * so a column would be four rows of data pretending to be configuration.
+     *
+     * CPE and APA are not in the comp; theirs are drawn from the site palette
+     * and are worth confirming with the client against the bodies' own brands.
+     */
+    public function brandColor(): string
+    {
+        return match (strtoupper($this->code)) {
+            'HRCI' => '#996601',
+            'SHRM' => '#1f6532',
+            'CPE' => '#054376',
+            'APA' => '#8a2b2b',
+            default => '#4b5563',
+        };
+    }
+
     /** @return BelongsToMany<Webinar, $this> */
     public function webinars(): BelongsToMany
     {

@@ -20,7 +20,7 @@
 <body>
     <a href="#top" class="skip-link">Skip to content</a>
 
-    <div class="site-shell" x-data="site">
+    <div class="site-shell" x-data="site" x-on:notice.window="showNotice($event.detail)">
         <x-site.promo-bar />
         <x-site.navbar />
 
