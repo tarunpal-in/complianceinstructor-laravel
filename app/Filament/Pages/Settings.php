@@ -25,6 +25,7 @@ use Filament\Pages\Page;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\HtmlString;
 use UnitEnum;
 
@@ -70,6 +71,7 @@ class Settings extends Page implements HasForms
             'order_number_format' => GenerateOrderNumber::format()->pattern,
             'order_number_padding' => GenerateOrderNumber::format()->padding,
             'order_number_reset' => GenerateOrderNumber::format()->reset->value,
+            'order_year_start_month' => GenerateOrderNumber::format()->yearStartMonth,
             'order_number_next' => GenerateOrderNumber::peek(),
 
             'promo_bar_enabled' => (bool) Setting::get('promo_bar.enabled', true),
@@ -117,9 +119,10 @@ class Settings extends Page implements HasForms
                             ->maxLength(64)
                             ->live(onBlur: true)
                             ->helperText(new HtmlString(
-                                'Tokens: <code>{YYYY}</code> <code>{YY}</code> <code>{MM}</code> '
-                                .'<code>{DD}</code> <code>{SEQ}</code>. Anything else is literal, '
-                                .'so <code>CI-{YYYY}-{SEQ}</code> keeps the prefix.'
+                                'Tokens: <code>{YYYY}</code> <code>{YY}</code> <code>{FY}</code> '
+                                .'<code>{MM}</code> <code>{DD}</code> <code>{SEQ}</code>. Anything else '
+                                .'is literal, so <code>CI-{YYYY}-{SEQ}</code> keeps the prefix. '
+                                .'<code>{FY}</code> writes the span — <code>2024-25</code>.'
                             ))
                             // Server-side, and checked against the reset period
                             // rather than in isolation: the two only collide in
@@ -139,7 +142,18 @@ class Settings extends Page implements HasForms
                             ->options(OrderNumberReset::options())
                             ->required()
                             ->live()
-                            ->helperText('A daily restart needs the date in the format, or two days would produce the same number.'),
+                            ->helperText('The format has to carry whatever the sequence restarts on, or two periods would produce the same number.'),
+
+                        Select::make('order_year_start_month')
+                            ->label('Accounting year starts in')
+                            ->options(self::months())
+                            ->required()
+                            ->live()
+                            // The reason the year tokens are not simply the
+                            // calendar year: with an April start the sequence
+                            // restarts in April, so January–March must still
+                            // carry the year that began the previous April.
+                            ->helperText('April gives a 1 April – 31 March year. January is the calendar year.'),
 
                         TextInput::make('order_number_padding')
                             ->label('Sequence digits')
@@ -258,6 +272,7 @@ class Settings extends Page implements HasForms
         Setting::set('orders.number_format', (string) $data['order_number_format'], 'string');
         Setting::set('orders.number_padding', (int) $data['order_number_padding'], 'integer');
         Setting::set('orders.number_reset', (string) $data['order_number_reset'], 'string');
+        Setting::set('orders.year_start_month', (int) $data['order_year_start_month'], 'integer');
 
         GenerateOrderNumber::setNext((int) $data['order_number_next']);
 
@@ -271,6 +286,18 @@ class Settings extends Page implements HasForms
         Notification::make()->title('Settings saved')->success()->send();
     }
 
+    /** @return array<int, string> */
+    private static function months(): array
+    {
+        $months = [];
+
+        foreach (range(1, 12) as $month) {
+            $months[$month] = Carbon::create(null, $month, 1)?->format('F') ?? (string) $month;
+        }
+
+        return $months;
+    }
+
     /** The format as the form currently stands, not as it is stored. */
     private static function formatFrom(callable $get): OrderNumberFormat
     {
@@ -278,6 +305,7 @@ class Settings extends Page implements HasForms
             (string) $get('order_number_format'),
             (int) $get('order_number_padding'),
             OrderNumberReset::tryFrom((string) $get('order_number_reset')) ?? OrderNumberReset::Yearly,
+            (int) $get('order_year_start_month'),
         );
     }
 

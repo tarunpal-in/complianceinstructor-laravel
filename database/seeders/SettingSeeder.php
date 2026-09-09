@@ -28,6 +28,9 @@ class SettingSeeder extends Seeder
             ['orders', 'number_format', 'CI-{YYYY}-{SEQ}', 'string'],
             ['orders', 'number_padding', 4, 'integer'],
             ['orders', 'number_reset', 'yearly', 'string'],
+            // January, so an existing install keeps calendar-year numbering.
+            // The client sets 4 for a 1 April – 31 March accounting year.
+            ['orders', 'year_start_month', 1, 'integer'],
 
             ['promo_bar', 'enabled', true, 'boolean'],
             ['promo_bar', 'text', 'Purchase any webinar and use code :code at checkout to save $10.', 'string'],
