@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Orders\RelationManagers;
 
+use App\Actions\Payments\RecordRefund;
 use App\Enums\PaymentGateway;
 use App\Enums\PaymentStatus;
-use App\Enums\RefundStatus;
 use App\Models\Order;
 use App\Models\Payment;
-use App\Models\Refund;
+use App\Support\Money;
 use Closure;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
@@ -105,9 +105,9 @@ class PaymentsRelationManager extends RelationManager
                     ->required()
                     ->numeric()
                     ->minValue(0.01)
-                    ->default(fn (): string => self::toDecimal($this->order()->outstandingCents()))
+                    ->default(fn (): string => Money::toDecimal($this->order()->outstandingCents()))
                     ->helperText(fn (): string => 'Outstanding on this order: '
-                        .self::toDecimal($this->order()->outstandingCents())),
+                        .Money::toDecimal($this->order()->outstandingCents())),
 
                 DateTimePicker::make('processed_at')
                     ->label('Received on')
@@ -140,7 +140,7 @@ class PaymentsRelationManager extends RelationManager
 
                 TextColumn::make('refunded')
                     ->label('Refunded')
-                    ->state(fn (Payment $record): string => '$'.number_format($record->refundedCents() / 100, 2))
+                    ->state(fn (Payment $record): string => Money::format($record->refundedCents()))
                     ->alignEnd()
                     ->toggleable(),
 
@@ -172,7 +172,7 @@ class PaymentsRelationManager extends RelationManager
                         $data['gateway_payment_id'] = null;
                         $data['currency'] = $this->order()->currency;
                         $data['recorded_by'] = auth()->id();
-                        $data['amount_cents'] = self::toCents($data['amount'] ?? 0);
+                        $data['amount_cents'] = Money::toCents($data['amount'] ?? 0);
 
                         unset($data['amount']);
 
@@ -192,10 +192,13 @@ class PaymentsRelationManager extends RelationManager
     /**
      * Refunding writes the refund row and moves the order status with it.
      *
-     * P3 puts a gateway call in front of this and revokes the entitlements the
-     * order granted (§5.2). Until those exist, this records the decision and
-     * the audit trail rather than pretending money moved — the notification
-     * says so plainly rather than implying a refund was sent.
+     * The same action backs the Payments screen. Two screens offering a
+     * slightly different refund is how a bank reconciliation ends up
+     * disagreeing with the database, so both call RecordRefund.
+     *
+     * P3 puts a gateway call in front of it and revokes the entitlements the
+     * order granted (§5.2). Until those exist this records the decision and the
+     * audit trail rather than pretending money moved, and says so.
      */
     private function refundAction(): Action
     {
@@ -213,14 +216,14 @@ class PaymentsRelationManager extends RelationManager
                     ->prefix('$')
                     ->required()
                     ->numeric()
-                    ->default(self::toDecimal($record->refundableCents()))
-                    ->helperText('At most '.self::toDecimal($record->refundableCents()).' remains refundable.')
-                    // A ceiling checked server-side, not only in the field.
-                    // Refunding more than was taken surfaces weeks later in a
-                    // bank reconciliation, which is the worst place to find it.
+                    ->default(Money::toDecimal($record->refundableCents()))
+                    ->helperText('At most '.Money::toDecimal($record->refundableCents()).' remains refundable.')
+                    // Checked here for a readable message, and again inside the
+                    // action under a lock: two people refunding the same payment
+                    // in different tabs would both pass this one.
                     ->rule(function () use ($record): Closure {
                         return function (string $attribute, mixed $value, Closure $fail) use ($record): void {
-                            if (self::toCents($value) > $record->refundableCents()) {
+                            if (Money::toCents($value) > $record->refundableCents()) {
                                 $fail('That is more than remains refundable on this payment.');
                             }
                         };
@@ -233,16 +236,12 @@ class PaymentsRelationManager extends RelationManager
                     ->helperText('Kept on the record. The customer never sees it.'),
             ])
             ->action(function (Payment $record, array $data): void {
-                Refund::create([
-                    'payment_id' => $record->id,
-                    'status' => RefundStatus::Succeeded,
-                    'amount_cents' => self::toCents($data['amount']),
-                    'reason' => $data['reason'],
-                    'issued_by' => auth()->id(),
-                    'processed_at' => now(),
-                ]);
-
-                $this->syncOrderStatus();
+                app(RecordRefund::class)(
+                    $record,
+                    Money::toCents($data['amount']),
+                    (string) $data['reason'],
+                    auth()->id(),
+                );
 
                 Notification::make()
                     ->title('Refund recorded')
@@ -257,7 +256,8 @@ class PaymentsRelationManager extends RelationManager
      *
      * §9 — the status is derived, so anything that changes a payment has to
      * re-derive it rather than leave the column asserting something the money
-     * no longer supports.
+     * no longer supports. RecordRefund does this for itself; recording a
+     * payment goes through here.
      */
     private function syncOrderStatus(): void
     {
@@ -273,24 +273,5 @@ class PaymentsRelationManager extends RelationManager
         $order = $this->getOwnerRecord();
 
         return $order;
-    }
-
-    private static function toDecimal(int $cents): string
-    {
-        return intdiv($cents, 100).'.'.str_pad((string) ($cents % 100), 2, '0', STR_PAD_LEFT);
-    }
-
-    /**
-     * Parsed as a string, never multiplied as a float: (float) '19.99' * 100 is
-     * 1998.9999999999998, and casting that truncates to 1998 (§4 rule 6).
-     */
-    private static function toCents(mixed $value): int
-    {
-        [$whole, $fraction] = array_pad(explode('.', trim((string) $value), 2), 2, '0');
-
-        $whole = (int) preg_replace('/\D/', '', $whole);
-        $fraction = (int) str_pad(substr((string) preg_replace('/\D/', '', $fraction), 0, 2), 2, '0');
-
-        return $whole * 100 + $fraction;
     }
 }
