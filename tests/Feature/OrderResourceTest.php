@@ -333,10 +333,18 @@ it('snapshots every format a bundle line granted', function (): void {
         ->and($item->fresh()?->description)->toBe('Live Webinar + Recorded + Transcript (PDF)');
 });
 
-it('numbers orders sequentially within the year', function (): void {
+/**
+ * Numbers come from a stored counter, not from reading back the highest
+ * existing order — so writing a row with a number of its own does not move the
+ * sequence. That is what keeps a number issued on an invoice from ever being
+ * reissued. The format itself is the client's to set; OrderNumberTest covers it.
+ */
+it('numbers orders from the counter rather than from existing rows', function (): void {
+    $this->seed(Database\Seeders\SettingSeeder::class);
+
     expect(Order::nextNumber())->toBe('CI-'.now()->format('Y').'-0001');
 
     Order::factory()->create(['number' => 'CI-'.now()->format('Y').'-0007']);
 
-    expect(Order::nextNumber())->toBe('CI-'.now()->format('Y').'-0008');
+    expect(Order::nextNumber())->toBe('CI-'.now()->format('Y').'-0002');
 });

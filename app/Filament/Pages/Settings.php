@@ -4,12 +4,18 @@ declare(strict_types=1);
 
 namespace App\Filament\Pages;
 
+use App\Actions\Orders\GenerateOrderNumber;
+use App\Enums\OrderNumberReset;
 use App\Filament\Forms\Components\MediaPicker;
 use App\Filament\Widgets\SetupChecklist;
 use App\Models\Setting;
+use App\Support\OrderNumberFormat;
 use BackedEnum;
+use Closure;
 use Filament\Actions\Action;
 use Filament\Forms\Components\ColorPicker;
+use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Concerns\InteractsWithForms;
@@ -19,6 +25,7 @@ use Filament\Pages\Page;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Support\HtmlString;
 use UnitEnum;
 
 /**
@@ -60,6 +67,11 @@ class Settings extends Page implements HasForms
             'brand_favicon_media_id' => Setting::mediaId('brand.favicon_media_id'),
             'brand_og_default_media_id' => Setting::mediaId('brand.og_default_media_id'),
 
+            'order_number_format' => GenerateOrderNumber::format()->pattern,
+            'order_number_padding' => GenerateOrderNumber::format()->padding,
+            'order_number_reset' => GenerateOrderNumber::format()->reset->value,
+            'order_number_next' => GenerateOrderNumber::peek(),
+
             'promo_bar_enabled' => (bool) Setting::get('promo_bar.enabled', true),
             'promo_bar_text' => Setting::get('promo_bar.text'),
             'promo_bar_code' => Setting::get('promo_bar.code'),
@@ -94,6 +106,66 @@ class Settings extends Page implements HasForms
                             ->helperText('Used when a page has no image of its own. 1200×630 works everywhere.'),
                     ])
                     ->columns(2),
+
+                Section::make('Order numbers')
+                    ->description('The reference on every invoice. Existing orders keep the number they were given.')
+                    ->columns(2)
+                    ->schema([
+                        TextInput::make('order_number_format')
+                            ->label('Format')
+                            ->required()
+                            ->maxLength(64)
+                            ->live(onBlur: true)
+                            ->helperText(new HtmlString(
+                                'Tokens: <code>{YYYY}</code> <code>{YY}</code> <code>{MM}</code> '
+                                .'<code>{DD}</code> <code>{SEQ}</code>. Anything else is literal, '
+                                .'so <code>CI-{YYYY}-{SEQ}</code> keeps the prefix.'
+                            ))
+                            // Server-side, and checked against the reset period
+                            // rather than in isolation: the two only collide in
+                            // combination. See OrderNumberFormat::problems().
+                            ->rule(static fn (callable $get): Closure => static function (
+                                string $attribute,
+                                mixed $value,
+                                Closure $fail,
+                            ) use ($get): void {
+                                foreach (self::formatFrom($get)->problems() as $problem) {
+                                    $fail($problem);
+                                }
+                            }),
+
+                        Select::make('order_number_reset')
+                            ->label('Restart the sequence')
+                            ->options(OrderNumberReset::options())
+                            ->required()
+                            ->live()
+                            ->helperText('A daily restart needs the date in the format, or two days would produce the same number.'),
+
+                        TextInput::make('order_number_padding')
+                            ->label('Sequence digits')
+                            ->numeric()
+                            ->required()
+                            ->minValue(OrderNumberFormat::MIN_PADDING)
+                            ->maxValue(OrderNumberFormat::MAX_PADDING)
+                            ->live(onBlur: true)
+                            ->helperText('3 gives 001, 4 gives 0001.'),
+
+                        TextInput::make('order_number_next')
+                            ->label('Next number in this period')
+                            ->numeric()
+                            ->required()
+                            ->minValue(1)
+                            ->live(onBlur: true)
+                            // The reason this is editable at all: the live site
+                            // already has order numbers, and the import needs to
+                            // continue past them rather than collide.
+                            ->helperText('Set this to carry on from the numbers already used on the old site.'),
+
+                        Placeholder::make('order_number_preview')
+                            ->label('The next three orders would be')
+                            ->columnSpanFull()
+                            ->content(fn (callable $get): HtmlString => self::previewFrom($get)),
+                    ]),
 
                 Section::make('Promo bar')
                     ->description('The strip above the header on every public page.')
@@ -180,6 +252,15 @@ class Settings extends Page implements HasForms
             Setting::set($setting, filled($mediaId) ? (int) $mediaId : null, 'media_id');
         }
 
+        // Written before the counter is touched: setNext() reads the reset
+        // period back out of settings to work out which counter row it means,
+        // so the new period has to be in place first.
+        Setting::set('orders.number_format', (string) $data['order_number_format'], 'string');
+        Setting::set('orders.number_padding', (int) $data['order_number_padding'], 'integer');
+        Setting::set('orders.number_reset', (string) $data['order_number_reset'], 'string');
+
+        GenerateOrderNumber::setNext((int) $data['order_number_next']);
+
         Setting::set('promo_bar.enabled', (bool) $data['promo_bar_enabled'], 'boolean');
         Setting::set('promo_bar.text', (string) $value('promo_bar_text', 'promo_bar.text', ''), 'string');
         Setting::set('promo_bar.code', (string) $value('promo_bar_code', 'promo_bar.code', ''), 'string');
@@ -188,6 +269,40 @@ class Settings extends Page implements HasForms
         Setting::set('promo_bar.font_size', (int) $value('promo_bar_font_size', 'promo_bar.font_size', 14), 'integer');
 
         Notification::make()->title('Settings saved')->success()->send();
+    }
+
+    /** The format as the form currently stands, not as it is stored. */
+    private static function formatFrom(callable $get): OrderNumberFormat
+    {
+        return new OrderNumberFormat(
+            (string) $get('order_number_format'),
+            (int) $get('order_number_padding'),
+            OrderNumberReset::tryFrom((string) $get('order_number_reset')) ?? OrderNumberReset::Yearly,
+        );
+    }
+
+    /**
+     * Three numbers rather than one.
+     *
+     * Seeing the sequence advance is what makes a wrong restart period obvious
+     * — "2024-10-05-001, -002, -003" reads correctly, and so does the mistake.
+     */
+    private static function previewFrom(callable $get): HtmlString
+    {
+        $format = self::formatFrom($get);
+        $problems = $format->problems();
+
+        if ($problems !== []) {
+            return new HtmlString(
+                '<span class="text-danger-600 dark:text-danger-400">'.e($problems[0]).'</span>'
+            );
+        }
+
+        $numbers = $format->preview(max(1, (int) $get('order_number_next')));
+
+        return new HtmlString(
+            '<code class="font-medium">'.implode('</code>, <code class="font-medium">', array_map('e', $numbers)).'</code>'
+        );
     }
 
     /**

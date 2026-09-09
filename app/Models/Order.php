@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Actions\Orders\GenerateOrderNumber;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use Database\Factories\OrderFactory;
@@ -189,24 +190,15 @@ class Order extends Model
     }
 
     /**
-     * The next order number — "CI-2026-0007".
+     * Take the next order number.
      *
-     * Sequential within the year so the client can read a run of orders at a
-     * glance, and unique because the column says so. P3 moves this inside the
-     * order transaction, where a unique violation is the retry signal.
+     * The format is the client's to set, so the work lives in
+     * GenerateOrderNumber rather than here — and calling it *advances the
+     * counter*, which is why it belongs in one place inside the order
+     * transaction rather than anywhere a number is merely wanted for display.
      */
     public static function nextNumber(?Carbon $at = null): string
     {
-        $at ??= now();
-        $year = $at->format('Y');
-
-        $latest = static::withTrashed()
-            ->where('number', 'like', "CI-{$year}-%")
-            ->orderByDesc('number')
-            ->value('number');
-
-        $sequence = $latest === null ? 1 : ((int) substr((string) $latest, -4)) + 1;
-
-        return sprintf('CI-%s-%04d', $year, $sequence);
+        return app(GenerateOrderNumber::class)($at);
     }
 }

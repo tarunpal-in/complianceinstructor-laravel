@@ -23,6 +23,12 @@ class SettingSeeder extends Seeder
     public function run(): void
     {
         $defaults = [
+            // Matches what Order::nextNumber() produced before the format was
+            // configurable, so seeding an existing install changes nothing.
+            ['orders', 'number_format', 'CI-{YYYY}-{SEQ}', 'string'],
+            ['orders', 'number_padding', 4, 'integer'],
+            ['orders', 'number_reset', 'yearly', 'string'],
+
             ['promo_bar', 'enabled', true, 'boolean'],
             ['promo_bar', 'text', 'Purchase any webinar and use code :code at checkout to save $10.', 'string'],
             ['promo_bar', 'code', 'TRAINING', 'string'],
