@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Actions\Payments;
 
 use App\Enums\RefundStatus;
+use App\Models\Order;
 use App\Models\Payment;
 use App\Models\Refund;
 use App\Models\Setting;
 use App\Notifications\RefundScheduled;
 use App\Payments\PaymentGatewayManager;
+use App\Support\Money;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -60,24 +62,33 @@ class RequestRefund
     /**
      * Claim the amount and write the scheduled row.
      *
-     * The form checked the ceiling too, but two people refunding the same
-     * payment in different tabs would both pass that check — this is where one
-     * of them loses.
+     * The **order** is locked, not the payment. An order can carry several
+     * payments — a card capture and an invoiced top-up, say — and locking one
+     * payment does nothing to stop a refund being raised against another at the
+     * same moment. The order is the shared parent, so locking it serialises
+     * every refund on the order and makes the in-flight check below mean
+     * something.
      */
     private function reserve(Payment $payment, int $amountCents, string $reason, ?int $issuedBy): Refund
     {
         return DB::transaction(function () use ($payment, $amountCents, $reason, $issuedBy): Refund {
-            $locked = Payment::query()
-                ->whereKey($payment->getKey())
+            Order::query()
+                ->whereKey($payment->order_id)
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            $locked = Payment::query()->whereKey($payment->getKey())->firstOrFail();
             $locked->load('refunds');
 
             if ($amountCents < 1) {
                 throw new RuntimeException('A refund has to be for something.');
             }
 
+            $this->guardAgainstOneInFlight($locked);
+
+            // The form checked this too, but two people refunding the same
+            // payment in different tabs would both pass that check — this is
+            // where one of them loses.
             if ($amountCents > $locked->refundableCents()) {
                 throw new RuntimeException('That is more than remains refundable on this payment.');
             }
@@ -91,6 +102,42 @@ class RequestRefund
                 'issued_by' => $issuedBy,
             ]);
         });
+    }
+
+    /**
+     * One unresolved refund per order at a time.
+     *
+     * The per-payment ceiling already stops an order being refunded for more
+     * than it took, but it cannot stop two administrators each refunding a
+     * different payment of the same order inside the same hour — both are
+     * individually valid, and between them the customer gets back twice what
+     * either intended. Neither person can see the other's refund from the
+     * screen they are on.
+     *
+     * Blocked rather than warned, because the two ways out are both obvious:
+     * cancel the one in flight, or wait for it. Repeat partial refunds over
+     * time are unaffected — one seat this week and another next month is normal,
+     * and the ceiling keeps that honest on its own.
+     */
+    private function guardAgainstOneInFlight(Payment $payment): void
+    {
+        $order = $payment->order;
+        $order->load('payments.refunds');
+
+        $inFlight = $order->refundsInFlight();
+
+        if ($inFlight->isEmpty()) {
+            return;
+        }
+
+        /** @var Refund $first */
+        $first = $inFlight->first();
+
+        throw new RuntimeException(sprintf(
+            'A refund of %s on order %s has not been sent yet. Cancel it or wait for it before raising another.',
+            Money::format($first->amount_cents, $payment->currency),
+            $order->number,
+        ));
     }
 
     /**

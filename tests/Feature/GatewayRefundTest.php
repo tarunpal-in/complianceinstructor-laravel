@@ -374,6 +374,119 @@ it('does not send the same refund twice', function (): void {
     expect($driver->calls)->toHaveCount(1);
 });
 
+// One refund per order at a time ----------------------------------------------
+
+/**
+ * The per-payment ceiling stops an order being refunded for more than it took,
+ * but not two administrators each refunding a *different* payment of the same
+ * order inside the same hour. Both are individually valid, and between them the
+ * customer gets back twice what either intended.
+ */
+it('refuses a second refund while one is in flight on the same order', function (): void {
+    fakeGateway();
+    $payment = gatewayPayment(cents: 20000);
+
+    app(RequestRefund::class)($payment, 5000, 'First');
+
+    expect(fn () => app(RequestRefund::class)($payment->fresh(), 5000, 'Second'))
+        ->toThrow(RuntimeException::class, 'has not been sent yet');
+});
+
+/** The case the per-payment ceiling cannot see. */
+it('refuses a refund on a sibling payment of the same order', function (): void {
+    fakeGateway();
+    $order = Order::factory()->paid()->totalling(20000)->create();
+
+    $card = Payment::factory()->create([
+        'order_id' => $order->id,
+        'status' => PaymentStatus::Succeeded,
+        'amount_cents' => 10000,
+    ]);
+
+    $invoiced = Payment::factory()->manual()->create([
+        'order_id' => $order->id,
+        'status' => PaymentStatus::Succeeded,
+        'amount_cents' => 10000,
+    ]);
+
+    app(RequestRefund::class)($card, 10000, 'Refunding the card half');
+
+    expect(fn () => app(RequestRefund::class)($invoiced, 10000, 'And the invoiced half'))
+        ->toThrow(RuntimeException::class, $order->number);
+});
+
+/**
+ * Refunds on *different* orders are unrelated and must not block each other.
+ */
+it('allows a refund on another order while one is in flight', function (): void {
+    fakeGateway();
+
+    app(RequestRefund::class)(gatewayPayment(cents: 20000), 5000, 'First order');
+    $second = app(RequestRefund::class)(gatewayPayment(cents: 20000), 5000, 'Second order');
+
+    expect($second->status)->toBe(RefundStatus::Scheduled);
+});
+
+/**
+ * The block is on the window, not on refunding twice. One seat this week and
+ * another next month is normal, and the ceiling keeps it honest.
+ */
+it('allows a second partial refund once the first has gone out', function (): void {
+    fakeGateway();
+    $payment = gatewayPayment(cents: 20000);
+
+    app(RequestRefund::class)($payment, 5000, 'First seat');
+    $this->travel(61)->minutes();
+    $this->artisan('refunds:release-due');
+
+    $second = app(RequestRefund::class)($payment->fresh(), 5000, 'Second seat');
+
+    expect($second->status)->toBe(RefundStatus::Scheduled)
+        ->and($payment->fresh()?->refundedCents())->toBe(5000)
+        ->and($payment->fresh()?->refundableCents())->toBe(10000);
+});
+
+it('frees the order again once the in-flight refund is cancelled', function (): void {
+    fakeGateway();
+    $payment = gatewayPayment(cents: 20000);
+
+    $first = app(RequestRefund::class)($payment, 20000, 'Wrong figure');
+    app(CancelScheduledRefund::class)($first);
+
+    $corrected = app(RequestRefund::class)($payment->fresh(), 5000, 'Correct figure');
+
+    expect($corrected->status)->toBe(RefundStatus::Scheduled);
+});
+
+/** A failed refund resolves the order too — it can be tried again. */
+it('frees the order again after a refund is declined', function (): void {
+    fakeGateway(declineWith: 'Temporary gateway fault.');
+    $payment = gatewayPayment(cents: 20000);
+
+    app(RequestRefund::class)($payment, 5000, 'First try');
+    $this->travel(61)->minutes();
+    $this->artisan('refunds:release-due');
+
+    fakeGateway();
+
+    expect(app(RequestRefund::class)($payment->fresh(), 5000, 'Second try')->status)
+        ->toBe(RefundStatus::Scheduled);
+});
+
+it('says so on the screen rather than throwing', function (): void {
+    fakeGateway();
+    $payment = gatewayPayment(cents: 20000);
+
+    app(RequestRefund::class)($payment, 5000, 'Already in flight');
+
+    Livewire\Livewire::actingAs(userWithRole(UserRole::SuperAdmin))
+        ->test(ViewPayment::class, ['record' => $payment->getRouteKey()])
+        ->callAction('refund', ['amount' => '50.00', 'reason' => 'Another'])
+        ->assertNotified('That refund was not raised');
+
+    expect($payment->fresh()?->refunds)->toHaveCount(1);
+});
+
 // Cancelling ------------------------------------------------------------------
 
 /**

@@ -69,6 +69,17 @@ enum RefundStatus: string
         return $this === self::Scheduled;
     }
 
+    /**
+     * Agreed but not yet resolved — waiting out its window, or mid-flight.
+     *
+     * While an order has one of these, raising another against the same order
+     * is almost always someone not seeing the first. See RequestRefund.
+     */
+    public function isInFlight(): bool
+    {
+        return in_array($this, [self::Scheduled, self::Pending], true);
+    }
+
     /** @return array<string, string> */
     public static function options(): array
     {

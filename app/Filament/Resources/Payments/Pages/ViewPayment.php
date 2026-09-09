@@ -17,7 +17,10 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Filament\Schemas\Components\Text;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Support\HtmlString;
+use RuntimeException;
 
 class ViewPayment extends ViewRecord
 {
@@ -63,6 +66,12 @@ class ViewPayment extends ViewRecord
             ->modalDescription(fn (): string => self::windowDescription())
             ->modalSubmitActionLabel('Schedule refund')
             ->schema(fn (Payment $record): array => [
+                // The order's position, not just this payment's. An order can
+                // carry several payments and the ceiling on this one says
+                // nothing about what has already gone back on the others.
+                Text::make(fn (): HtmlString => self::orderPosition($record))
+                    ->columnSpanFull(),
+
                 TextInput::make('amount')
                     ->label('Amount to refund')
                     ->prefix('$')
@@ -88,12 +97,27 @@ class ViewPayment extends ViewRecord
                     ->helperText('Kept on the record, and included in the email. The customer never sees it.'),
             ])
             ->action(function (Payment $record, array $data): void {
-                $refund = app(RequestRefund::class)(
-                    $record,
-                    Money::toCents($data['amount']),
-                    (string) $data['reason'],
-                    auth()->id(),
-                );
+                try {
+                    $refund = app(RequestRefund::class)(
+                        $record,
+                        Money::toCents($data['amount']),
+                        (string) $data['reason'],
+                        auth()->id(),
+                    );
+                } catch (RuntimeException $e) {
+                    // A refusal the person can act on — another refund already
+                    // in flight, or an amount past the ceiling. Shown as itself
+                    // rather than as a 500, and persistent because it says what
+                    // to do next.
+                    Notification::make()
+                        ->title('That refund was not raised')
+                        ->body($e->getMessage())
+                        ->danger()
+                        ->persistent()
+                        ->send();
+
+                    return;
+                }
 
                 self::notifyOfRequest($refund);
             });
@@ -125,6 +149,33 @@ class ViewPayment extends ViewRecord
                     ->success()
                     ->send();
             });
+    }
+
+    /**
+     * How this order stands, so a second partial refund is raised with open
+     * eyes rather than from one payment's ceiling alone.
+     */
+    private static function orderPosition(Payment $payment): HtmlString
+    {
+        $order = $payment->order;
+        $order->load('payments.refunds');
+
+        $lines = [
+            'Captured on order <strong>'.e($order->number).'</strong>: '
+                .e(Money::format($order->capturedCents(), $order->currency)),
+        ];
+
+        if ($order->refundedCents() > 0) {
+            $lines[] = 'Already refunded: <strong>'
+                .e(Money::format($order->refundedCents(), $order->currency)).'</strong>';
+        }
+
+        if ($order->refundsInFlightCents() > 0) {
+            $lines[] = '<span class="text-warning-600 dark:text-warning-400">Scheduled and not yet sent: <strong>'
+                .e(Money::format($order->refundsInFlightCents(), $order->currency)).'</strong></span>';
+        }
+
+        return new HtmlString(implode('<br>', $lines));
     }
 
     /** What the modal says about the wait, in the client's configured terms. */

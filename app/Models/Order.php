@@ -114,6 +114,29 @@ class Order extends Model
             ->sum('amount_cents');
     }
 
+    /**
+     * Refunds agreed against this order that have not resolved yet.
+     *
+     * Across every payment on the order, not just one — two administrators
+     * refunding different payments of the same order within the window is
+     * exactly the case nobody sees from a single payment's screen.
+     *
+     * @return \Illuminate\Support\Collection<int, Refund>
+     */
+    public function refundsInFlight(): \Illuminate\Support\Collection
+    {
+        return $this->payments
+            ->flatMap(fn (Payment $payment) => $payment->refunds)
+            ->filter(fn (Refund $refund): bool => $refund->status->isInFlight())
+            ->values();
+    }
+
+    /** Agreed and waiting, in cents. Not yet given back. */
+    public function refundsInFlightCents(): int
+    {
+        return (int) $this->refundsInFlight()->sum('amount_cents');
+    }
+
     public function outstandingCents(): int
     {
         return max(0, $this->total_cents - $this->capturedCents());
