@@ -6,6 +6,10 @@ namespace App\Providers;
 
 use App\Enums\UserRole;
 use App\Models\User;
+use App\Payments\Drivers\ManualDriver;
+use App\Payments\Drivers\PayPalDriver;
+use App\Payments\Drivers\StripeDriver;
+use App\Payments\PaymentGatewayManager;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -14,7 +18,21 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        /*
+         * CLAUDE.md §8 improvement #1 — one contract, three drivers, registered
+         * in one place. A singleton because the manager holds only the driver
+         * map, and because a test swapping a driver in has to be swapping the
+         * same instance the application resolves.
+         */
+        $this->app->singleton(PaymentGatewayManager::class, static function (): PaymentGatewayManager {
+            $manager = new PaymentGatewayManager;
+
+            $manager->register(new StripeDriver);
+            $manager->register(new PayPalDriver);
+            $manager->register(new ManualDriver);
+
+            return $manager;
+        });
     }
 
     public function boot(): void

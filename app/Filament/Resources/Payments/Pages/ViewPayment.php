@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Payments\Pages;
 
 use App\Actions\Payments\RecordRefund;
+use App\Enums\RefundStatus;
 use App\Filament\Resources\Orders\OrderResource;
 use App\Filament\Resources\Payments\PaymentResource;
 use App\Models\Payment;
+use App\Models\Refund;
 use App\Support\Money;
 use Closure;
 use Filament\Actions\Action;
@@ -53,7 +55,9 @@ class ViewPayment extends ViewRecord
             ->visible(fn (Payment $record): bool => $record->refundableCents() > 0
                 && (auth()->user()?->can('refund_payment') ?? false))
             ->modalHeading('Refund this payment')
-            ->modalDescription('Recorded against the payment. Sending it to the gateway and revoking the access it granted arrive with the payment drivers in P3.')
+            ->modalDescription(fn (Payment $record): string => $record->gateway->isManual()
+                ? 'Recorded against the payment. Send the money back yourself — an invoiced payment has no gateway to do it.'
+                : 'Sent to '.$record->gateway->label().' and recorded here. Revoking the access it granted arrives with the entitlements ledger in P3.')
             ->schema(fn (Payment $record): array => [
                 TextInput::make('amount')
                     ->label('Amount to refund')
@@ -80,19 +84,42 @@ class ViewPayment extends ViewRecord
                     ->helperText('Kept on the record. The customer never sees it.'),
             ])
             ->action(function (Payment $record, array $data): void {
-                app(RecordRefund::class)(
+                $refund = app(RecordRefund::class)(
                     $record,
                     Money::toCents($data['amount']),
                     (string) $data['reason'],
                     auth()->id(),
                 );
 
-                Notification::make()
-                    ->title('Refund recorded')
-                    ->body('The order status has been updated to match.')
-                    ->success()
-                    ->send();
+                self::notifyOf($refund, $record);
             });
+    }
+
+    /**
+     * A decline is an outcome, not an error.
+     *
+     * The gateway refusing has to read as plainly as it succeeding, and it must
+     * not vanish in four seconds — the admin has to know the money did not move
+     * and why, or they will assume it did.
+     */
+    public static function notifyOf(Refund $refund, Payment $payment): void
+    {
+        if ($refund->status === RefundStatus::Succeeded) {
+            Notification::make()
+                ->title($payment->gateway->isManual() ? 'Refund recorded' : 'Refund sent to '.$payment->gateway->label())
+                ->body('The order status has been updated to match.')
+                ->success()
+                ->send();
+
+            return;
+        }
+
+        Notification::make()
+            ->title('The refund was refused')
+            ->body($refund->gateway_message ?? 'The gateway gave no reason. Nothing has been refunded.')
+            ->danger()
+            ->persistent()
+            ->send();
     }
 
     private function openOrderAction(): Action

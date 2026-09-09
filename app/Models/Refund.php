@@ -39,7 +39,7 @@ class Refund extends Model
 
     protected $fillable = [
         'payment_id', 'gateway_refund_id', 'status', 'amount_cents',
-        'reason', 'issued_by', 'processed_at',
+        'reason', 'gateway_message', 'issued_by', 'processed_at',
     ];
 
     protected function casts(): array

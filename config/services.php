@@ -38,6 +38,17 @@ return [
     ],
 
     /*
+     * The same env var Cashier reads, surfaced here so the refund driver can go
+     * through config rather than env() at the point of use — config:cache would
+     * otherwise blank it in production.
+     */
+    'stripe' => [
+        'key' => env('STRIPE_KEY'),
+        'secret' => env('STRIPE_SECRET'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+    ],
+
+    /*
      * CLAUDE.md §8 improvement #1 — PayPal as the second gateway behind the same
      * PaymentGateway contract as Stripe. Read through config, never env() at the
      * point of use, so config:cache does not blank them in production.

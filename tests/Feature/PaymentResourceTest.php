@@ -142,6 +142,7 @@ it('finds payments whose record is incomplete', function (): void {
 // Refunding -------------------------------------------------------------------
 
 it('records a refund from the payment screen', function (): void {
+    fakeGateway();
     $payment = capturedPayment(20000);
 
     Livewire\Livewire::actingAs(userWithRole(UserRole::Finance))
@@ -154,6 +155,7 @@ it('records a refund from the payment screen', function (): void {
 });
 
 it('refuses to refund more than remains, from the payment screen too', function (): void {
+    fakeGateway();
     $payment = capturedPayment(20000);
 
     Livewire\Livewire::actingAs(userWithRole(UserRole::Finance))
@@ -178,6 +180,7 @@ it('hides the refund action from Support', function (): void {
  * asserts the action itself enforces the ceiling, not just the form on top.
  */
 it('caps the refund inside the action, not only in the form', function (): void {
+    fakeGateway();
     $payment = capturedPayment(20000);
 
     expect(fn () => app(RecordRefund::class)($payment, 25000, 'Too much'))
@@ -187,6 +190,7 @@ it('caps the refund inside the action, not only in the form', function (): void 
 });
 
 it('refuses a refund of nothing', function (): void {
+    fakeGateway();
     $payment = capturedPayment(20000);
 
     expect(fn () => app(RecordRefund::class)($payment, 0, 'Nothing'))
@@ -194,6 +198,7 @@ it('refuses a refund of nothing', function (): void {
 });
 
 it('accumulates partial refunds rather than overwriting them', function (): void {
+    fakeGateway();
     $payment = capturedPayment(20000);
     $action = app(RecordRefund::class);
 
@@ -206,6 +211,7 @@ it('accumulates partial refunds rather than overwriting them', function (): void
 });
 
 it('moves the order to fully refunded once nothing remains', function (): void {
+    fakeGateway();
     $payment = capturedPayment(20000);
 
     app(RecordRefund::class)($payment, 20000, 'Cancelled before the session');
@@ -215,6 +221,7 @@ it('moves the order to fully refunded once nothing remains', function (): void {
 });
 
 it('will not refund a payment that never succeeded', function (): void {
+    fakeGateway();
     $payment = Payment::factory()->failed()->create([
         'order_id' => Order::factory()->create()->id,
         'amount_cents' => 20000,

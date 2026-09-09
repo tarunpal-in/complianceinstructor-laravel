@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Orders\RelationManagers;
 use App\Actions\Payments\RecordRefund;
 use App\Enums\PaymentGateway;
 use App\Enums\PaymentStatus;
+use App\Filament\Resources\Payments\Pages\ViewPayment;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Support\Money;
@@ -209,7 +210,9 @@ class PaymentsRelationManager extends RelationManager
             ->visible(fn (Payment $record): bool => $record->refundableCents() > 0
                 && (auth()->user()?->can('refund_payment') ?? false))
             ->modalHeading('Refund this payment')
-            ->modalDescription('Recorded against the payment. Once the gateway drivers land this also sends the refund and revokes the access it granted.')
+            ->modalDescription(fn (Payment $record): string => $record->gateway->isManual()
+                ? 'Recorded against the payment. Send the money back yourself — an invoiced payment has no gateway to do it.'
+                : 'Sent to '.$record->gateway->label().' and recorded here. Revoking the access it granted arrives with the entitlements ledger in P3.')
             ->schema(fn (Payment $record): array => [
                 TextInput::make('amount')
                     ->label('Amount to refund')
@@ -236,18 +239,17 @@ class PaymentsRelationManager extends RelationManager
                     ->helperText('Kept on the record. The customer never sees it.'),
             ])
             ->action(function (Payment $record, array $data): void {
-                app(RecordRefund::class)(
+                $refund = app(RecordRefund::class)(
                     $record,
                     Money::toCents($data['amount']),
                     (string) $data['reason'],
                     auth()->id(),
                 );
 
-                Notification::make()
-                    ->title('Refund recorded')
-                    ->body('The order status has been updated. Sending it to the gateway and revoking access arrive with the payment drivers.')
-                    ->success()
-                    ->send();
+                // The same notification as the payment screen, for the same
+                // reason both use the same action: a decline must not read
+                // differently depending on which screen it was started from.
+                ViewPayment::notifyOf($refund, $record);
             });
     }
 

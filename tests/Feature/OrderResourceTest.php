@@ -182,6 +182,7 @@ it('re-derives a mismatched status from the view page', function (): void {
  * whoever fills the form.
  */
 it('refuses to refund more than remains on the payment', function (): void {
+    fakeGateway();
     $order = Order::factory()->paid()->totalling(20000)->create();
     $payment = Payment::factory()->create([
         'order_id' => $order->id,
@@ -198,6 +199,7 @@ it('refuses to refund more than remains on the payment', function (): void {
 });
 
 it('records a partial refund and moves the order to partially refunded', function (): void {
+    fakeGateway();
     $order = Order::factory()->paid()->totalling(20000)->create();
     $payment = Payment::factory()->create([
         'order_id' => $order->id,

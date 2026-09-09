@@ -88,6 +88,22 @@ class Payment extends Model
     }
 
     /**
+     * Given back, plus in flight.
+     *
+     * A pending refund is one the gateway has been asked for and has not
+     * answered on. It has to hold its amount, or a second refund started while
+     * the first is still travelling would see the full balance and between them
+     * they would return more than was ever taken. A failed refund releases it,
+     * because it counts as neither.
+     */
+    public function reservedCents(): int
+    {
+        return (int) $this->refunds
+            ->whereIn('status', [RefundStatus::Succeeded, RefundStatus::Pending])
+            ->sum('amount_cents');
+    }
+
+    /**
      * The most that may still be refunded.
      *
      * Refunding more than was taken is the kind of arithmetic slip that only
@@ -100,6 +116,6 @@ class Payment extends Model
             return 0;
         }
 
-        return max(0, $this->amount_cents - $this->refundedCents());
+        return max(0, $this->amount_cents - $this->reservedCents());
     }
 }

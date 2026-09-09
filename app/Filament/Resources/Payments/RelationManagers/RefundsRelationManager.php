@@ -53,7 +53,12 @@ class RefundsRelationManager extends RelationManager
 
                 TextColumn::make('reason')
                     ->wrap()
-                    ->placeholder('None given'),
+                    ->placeholder('None given')
+                    // The admin's reason and the gateway's refusal are different
+                    // statements and neither may overwrite the other, so a
+                    // failed refund carries both.
+                    ->description(fn (Refund $record): ?string => $record->gateway_message)
+                    ->color(fn (Refund $record): string => $record->status === RefundStatus::Failed ? 'danger' : 'gray'),
 
                 TextColumn::make('issuedBy.name')
                     ->label('Issued by')
