@@ -32,6 +32,10 @@ class SettingSeeder extends Seeder
             // The client sets 4 for a 1 April – 31 March accounting year.
             ['orders', 'year_start_month', 1, 'integer'],
 
+            // The cooling-off window on a refund, in minutes. An hour, agreed
+            // with the client; 0 sends on the next sweep, within a minute.
+            ['orders', 'refund_delay_minutes', 60, 'integer'],
+
             ['promo_bar', 'enabled', true, 'boolean'],
             ['promo_bar', 'text', 'Purchase any webinar and use code :code at checkout to save $10.', 'string'],
             ['promo_bar', 'code', 'TRAINING', 'string'],

@@ -4,21 +4,17 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Orders\RelationManagers;
 
-use App\Actions\Payments\RecordRefund;
 use App\Enums\PaymentGateway;
 use App\Enums\PaymentStatus;
 use App\Filament\Resources\Payments\Pages\ViewPayment;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Support\Money;
-use Closure;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
-use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -37,8 +33,7 @@ use Filament\Tables\Table;
  *    creates a payment without a gateway confirming it, which is why it needs
  *    `manage_manual_payment` and writes to the activity log.
  *  - **Refund.** Gated on `refund_payment`, capped at what is actually
- *    refundable, and — once the gateway drivers land in P3 — dispatched through
- *    them rather than written straight to the table.
+ *    refundable, and sent to the gateway once its cooling-off window closes.
  */
 class PaymentsRelationManager extends RelationManager
 {
@@ -195,62 +190,23 @@ class PaymentsRelationManager extends RelationManager
      *
      * The same action backs the Payments screen. Two screens offering a
      * slightly different refund is how a bank reconciliation ends up
-     * disagreeing with the database, so both call RecordRefund.
+     * disagreeing with the database, so both mount the same action.
      *
      * P3 puts a gateway call in front of it and revokes the entitlements the
      * order granted (§5.2). Until those exist this records the decision and the
      * audit trail rather than pretending money moved, and says so.
      */
+    /**
+     * Literally the payment screen's action.
+     *
+     * It used to be a near-copy, which is how two screens end up scheduling
+     * refunds on subtly different terms — a different window, a different
+     * message, a different ceiling. There is one definition and both places
+     * mount it.
+     */
     private function refundAction(): Action
     {
-        return Action::make('refund')
-            ->label('Refund')
-            ->icon(Heroicon::OutlinedReceiptRefund)
-            ->color('danger')
-            ->visible(fn (Payment $record): bool => $record->refundableCents() > 0
-                && (auth()->user()?->can('refund_payment') ?? false))
-            ->modalHeading('Refund this payment')
-            ->modalDescription(fn (Payment $record): string => $record->gateway->isManual()
-                ? 'Recorded against the payment. Send the money back yourself — an invoiced payment has no gateway to do it.'
-                : 'Sent to '.$record->gateway->label().' and recorded here. Revoking the access it granted arrives with the entitlements ledger in P3.')
-            ->schema(fn (Payment $record): array => [
-                TextInput::make('amount')
-                    ->label('Amount to refund')
-                    ->prefix('$')
-                    ->required()
-                    ->numeric()
-                    ->default(Money::toDecimal($record->refundableCents()))
-                    ->helperText('At most '.Money::toDecimal($record->refundableCents()).' remains refundable.')
-                    // Checked here for a readable message, and again inside the
-                    // action under a lock: two people refunding the same payment
-                    // in different tabs would both pass this one.
-                    ->rule(function () use ($record): Closure {
-                        return function (string $attribute, mixed $value, Closure $fail) use ($record): void {
-                            if (Money::toCents($value) > $record->refundableCents()) {
-                                $fail('That is more than remains refundable on this payment.');
-                            }
-                        };
-                    }),
-
-                Textarea::make('reason')
-                    ->required()
-                    ->rows(2)
-                    ->maxLength(255)
-                    ->helperText('Kept on the record. The customer never sees it.'),
-            ])
-            ->action(function (Payment $record, array $data): void {
-                $refund = app(RecordRefund::class)(
-                    $record,
-                    Money::toCents($data['amount']),
-                    (string) $data['reason'],
-                    auth()->id(),
-                );
-
-                // The same notification as the payment screen, for the same
-                // reason both use the same action: a decline must not read
-                // differently depending on which screen it was started from.
-                ViewPayment::notifyOf($refund, $record);
-            });
+        return ViewPayment::refundAction();
     }
 
     /**
@@ -258,7 +214,7 @@ class PaymentsRelationManager extends RelationManager
      *
      * §9 — the status is derived, so anything that changes a payment has to
      * re-derive it rather than leave the column asserting something the money
-     * no longer supports. RecordRefund does this for itself; recording a
+     * no longer supports. Releasing a refund does this for itself; recording a
      * payment goes through here.
      */
     private function syncOrderStatus(): void

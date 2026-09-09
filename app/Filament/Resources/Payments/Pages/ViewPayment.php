@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Payments\Pages;
 
-use App\Actions\Payments\RecordRefund;
+use App\Actions\Payments\RequestRefund;
 use App\Enums\RefundStatus;
 use App\Filament\Resources\Orders\OrderResource;
 use App\Filament\Resources\Payments\PaymentResource;
@@ -35,29 +35,33 @@ class ViewPayment extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
-            $this->refundAction(),
+            self::refundAction(),
             $this->openOrderAction(),
         ];
     }
 
     /**
-     * The same refund as on the order screen, and deliberately the same code —
-     * both call RecordRefund, which caps the amount under a lock and re-derives
-     * the order. Two screens offering a slightly different refund is how a bank
-     * reconciliation ends up disagreeing with the database.
+     * Agreeing a refund, not sending one.
+     *
+     * The same action backs the order screen, and both call RequestRefund —
+     * which caps the amount under a lock, writes it as scheduled and emails
+     * everyone who could stop it. Nothing reaches the gateway until the window
+     * closes.
      */
-    private function refundAction(): Action
+    public static function refundAction(): Action
     {
         return Action::make('refund')
             ->label('Refund')
             ->icon(Heroicon::OutlinedReceiptRefund)
             ->color('danger')
+            // Super Admin only. Refunding is the one admin action that moves
+            // money out irreversibly, so it is not part of ordinary Finance
+            // work — see RolePermissionSeeder.
             ->visible(fn (Payment $record): bool => $record->refundableCents() > 0
                 && (auth()->user()?->can('refund_payment') ?? false))
             ->modalHeading('Refund this payment')
-            ->modalDescription(fn (Payment $record): string => $record->gateway->isManual()
-                ? 'Recorded against the payment. Send the money back yourself — an invoiced payment has no gateway to do it.'
-                : 'Sent to '.$record->gateway->label().' and recorded here. Revoking the access it granted arrives with the entitlements ledger in P3.')
+            ->modalDescription(fn (): string => self::windowDescription())
+            ->modalSubmitActionLabel('Schedule refund')
             ->schema(fn (Payment $record): array => [
                 TextInput::make('amount')
                     ->label('Amount to refund')
@@ -81,44 +85,77 @@ class ViewPayment extends ViewRecord
                     ->required()
                     ->rows(2)
                     ->maxLength(255)
-                    ->helperText('Kept on the record. The customer never sees it.'),
+                    ->helperText('Kept on the record, and included in the email. The customer never sees it.'),
             ])
             ->action(function (Payment $record, array $data): void {
-                $refund = app(RecordRefund::class)(
+                $refund = app(RequestRefund::class)(
                     $record,
                     Money::toCents($data['amount']),
                     (string) $data['reason'],
                     auth()->id(),
                 );
 
-                self::notifyOf($refund, $record);
+                self::notifyOfRequest($refund);
             });
     }
 
     /**
-     * A decline is an outcome, not an error.
+     * Stopping one during its window.
      *
-     * The gateway refusing has to read as plainly as it succeeding, and it must
-     * not vanish in four seconds — the admin has to know the money did not move
-     * and why, or they will assume it did.
+     * Without this the delay is just latency. It is the reason the email is
+     * worth sending.
      */
-    public static function notifyOf(Refund $refund, Payment $payment): void
+    public static function cancelRefundAction(): Action
     {
-        if ($refund->status === RefundStatus::Succeeded) {
-            Notification::make()
-                ->title($payment->gateway->isManual() ? 'Refund recorded' : 'Refund sent to '.$payment->gateway->label())
-                ->body('The order status has been updated to match.')
-                ->success()
-                ->send();
+        return Action::make('cancelRefund')
+            ->label('Cancel refund')
+            ->icon(Heroicon::OutlinedNoSymbol)
+            ->color('warning')
+            ->visible(fn (Refund $record): bool => $record->isStoppable()
+                && (auth()->user()?->can('refund_payment') ?? false))
+            ->requiresConfirmation()
+            ->modalHeading('Stop this refund?')
+            ->modalDescription('Nothing has been sent yet. The amount goes back to the payment and can be refunded again later.')
+            ->action(function (Refund $record): void {
+                app(\App\Actions\Payments\CancelScheduledRefund::class)($record, auth()->id());
 
-            return;
+                Notification::make()
+                    ->title('Refund cancelled')
+                    ->body('Nothing was sent to the gateway.')
+                    ->success()
+                    ->send();
+            });
+    }
+
+    /** What the modal says about the wait, in the client's configured terms. */
+    private static function windowDescription(): string
+    {
+        $minutes = RequestRefund::delayMinutes();
+
+        if ($minutes <= 0) {
+            return 'It will be sent to the gateway within the minute. Every administrator is emailed.';
         }
 
+        return sprintf(
+            'It is not sent immediately. Every administrator is emailed now, and it goes to the gateway in %d minutes — until then it can be cancelled.',
+            $minutes,
+        );
+    }
+
+    /**
+     * Says what actually happened: agreed, not refunded.
+     *
+     * Reporting "refund sent" here would be a lie for the next hour, and the
+     * kind that only surfaces when a customer asks where their money is.
+     */
+    public static function notifyOfRequest(Refund $refund): void
+    {
         Notification::make()
-            ->title('The refund was refused')
-            ->body($refund->gateway_message ?? 'The gateway gave no reason. Nothing has been refunded.')
-            ->danger()
-            ->persistent()
+            ->title('Refund scheduled')
+            ->body($refund->status === RefundStatus::Scheduled && $refund->scheduled_for !== null
+                ? 'It goes to the gateway '.$refund->scheduled_for->diffForHumans().'. Every administrator has been emailed, and it can be cancelled until then.'
+                : 'Every administrator has been emailed.')
+            ->success()
             ->send();
     }
 

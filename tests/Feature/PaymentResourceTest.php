@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Actions\Payments\RecordRefund;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentGateway;
 use App\Enums\PaymentStatus;
@@ -141,24 +140,14 @@ it('finds payments whose record is incomplete', function (): void {
 
 // Refunding -------------------------------------------------------------------
 
-it('records a refund from the payment screen', function (): void {
-    fakeGateway();
-    $payment = capturedPayment(20000);
-
-    Livewire\Livewire::actingAs(userWithRole(UserRole::Finance))
-        ->test(ViewPayment::class, ['record' => $payment->getRouteKey()])
-        ->callAction('refund', ['amount' => '50.00', 'reason' => 'One seat released']);
-
-    expect($payment->fresh()?->refundedCents())->toBe(5000)
-        ->and($payment->fresh()?->refundableCents())->toBe(15000)
-        ->and($payment->order->fresh()?->status)->toBe(OrderStatus::PartiallyRefunded);
-});
+// The happy path through this screen — schedule, then release — is covered in
+// GatewayRefundTest, which owns the cooling-off window.
 
 it('refuses to refund more than remains, from the payment screen too', function (): void {
     fakeGateway();
     $payment = capturedPayment(20000);
 
-    Livewire\Livewire::actingAs(userWithRole(UserRole::Finance))
+    Livewire\Livewire::actingAs(userWithRole(UserRole::SuperAdmin))
         ->test(ViewPayment::class, ['record' => $payment->getRouteKey()])
         ->callAction('refund', ['amount' => '250.00', 'reason' => 'Too much'])
         ->assertHasActionErrors(['amount']);
@@ -183,7 +172,7 @@ it('caps the refund inside the action, not only in the form', function (): void 
     fakeGateway();
     $payment = capturedPayment(20000);
 
-    expect(fn () => app(RecordRefund::class)($payment, 25000, 'Too much'))
+    expect(fn () => refundNow($payment, 25000, 'Too much'))
         ->toThrow(RuntimeException::class, 'more than remains refundable');
 
     expect($payment->fresh()?->refunds)->toHaveCount(0);
@@ -193,14 +182,14 @@ it('refuses a refund of nothing', function (): void {
     fakeGateway();
     $payment = capturedPayment(20000);
 
-    expect(fn () => app(RecordRefund::class)($payment, 0, 'Nothing'))
+    expect(fn () => refundNow($payment, 0, 'Nothing'))
         ->toThrow(RuntimeException::class);
 });
 
 it('accumulates partial refunds rather than overwriting them', function (): void {
     fakeGateway();
     $payment = capturedPayment(20000);
-    $action = app(RecordRefund::class);
+    $action = refundNow(...);
 
     $action($payment, 5000, 'First seat');
     $action($payment->fresh(), 5000, 'Second seat');
@@ -214,7 +203,7 @@ it('moves the order to fully refunded once nothing remains', function (): void {
     fakeGateway();
     $payment = capturedPayment(20000);
 
-    app(RecordRefund::class)($payment, 20000, 'Cancelled before the session');
+    refundNow($payment, 20000, 'Cancelled before the session');
 
     expect($payment->fresh()?->refundableCents())->toBe(0)
         ->and($payment->order->fresh()?->status)->toBe(OrderStatus::Refunded);
@@ -228,7 +217,7 @@ it('will not refund a payment that never succeeded', function (): void {
     ]);
 
     expect($payment->refundableCents())->toBe(0)
-        ->and(fn () => app(RecordRefund::class)($payment, 100, 'Nope'))
+        ->and(fn () => refundNow($payment, 100, 'Nope'))
         ->toThrow(RuntimeException::class);
 });
 

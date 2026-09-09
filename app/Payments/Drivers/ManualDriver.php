@@ -13,7 +13,7 @@ use App\Payments\RefundResult;
  * Invoiced payments, which have no gateway.
  *
  * Money goes back by bank transfer and someone records that it did, so there is
- * nothing to call. It implements the contract anyway so RecordRefund always asks
+ * nothing to call. It implements the contract anyway so releasing a refund always asks
  * a driver rather than branching on the gateway — the branch is what eventually
  * grows a second, subtly different refund path.
  */

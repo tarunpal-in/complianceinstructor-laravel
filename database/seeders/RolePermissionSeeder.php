@@ -110,7 +110,12 @@ class RolePermissionSeeder extends Seeder
             UserRole::Finance => [
                 ...$this->crudFor(['order', 'payment', 'coupon', 'subscription', 'offering']),
                 ...$this->readFor(['webinar', 'package', 'membership_plan', 'user', 'entitlement', 'media']),
-                'refund_payment', 'manage_manual_payment', 'view_reports',
+                // Deliberately not `refund_payment`. Refunding is the one admin
+                // action that moves money out irreversibly, and the client has
+                // reserved it for the Super Admin. Finance still reads every
+                // payment, records invoiced ones and issues manual payments —
+                // it just cannot send money back.
+                'manage_manual_payment', 'view_reports',
                 'export_data', 'view_activity_log',
             ],
 

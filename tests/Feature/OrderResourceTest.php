@@ -38,13 +38,18 @@ it('keeps the Content Editor out of orders entirely', function (): void {
         ->assertForbidden();
 });
 
-/** Support resolves access problems; it must not be able to move money. */
-it('lets Support read an order but not refund it', function (): void {
+/**
+ * Support resolves access problems and must not move money at all. Finance
+ * handles the money that comes in — recording invoiced payments — but not the
+ * money that goes back out: the client reserved refunding for the Super Admin.
+ */
+it('separates reading an order from moving money on it', function (): void {
     expect(userWithRole(UserRole::Support)->can('view_any_order'))->toBeTrue()
         ->and(userWithRole(UserRole::Support)->can('refund_payment'))->toBeFalse()
         ->and(userWithRole(UserRole::Support)->can('manage_manual_payment'))->toBeFalse()
-        ->and(userWithRole(UserRole::Finance)->can('refund_payment'))->toBeTrue()
-        ->and(userWithRole(UserRole::Finance)->can('manage_manual_payment'))->toBeTrue();
+        ->and(userWithRole(UserRole::Finance)->can('refund_payment'))->toBeFalse()
+        ->and(userWithRole(UserRole::Finance)->can('manage_manual_payment'))->toBeTrue()
+        ->and(userWithRole(UserRole::SuperAdmin)->can('refund_payment'))->toBeTrue();
 });
 
 /**
@@ -190,7 +195,7 @@ it('refuses to refund more than remains on the payment', function (): void {
         'amount_cents' => 20000,
     ]);
 
-    Livewire\Livewire::actingAs(userWithRole(UserRole::Finance))
+    Livewire\Livewire::actingAs(userWithRole(UserRole::SuperAdmin))
         ->test(PaymentsRelationManager::class, ['ownerRecord' => $order, 'pageClass' => ViewOrder::class])
         ->callTableAction('refund', $payment, ['amount' => '250.00', 'reason' => 'Too much'])
         ->assertHasTableActionErrors(['amount']);
@@ -198,7 +203,11 @@ it('refuses to refund more than remains on the payment', function (): void {
     expect($payment->fresh()?->refunds)->toHaveCount(0);
 });
 
-it('records a partial refund and moves the order to partially refunded', function (): void {
+/**
+ * The order screen mounts the payment screen's action, so a refund raised here
+ * gets the same cooling-off window rather than going out immediately.
+ */
+it('schedules a partial refund from the order screen', function (): void {
     fakeGateway();
     $order = Order::factory()->paid()->totalling(20000)->create();
     $payment = Payment::factory()->create([
@@ -207,12 +216,19 @@ it('records a partial refund and moves the order to partially refunded', functio
         'amount_cents' => 20000,
     ]);
 
-    Livewire\Livewire::actingAs(userWithRole(UserRole::Finance))
+    Livewire\Livewire::actingAs(userWithRole(UserRole::SuperAdmin))
         ->test(PaymentsRelationManager::class, ['ownerRecord' => $order, 'pageClass' => ViewOrder::class])
         ->callTableAction('refund', $payment, ['amount' => '50.00', 'reason' => 'One seat released']);
 
+    // Claimed but not yet given back, and the order has not moved.
+    expect($payment->fresh()?->refundableCents())->toBe(15000)
+        ->and($payment->fresh()?->refundedCents())->toBe(0)
+        ->and($order->fresh()?->status)->toBe(OrderStatus::Paid);
+
+    $this->travel(61)->minutes();
+    $this->artisan('refunds:release-due');
+
     expect($payment->fresh()?->refundedCents())->toBe(5000)
-        ->and($payment->fresh()?->refundableCents())->toBe(15000)
         ->and($order->fresh()?->status)->toBe(OrderStatus::PartiallyRefunded);
 });
 

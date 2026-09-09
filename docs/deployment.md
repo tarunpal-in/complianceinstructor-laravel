@@ -433,6 +433,19 @@ As the **site user**, `crontab -e`:
 * * * * * cd /home/ci-staging/htdocs/staging.complianceinstructor.com && php artisan schedule:run >> /dev/null 2>&1
 ```
 
+**Do not skip this on a server that takes payments.** Refunds sit out a
+cooling-off window before they reach Stripe or PayPal, and `refunds:release-due`
+— scheduled every minute — is what ends it. Without cron a refund is agreed,
+every administrator is emailed to say it is going out, and then it never does.
+The customer chases it days later and the record says it was issued.
+
+Check it is running after any server move:
+
+```bash
+php artisan schedule:list          # refunds:release-due should be listed
+php artisan refunds:release-due    # safe to run by hand; it is idempotent
+```
+
 ---
 
 ## 7. Lock staging down

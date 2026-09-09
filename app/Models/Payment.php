@@ -88,18 +88,18 @@ class Payment extends Model
     }
 
     /**
-     * Given back, plus in flight.
+     * Given back, plus everything already claimed against this payment.
      *
-     * A pending refund is one the gateway has been asked for and has not
-     * answered on. It has to hold its amount, or a second refund started while
-     * the first is still travelling would see the full balance and between them
-     * they would return more than was ever taken. A failed refund releases it,
-     * because it counts as neither.
+     * A scheduled refund is sitting out its cooling-off window and a pending one
+     * is mid-flight; both have to hold their amount, or a second refund raised
+     * alongside would see the full balance and between them they would return
+     * more than was ever taken. A failure or a cancellation releases the claim,
+     * because neither took any money.
      */
     public function reservedCents(): int
     {
         return (int) $this->refunds
-            ->whereIn('status', [RefundStatus::Succeeded, RefundStatus::Pending])
+            ->filter(fn (Refund $refund): bool => $refund->status->holdsFunds())
             ->sum('amount_cents');
     }
 

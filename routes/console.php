@@ -4,7 +4,26 @@ declare(strict_types=1);
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function (): void {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+/*
+ * Refunds sit out a cooling-off window before reaching their gateway, and this
+ * is what ends it. Every minute, so "an hour" means an hour rather than an hour
+ * and a bit.
+ *
+ * withoutOverlapping matters more than usual here: two sweeps running together
+ * would both find the same due refunds. The action claims each row under a lock
+ * as well, so this is the outer of two guards rather than the only one.
+ *
+ * **This needs cron.** Without `* * * * * php artisan schedule:run` on the
+ * server, refunds are agreed, emailed and then never sent — see
+ * docs/deployment.md.
+ */
+Schedule::command('refunds:release-due')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->runInBackground();

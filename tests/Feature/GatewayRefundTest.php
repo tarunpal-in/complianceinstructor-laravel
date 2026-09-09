@@ -2,25 +2,47 @@
 
 declare(strict_types=1);
 
-use App\Actions\Payments\RecordRefund;
+use App\Actions\Payments\CancelScheduledRefund;
+use App\Actions\Payments\RequestRefund;
+use App\Actions\Payments\SendRefundToGateway;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentGateway;
 use App\Enums\PaymentStatus;
 use App\Enums\RefundStatus;
 use App\Enums\UserRole;
 use App\Filament\Resources\Payments\Pages\ViewPayment;
+use App\Filament\Resources\Payments\RelationManagers\RefundsRelationManager;
 use App\Models\Order;
 use App\Models\Payment;
+use App\Models\Refund;
+use App\Models\Setting;
+use App\Models\User;
+use App\Notifications\RefundScheduled;
 use App\Payments\Drivers\ManualDriver;
 use App\Payments\Drivers\PayPalDriver;
 use App\Payments\Drivers\StripeDriver;
 use App\Payments\PaymentGatewayManager;
 use Database\Seeders\RolePermissionSeeder;
+use Illuminate\Support\Facades\Notification;
 use Tests\Support\FakeGatewayDriver;
 
 beforeEach(function (): void {
     $this->seed(RolePermissionSeeder::class);
 });
+
+/**
+ * Agree a refund and immediately release it, for tests about the gateway call.
+ *
+ * The cooling-off window is real behaviour and has its own tests below; this
+ * short-circuits it so a test about, say, the idempotency key does not have to
+ * travel an hour to get there.
+ */
+function refundNow(Payment $payment, int $cents, string $reason = 'Released'): Refund
+{
+    $refund = app(RequestRefund::class)($payment, $cents, $reason);
+
+    return app(SendRefundToGateway::class)($refund);
+}
 
 /** Put a fake driver in front of a gateway and hand it back for inspection. */
 function fakeGateway(
@@ -74,7 +96,7 @@ it('refuses to refund through a gateway with no credentials', function (): void 
 
     $payment = gatewayPayment();
 
-    expect(fn () => app(RecordRefund::class)($payment, 5000, 'Nope'))
+    expect(fn () => refundNow($payment, 5000, 'Nope'))
         ->toThrow(RuntimeException::class, 'not configured');
 
     expect($payment->fresh()?->refunds)->toHaveCount(0);
@@ -110,7 +132,7 @@ it('sends the refund to the gateway that took the money', function (PaymentGatew
     $driver = fakeGateway($gateway);
     $payment = gatewayPayment($gateway);
 
-    $refund = app(RecordRefund::class)($payment, 5000, 'One seat released');
+    $refund = refundNow($payment, 5000, 'One seat released');
 
     expect($driver->calls)->toHaveCount(1)
         ->and($driver->calls[0]['amount'])->toBe(5000)
@@ -122,7 +144,7 @@ it('stores the reference the gateway gave back', function (): void {
     fakeGateway();
     $payment = gatewayPayment();
 
-    $refund = app(RecordRefund::class)($payment, 5000, 'Released');
+    $refund = refundNow($payment, 5000, 'Released');
 
     // The whole point of capturing it: reconciling this row against the
     // gateway's own dashboard later.
@@ -139,7 +161,7 @@ it('sends an idempotency key derived from the refund row', function (): void {
     $driver = fakeGateway();
     $payment = gatewayPayment();
 
-    $refund = app(RecordRefund::class)($payment, 5000, 'Released');
+    $refund = refundNow($payment, 5000, 'Released');
 
     expect($driver->calls[0]['key'])->toBe('refund-'.$refund->id);
 });
@@ -147,7 +169,7 @@ it('sends an idempotency key derived from the refund row', function (): void {
 it('records an invoiced refund with no gateway reference', function (): void {
     $payment = gatewayPayment(PaymentGateway::Manual);
 
-    $refund = app(RecordRefund::class)($payment, 20000, 'Bank transfer returned');
+    $refund = refundNow($payment, 20000, 'Bank transfer returned');
 
     expect($refund->status)->toBe(RefundStatus::Succeeded)
         // Inventing one would make a hand-recorded refund look confirmed by
@@ -166,7 +188,7 @@ it('records a decline without moving the order', function (): void {
     fakeGateway(declineWith: 'The charge has already been disputed.');
     $payment = gatewayPayment();
 
-    $refund = app(RecordRefund::class)($payment, 5000, 'Released');
+    $refund = refundNow($payment, 5000, 'Released');
 
     expect($refund->status)->toBe(RefundStatus::Failed)
         ->and($refund->gateway_message)->toBe('The charge has already been disputed.')
@@ -182,7 +204,7 @@ it('keeps the reason and the refusal apart', function (): void {
     fakeGateway(declineWith: 'Balance too low to refund from.');
     $payment = gatewayPayment();
 
-    $refund = app(RecordRefund::class)($payment, 5000, 'Customer changed their mind');
+    $refund = refundNow($payment, 5000, 'Customer changed their mind');
 
     expect($refund->reason)->toBe('Customer changed their mind')
         ->and($refund->gateway_message)->toBe('Balance too low to refund from.');
@@ -193,13 +215,13 @@ it('lets a failed refund be retried in full', function (): void {
     fakeGateway(declineWith: 'Temporary gateway fault.');
     $payment = gatewayPayment(cents: 20000);
 
-    app(RecordRefund::class)($payment, 20000, 'First try');
+    refundNow($payment, 20000, 'First try');
 
     expect($payment->fresh()?->refundableCents())->toBe(20000);
 
     fakeGateway();
 
-    $second = app(RecordRefund::class)($payment->fresh(), 20000, 'Second try');
+    $second = refundNow($payment->fresh(), 20000, 'Second try');
 
     expect($second->status)->toBe(RefundStatus::Succeeded)
         ->and($payment->fresh()?->refundableCents())->toBe(0);
@@ -211,7 +233,7 @@ it('still refuses more than remains', function (): void {
     fakeGateway();
     $payment = gatewayPayment(cents: 20000);
 
-    expect(fn () => app(RecordRefund::class)($payment, 25000, 'Too much'))
+    expect(fn () => refundNow($payment, 25000, 'Too much'))
         ->toThrow(RuntimeException::class, 'more than remains refundable');
 
     expect($payment->fresh()?->refunds)->toHaveCount(0);
@@ -238,15 +260,190 @@ it('reserves an in-flight refund against the balance', function (): void {
         ->and($payment->refundedCents())->toBe(0);
 });
 
-// Through the screen ----------------------------------------------------------
+// The cooling-off window ------------------------------------------------------
 
-it('refunds from the payment screen and says which gateway took it', function (): void {
+/**
+ * Refunding is the one admin action that moves money out irreversibly, and §9's
+ * threat model includes an admin account being used by someone else. An hour
+ * and an email is the difference between catching that and reading about it on
+ * a bank statement.
+ */
+it('schedules a refund rather than sending it', function (): void {
     $driver = fakeGateway();
     $payment = gatewayPayment(cents: 20000);
 
+    $refund = app(RequestRefund::class)($payment, 5000, 'One seat released');
+
+    expect($refund->status)->toBe(RefundStatus::Scheduled)
+        ->and($refund->scheduled_for?->diffInMinutes(now()))->toBeLessThanOrEqual(60)
+        // Nothing has been sent, and the order has not moved.
+        ->and($driver->calls)->toBeEmpty()
+        ->and($payment->order->fresh()?->status)->toBe(OrderStatus::Paid);
+});
+
+it('emails every administrator when a refund is scheduled', function (): void {
+    Notification::fake();
+    fakeGateway();
+
+    $admins = User::factory()->count(2)->create();
+    foreach ($admins as $admin) {
+        $admin->assignRole(UserRole::SuperAdmin->value);
+    }
+
+    app(RequestRefund::class)(gatewayPayment(), 5000, 'Released');
+
+    Notification::assertSentToTimes($admins[0], RefundScheduled::class, 1);
+    Notification::assertSentToTimes($admins[1], RefundScheduled::class, 1);
+});
+
+/**
+ * Finance reads every payment and records invoiced ones, but cannot send money
+ * back — the client reserved that for the Super Admin.
+ */
+it('grants the refund permission to the Super Admin alone', function (): void {
+    expect(userWithRole(UserRole::SuperAdmin)->can('refund_payment'))->toBeTrue()
+        ->and(userWithRole(UserRole::Finance)->can('refund_payment'))->toBeFalse()
+        ->and(userWithRole(UserRole::Support)->can('refund_payment'))->toBeFalse()
+        // Finance keeps the rest of its work.
+        ->and(userWithRole(UserRole::Finance)->can('manage_manual_payment'))->toBeTrue()
+        ->and(userWithRole(UserRole::Finance)->can('view_any_payment'))->toBeTrue();
+});
+
+it('hides the refund action from Finance', function (): void {
+    fakeGateway();
+    $payment = gatewayPayment();
+
     Livewire\Livewire::actingAs(userWithRole(UserRole::Finance))
         ->test(ViewPayment::class, ['record' => $payment->getRouteKey()])
-        ->callAction('refund', ['amount' => '50.00', 'reason' => 'One seat released']);
+        ->assertActionHidden('refund');
+});
+
+/** A scheduled refund holds its amount, so a second one cannot claim it too. */
+it('reserves a scheduled refund against the balance', function (): void {
+    fakeGateway();
+    $payment = gatewayPayment(cents: 20000);
+
+    app(RequestRefund::class)($payment, 15000, 'First');
+
+    expect($payment->fresh()?->refundableCents())->toBe(5000)
+        ->and($payment->fresh()?->refundedCents())->toBe(0);
+});
+
+it('sends nothing until the window has closed', function (): void {
+    $driver = fakeGateway();
+    $payment = gatewayPayment(cents: 20000);
+
+    app(RequestRefund::class)($payment, 5000, 'Released');
+
+    $this->artisan('refunds:release-due')->assertSuccessful();
+
+    expect($driver->calls)->toBeEmpty();
+
+    $this->travel(61)->minutes();
+
+    $this->artisan('refunds:release-due')->assertSuccessful();
+
+    expect($driver->calls)->toHaveCount(1)
+        ->and($payment->order->fresh()?->status)->toBe(OrderStatus::PartiallyRefunded);
+});
+
+it('takes the window length from settings', function (): void {
+    Setting::set('orders.refund_delay_minutes', 5, 'integer');
+    fakeGateway();
+
+    $refund = app(RequestRefund::class)(gatewayPayment(), 5000, 'Released');
+
+    expect(RequestRefund::delayMinutes())->toBe(5)
+        ->and($refund->scheduled_for?->diffInMinutes(now()))->toBeLessThanOrEqual(5);
+});
+
+/**
+ * The sweep is idempotent: a second run must find the refund already claimed
+ * and leave it alone rather than refunding twice.
+ */
+it('does not send the same refund twice', function (): void {
+    $driver = fakeGateway();
+    $payment = gatewayPayment(cents: 20000);
+
+    app(RequestRefund::class)($payment, 5000, 'Released');
+    $this->travel(61)->minutes();
+
+    $this->artisan('refunds:release-due');
+    $this->artisan('refunds:release-due');
+
+    expect($driver->calls)->toHaveCount(1);
+});
+
+// Cancelling ------------------------------------------------------------------
+
+/**
+ * The window is worth nothing without this. A delay nobody can act on just
+ * makes refunds slower.
+ */
+it('stops a scheduled refund and releases the amount', function (): void {
+    $driver = fakeGateway();
+    $payment = gatewayPayment(cents: 20000);
+
+    $refund = app(RequestRefund::class)($payment, 5000, 'Raised in error');
+
+    $cancelled = app(CancelScheduledRefund::class)($refund, userWithRole(UserRole::SuperAdmin)->id);
+
+    expect($cancelled->status)->toBe(RefundStatus::Cancelled)
+        ->and($cancelled->cancelled_at)->not->toBeNull()
+        ->and($cancelled->cancelled_by)->not->toBeNull()
+        ->and($payment->fresh()?->refundableCents())->toBe(20000);
+
+    $this->travel(61)->minutes();
+    $this->artisan('refunds:release-due');
+
+    expect($driver->calls)->toBeEmpty();
+});
+
+it('refuses to cancel a refund that has already gone', function (): void {
+    fakeGateway();
+    $payment = gatewayPayment(cents: 20000);
+
+    $refund = refundNow($payment, 5000, 'Released');
+
+    expect(fn () => app(CancelScheduledRefund::class)($refund))
+        ->toThrow(RuntimeException::class, 'already been sent');
+});
+
+it('lets a cancelled refund be replaced by a corrected one', function (): void {
+    fakeGateway();
+    $payment = gatewayPayment(cents: 20000);
+
+    $wrong = app(RequestRefund::class)($payment, 20000, 'Wrong figure');
+    app(CancelScheduledRefund::class)($wrong);
+
+    $right = app(RequestRefund::class)($payment->fresh(), 5000, 'Correct figure');
+
+    expect($right->status)->toBe(RefundStatus::Scheduled)
+        ->and($payment->fresh()?->refundableCents())->toBe(15000);
+});
+
+// Through the screen ----------------------------------------------------------
+
+/**
+ * The screen says what actually happened. Reporting "refund sent" here would be
+ * a lie for the next hour, and the kind that only surfaces when a customer asks
+ * where their money is.
+ */
+it('schedules from the payment screen and says so', function (): void {
+    $driver = fakeGateway();
+    $payment = gatewayPayment(cents: 20000);
+
+    Livewire\Livewire::actingAs(userWithRole(UserRole::SuperAdmin))
+        ->test(ViewPayment::class, ['record' => $payment->getRouteKey()])
+        ->callAction('refund', ['amount' => '50.00', 'reason' => 'One seat released'])
+        ->assertNotified('Refund scheduled');
+
+    expect($driver->calls)->toBeEmpty()
+        ->and($payment->fresh()?->refunds->first()?->status)->toBe(RefundStatus::Scheduled)
+        ->and($payment->order->fresh()?->status)->toBe(OrderStatus::Paid);
+
+    $this->travel(61)->minutes();
+    $this->artisan('refunds:release-due');
 
     expect($driver->calls)->toHaveCount(1)
         ->and($driver->calls[0]['amount'])->toBe(5000)
@@ -254,15 +451,21 @@ it('refunds from the payment screen and says which gateway took it', function ()
         ->and($payment->order->fresh()?->status)->toBe(OrderStatus::PartiallyRefunded);
 });
 
-it('surfaces a decline on the screen rather than reporting success', function (): void {
-    fakeGateway(declineWith: 'The charge has already been disputed.');
+it('cancels a scheduled refund from the refunds list', function (): void {
+    $driver = fakeGateway();
     $payment = gatewayPayment(cents: 20000);
 
-    Livewire\Livewire::actingAs(userWithRole(UserRole::Finance))
-        ->test(ViewPayment::class, ['record' => $payment->getRouteKey()])
-        ->callAction('refund', ['amount' => '50.00', 'reason' => 'Released'])
-        ->assertNotified('The refund was refused');
+    $refund = app(RequestRefund::class)($payment, 5000, 'Raised in error');
 
-    expect($payment->fresh()?->refundedCents())->toBe(0)
-        ->and($payment->order->fresh()?->status)->toBe(OrderStatus::Paid);
+    Livewire\Livewire::actingAs(userWithRole(UserRole::SuperAdmin))
+        ->test(RefundsRelationManager::class, ['ownerRecord' => $payment, 'pageClass' => ViewPayment::class])
+        ->callTableAction('cancelRefund', $refund)
+        ->assertNotified('Refund cancelled');
+
+    $this->travel(61)->minutes();
+    $this->artisan('refunds:release-due');
+
+    expect($refund->fresh()?->status)->toBe(RefundStatus::Cancelled)
+        ->and($driver->calls)->toBeEmpty()
+        ->and($payment->fresh()?->refundableCents())->toBe(20000);
 });
