@@ -28,6 +28,9 @@ class DatabaseSeeder extends Seeder
             RolePermissionSeeder::class,
             SettingSeeder::class,
             MediaLibrarySeeder::class,
+            // Needs a catalogue to sell, so it runs last and skips itself when
+            // there is nothing published yet.
+            OrderSeeder::class,
         ]);
 
         $admin = User::firstOrCreate(
