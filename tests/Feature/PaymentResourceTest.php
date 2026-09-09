@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Enums\OrderStatus;
 use App\Enums\PaymentGateway;
-use App\Enums\PaymentStatus;
 use App\Enums\UserRole;
 use App\Filament\Resources\Payments\Pages\ListPayments;
 use App\Filament\Resources\Payments\Pages\ViewPayment;
@@ -17,19 +16,6 @@ use Database\Seeders\RolePermissionSeeder;
 beforeEach(function (): void {
     $this->seed(RolePermissionSeeder::class);
 });
-
-/** A captured payment against an order of the same size. */
-function capturedPayment(int $cents = 20000, array $attributes = []): Payment
-{
-    $order = Order::factory()->paid()->totalling($cents)->create();
-
-    return Payment::factory()->create([
-        'order_id' => $order->id,
-        'status' => PaymentStatus::Succeeded,
-        'amount_cents' => $cents,
-        ...$attributes,
-    ]);
-}
 
 // Authorization ---------------------------------------------------------------
 

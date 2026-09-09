@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 use App\Enums\Format;
 use App\Enums\UserRole;
-use App\Filament\Resources\Webinars\Pages\EditWebinar;
-use App\Filament\Resources\Webinars\RelationManagers\OfferingsRelationManager;
 use App\Models\Offering;
 use App\Models\Webinar;
 use Database\Seeders\RolePermissionSeeder;
@@ -15,14 +13,6 @@ beforeEach(function (): void {
     $this->webinar = Webinar::factory()->create();
     Livewire\Livewire::actingAs(userWithRole(UserRole::SuperAdmin));
 });
-
-function manager(Webinar $webinar): Livewire\Features\SupportTesting\Testable
-{
-    return Livewire\Livewire::test(OfferingsRelationManager::class, [
-        'ownerRecord' => $webinar,
-        'pageClass' => EditWebinar::class,
-    ]);
-}
 
 it('creates a bundle granting three formats', function (): void {
     manager($this->webinar)->callTableAction('create', data: [

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Actions\Payments\CancelScheduledRefund;
 use App\Actions\Payments\RequestRefund;
-use App\Actions\Payments\SendRefundToGateway;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentGateway;
 use App\Enums\PaymentStatus;
@@ -24,54 +23,10 @@ use App\Payments\Drivers\StripeDriver;
 use App\Payments\PaymentGatewayManager;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Support\Facades\Notification;
-use Tests\Support\FakeGatewayDriver;
 
 beforeEach(function (): void {
     $this->seed(RolePermissionSeeder::class);
 });
-
-/**
- * Agree a refund and immediately release it, for tests about the gateway call.
- *
- * The cooling-off window is real behaviour and has its own tests below; this
- * short-circuits it so a test about, say, the idempotency key does not have to
- * travel an hour to get there.
- */
-function refundNow(Payment $payment, int $cents, string $reason = 'Released'): Refund
-{
-    $refund = app(RequestRefund::class)($payment, $cents, $reason);
-
-    return app(SendRefundToGateway::class)($refund);
-}
-
-/** Put a fake driver in front of a gateway and hand it back for inspection. */
-function fakeGateway(
-    PaymentGateway $gateway = PaymentGateway::Stripe,
-    bool $configured = true,
-    ?string $declineWith = null,
-): FakeGatewayDriver {
-    $driver = new FakeGatewayDriver($gateway, $configured, $declineWith);
-
-    app(PaymentGatewayManager::class)->register($driver);
-
-    return $driver;
-}
-
-/** A captured payment on an order of the same size. */
-function gatewayPayment(
-    PaymentGateway $gateway = PaymentGateway::Stripe,
-    int $cents = 20000,
-): Payment {
-    $order = Order::factory()->paid()->totalling($cents)->create();
-
-    return Payment::factory()->create([
-        'order_id' => $order->id,
-        'gateway' => $gateway,
-        'gateway_payment_id' => 'pi_'.fake()->lexify('????????????'),
-        'status' => PaymentStatus::Succeeded,
-        'amount_cents' => $cents,
-    ]);
-}
 
 // Wiring ----------------------------------------------------------------------
 

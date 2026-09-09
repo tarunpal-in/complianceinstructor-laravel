@@ -19,19 +19,6 @@ beforeEach(function (): void {
     $this->seed(SettingSeeder::class);
 });
 
-/** Point the settings at a format without going through the form. */
-function useFormat(
-    string $pattern,
-    int $padding,
-    OrderNumberReset $reset,
-    int $yearStartMonth = 1,
-): void {
-    Setting::set('orders.number_format', $pattern, 'string');
-    Setting::set('orders.number_padding', $padding, 'integer');
-    Setting::set('orders.number_reset', $reset->value, 'string');
-    Setting::set('orders.year_start_month', $yearStartMonth, 'integer');
-}
-
 // Rendering -------------------------------------------------------------------
 
 it('renders the format the client asked for', function (): void {

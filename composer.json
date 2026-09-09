@@ -72,6 +72,10 @@
         ],
         "test": [
             "@php artisan config:clear --ansi",
+            "./vendor/bin/pest --parallel"
+        ],
+        "test:serial": [
+            "@php artisan config:clear --ansi",
             "./vendor/bin/pest"
         ],
         "post-autoload-dump": [

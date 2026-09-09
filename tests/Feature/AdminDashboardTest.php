@@ -15,14 +15,6 @@ beforeEach(function (): void {
     $this->seed(RolePermissionSeeder::class);
 });
 
-function userWithRole(UserRole $role): User
-{
-    $user = User::factory()->create();
-    $user->assignRole($role->value);
-
-    return $user;
-}
-
 it('shows the dashboard to an admin', function (): void {
     $this->actingAs(userWithRole(UserRole::SuperAdmin))
         ->get('/admin')

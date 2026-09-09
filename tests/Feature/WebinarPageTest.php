@@ -16,18 +16,6 @@ beforeEach(function (): void {
     $this->seed(SettingSeeder::class);
 });
 
-/** A webinar the public page will actually render. */
-function publishedWebinar(array $attributes = []): Webinar
-{
-    return Webinar::factory()->scheduled()->create([
-        'title' => 'FMLA Compliance 2026: Avoiding Costly Mistakes',
-        'summary' => 'Discover how the H.O.P.E. framework reshapes leadership culture.',
-        'overview' => "First overview paragraph.\n\nSecond overview paragraph.",
-        'session_highlights' => 'What the session covers.',
-        ...$attributes,
-    ]);
-}
-
 // Visibility ------------------------------------------------------------------
 
 it('renders a published webinar', function (): void {
