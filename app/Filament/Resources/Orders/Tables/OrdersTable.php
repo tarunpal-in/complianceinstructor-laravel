@@ -57,7 +57,12 @@ class OrdersTable
 
                 TextColumn::make('items_count')
                     ->label('Lines')
-                    ->counts('items')
+                    // No ->counts('items'): the resource query already adds it.
+                    // Both would append the same subquery alias, and the
+                    // summariser wraps the whole query in a derived table where
+                    // MySQL rejects the duplicate — "Duplicate column name
+                    // items_count". SQLite tolerates it, so this only appears
+                    // against a real database.
                     ->alignEnd()
                     ->toggleable(),
 

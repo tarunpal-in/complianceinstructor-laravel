@@ -110,7 +110,10 @@ class MediaTable
 
             TextColumn::make('usages_count')
                 ->label('Used')
-                ->counts('usages')
+                // No ->counts('usages'): MediaResource::getEloquentQuery()
+                // already adds it, and adding it twice appends the same
+                // subquery alias — which MySQL rejects the moment anything
+                // wraps the query in a derived table.
                 ->badge()
                 ->color(fn (int $state): string => $state > 0 ? 'success' : 'gray')
                 ->formatStateUsing(fn (int $state): string => $state === 0 ? 'Unused' : (string) $state)

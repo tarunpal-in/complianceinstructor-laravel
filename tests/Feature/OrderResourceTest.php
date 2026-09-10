@@ -73,6 +73,35 @@ it('renders the list without lazy loading relations', function (): void {
         ->assertSuccessful();
 });
 
+/**
+ * A relation count must be added once, not twice.
+ *
+ * `withCount('items')` on the resource and `->counts('items')` on the column
+ * each append the same subquery alias. SQLite shrugs; MySQL rejects it the
+ * moment the summariser wraps the query in a derived table — "Duplicate column
+ * name items_count" — so the admin list 500s in production and passes every
+ * test locally.
+ *
+ * Asserted against the SQL text rather than the driver's tolerance, so it fails
+ * on SQLite too.
+ */
+it('counts each relation exactly once in the list query', function (): void {
+    Order::factory()->count(2)->create();
+
+    $queries = [];
+    DB::listen(function ($query) use (&$queries): void {
+        $queries[] = $query->sql;
+    });
+
+    Livewire\Livewire::actingAs(userWithRole(UserRole::Finance))
+        ->test(ListOrders::class)
+        ->assertSuccessful();
+
+    foreach ($queries as $sql) {
+        expect(substr_count($sql, 'items_count'))->toBeLessThanOrEqual(1, "Duplicated alias in: {$sql}");
+    }
+});
+
 it('shows a guest order under the name captured at checkout', function (): void {
     $order = Order::factory()->guest()->create([
         'billing_snapshot' => ['name' => 'Dana Whitfield', 'email' => 'dana@example.test'],

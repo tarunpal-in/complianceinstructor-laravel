@@ -77,14 +77,12 @@ jobs:
       - name: Larastan (level 6)
         run: composer types
 
-      # Serial on purpose. Locally `composer test` runs in parallel against
-      # SQLite, which is where the pre-commit wait actually hurts. Here it runs
-      # against MySQL, where parallel needs Laravel to create a database per
-      # worker — that works, but it has not been exercised on this project, and
-      # the job that gates every push is the wrong place to find out.
-      # Switch to `composer test` once someone has watched it go green twice.
+      # Parallel. Laravel creates a database per worker automatically — verified
+      # against a real MariaDB locally, where it also caught a duplicate-alias
+      # bug SQLite had been hiding. `composer test:serial` is the fallback if a
+      # failure ever needs isolating.
       - name: Pest
-        run: composer test:serial
+        run: composer test
         env:
           DB_CONNECTION: mysql
           DB_HOST: 127.0.0.1
