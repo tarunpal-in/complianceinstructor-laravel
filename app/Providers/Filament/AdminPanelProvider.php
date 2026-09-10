@@ -130,8 +130,6 @@ class AdminPanelProvider extends PanelProvider
         $items = [
             ['Catalogue', 20, 'Packages', Heroicon::OutlinedCube],
 
-            ['Sales', 30, 'Coupons', Heroicon::OutlinedTicket],
-
             ['Memberships', 10, 'Plans', Heroicon::OutlinedRectangleStack],
             ['Memberships', 20, 'Subscriptions', Heroicon::OutlinedArrowPath],
 
