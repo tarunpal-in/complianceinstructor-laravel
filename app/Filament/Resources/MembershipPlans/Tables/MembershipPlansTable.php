@@ -27,23 +27,35 @@ class MembershipPlansTable
     {
         return $table
             ->columns([
+                /*
+                 * Both the width and the wrap are load-bearing.
+                 *
+                 * A table cell is `whitespace-nowrap` by default, so the
+                 * description — "Ten live sessions a year, with unlimited
+                 * recordings, transcripts and downloads." — was one unbreakable
+                 * 500px line. That is what pushed the table past its container
+                 * and produced the horizontal scroll; the columns to its right
+                 * were then squeezed into slivers and had to wrap at every
+                 * word, which is what it looked like the problem was.
+                 *
+                 * Fixing it means telling the column how much room it has and
+                 * letting the text use the height instead.
+                 */
                 TextColumn::make('name')
                     ->searchable()
                     ->sortable()
                     ->weight('bold')
-                    // Truncated rather than wrapped: a two-line description on
-                    // every row sets the height of the whole table, and the
-                    // full text is one click away on the record itself.
                     ->description(fn (MembershipPlan $record): ?string => $record->description)
-                    ->wrap(false)
-                    ->limit(60),
+                    ->wrap()
+                    ->width('24rem'),
 
                 TextColumn::make('price_cents')
                     ->label('Price')
                     ->state(fn (MembershipPlan $record): string => Money::format($record->price_cents, $record->currency))
                     ->description(fn (MembershipPlan $record): string => $record->billing_period->label())
                     ->alignEnd()
-                    ->sortable(),
+                    ->sortable()
+                    ->width('8rem'),
 
                 /*
                  * The column the whole §5.5 redesign exists to make possible:
@@ -51,12 +63,11 @@ class MembershipPlansTable
                  * predecessor's 17 boolean columns could not be summarised at
                  * all.
                  *
-                 * A list, not the joined sentence. Given one long string the
-                 * cell wraps it at whatever character the column edge lands on,
-                 * so "3 live webinars per term · 3 recordings per term" became
-                 * a dozen ragged lines and dragged the table into a horizontal
-                 * scroll. Two lines shown, the rest behind "+n more", so a
-                 * four-format tier is no taller than a one-format tier.
+                 * A list, not the joined sentence — one allowance per line, so
+                 * it breaks where the meaning breaks rather than wherever the
+                 * column edge happens to fall. Two shown and the rest behind
+                 * "+n more", so a four-format tier is no taller than a
+                 * one-format tier.
                  */
                 TextColumn::make('allowances')
                     ->label('Grants')
@@ -65,7 +76,8 @@ class MembershipPlansTable
                     ->limitList(2)
                     ->expandableLimitedList()
                     ->placeholder('Grants nothing yet')
-                    ->size('sm'),
+                    ->size('sm')
+                    ->width('15rem'),
 
                 TextColumn::make('active_subscribers_count')
                     ->label('Members')
@@ -90,10 +102,14 @@ class MembershipPlansTable
                     ->boolean()
                     ->sortable(),
 
+                // Off by default. One plan in four is featured and the pricing
+                // page shows which, so a whole column of crosses costs more
+                // width than it earns. Still one click away in the column
+                // picker.
                 IconColumn::make('is_featured')
                     ->label('Featured')
                     ->boolean()
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             // Dragged into order, because the order of tiers on a pricing page
             // is a commercial decision the client should not need a developer
