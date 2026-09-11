@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Enums\UserRole;
+use App\Models\Subscription;
 use App\Models\User;
 use App\Payments\Drivers\ManualDriver;
 use App\Payments\Drivers\PayPalDriver;
@@ -13,6 +14,7 @@ use App\Payments\PaymentGatewayManager;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Cashier\Cashier;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -37,6 +39,13 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // §5.5 — Cashier keeps ownership of the subscriptions table, and our
+        // model adds the plan link and the allowance snapshot on top. Wiring it
+        // here rather than only using it in our own queries matters: Cashier
+        // builds subscription records itself during checkout and webhook
+        // handling, and those instances have to be this class too.
+        Cashier::useSubscriptionModel(Subscription::class);
+
         // Super Admin passes every gate. Without this, each new permission added
         // in P2+ would have to be reseeded onto the role before it took effect.
         Gate::before(static function (User $user, string $ability): ?bool {

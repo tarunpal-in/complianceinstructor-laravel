@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Cashier\Billable;
 use Spatie\Permission\Traits\HasRoles;
 
 /**
@@ -23,8 +24,14 @@ use Spatie\Permission\Traits\HasRoles;
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements FilamentUser
 {
-    /** @use HasFactory<UserFactory> */
-    use HasFactory, HasRoles, Notifiable;
+    /**
+     * Billable is what gives a user `subscriptions()` and the Stripe customer
+     * columns published in `create_customer_columns` — §3 hands Cashier every
+     * part of subscription billing, and this is the end it attaches to.
+     *
+     * @use HasFactory<UserFactory>
+     */
+    use Billable, HasFactory, HasRoles, Notifiable;
 
     /**
      * Gate on the admin panel.

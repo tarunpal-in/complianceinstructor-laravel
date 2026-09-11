@@ -28,6 +28,7 @@ class DatabaseSeeder extends Seeder
             RolePermissionSeeder::class,
             SettingSeeder::class,
             MediaLibrarySeeder::class,
+            MembershipPlanSeeder::class,
             // After the catalogue, because one of them scopes to an industry.
             CouponSeeder::class,
             // Needs a catalogue to sell, so it runs last and skips itself when
