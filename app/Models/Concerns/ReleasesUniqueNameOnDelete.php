@@ -56,6 +56,18 @@ trait ReleasesUniqueNameOnDelete
     }
 
     /**
+     * The same, readable from outside.
+     *
+     * The override point stays protected; this exists so the guard in
+     * UniqueNameReleaseTest can ask a model which of its unique columns is
+     * actually covered, rather than assuming it is `slug`.
+     */
+    public function releasedNameColumn(): string
+    {
+        return $this->uniqueNameColumn();
+    }
+
+    /**
      * How long that column is.
      *
      * The suffix has to fit inside it, or the rename that frees the name fails

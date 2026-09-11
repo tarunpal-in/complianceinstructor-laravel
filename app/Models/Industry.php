@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Models\Concerns\ReleasesUniqueNameOnDelete;
 use Database\Factories\IndustryFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -21,7 +22,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 class Industry extends Model implements HasMedia
 {
     /** @use HasFactory<IndustryFactory> */
-    use HasFactory, InteractsWithMedia, SoftDeletes;
+    use HasFactory, InteractsWithMedia, ReleasesUniqueNameOnDelete, SoftDeletes;
 
     protected $fillable = [
         'name', 'slug', 'description', 'is_active', 'sort_order',

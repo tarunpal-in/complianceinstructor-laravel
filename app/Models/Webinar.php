@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Enums\Format;
 use App\Enums\WebinarStatus;
 use App\Enums\WebinarType;
+use App\Models\Concerns\ReleasesUniqueNameOnDelete;
 use Database\Factories\WebinarFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -37,7 +38,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 class Webinar extends Model implements HasMedia
 {
     /** @use HasFactory<WebinarFactory> */
-    use HasFactory, InteractsWithMedia, SoftDeletes;
+    use HasFactory, InteractsWithMedia, ReleasesUniqueNameOnDelete, SoftDeletes;
 
     protected $fillable = [
         'type', 'status', 'title', 'slug', 'summary',
