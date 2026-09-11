@@ -91,6 +91,36 @@ it('never runs out of an unlimited allowance', function (): void {
         ->and($counted->remainingAfter(9))->toBe(0);
 });
 
+/**
+ * The list column takes a list, not the joined sentence. Handed one long
+ * string the cell wraps it wherever the column edge falls, which turned three
+ * allowances into a dozen ragged lines and pushed the table into a horizontal
+ * scroll.
+ */
+it('gives the list one entry per allowance', function (): void {
+    // Created out of order on purpose: nothing orders the table, so the list
+    // has to impose one or the column reshuffles between page loads.
+    $plan = MembershipPlan::factory()
+        ->granting([
+            Format::Download->value => null,
+            Format::Recorded->value => 3,
+            Format::Live->value => 3,
+        ])
+        ->create()
+        ->load('entitlements');
+
+    expect($plan->allowanceLines())->toBe([
+        '3 live webinars per term',
+        '3 recordings per term',
+        'unlimited downloads',
+    ]);
+
+    $this->actingAs(userWithRole(UserRole::SuperAdmin));
+
+    Livewire\Livewire::test(ListMembershipPlans::class)
+        ->assertTableColumnStateSet('allowances', $plan->allowanceLines(), $plan);
+});
+
 it('summarises a whole tier in one line', function (): void {
     $plan = MembershipPlan::factory()
         ->granting([Format::Live->value => 4])

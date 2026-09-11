@@ -31,7 +31,12 @@ class MembershipPlansTable
                     ->searchable()
                     ->sortable()
                     ->weight('bold')
-                    ->description(fn (MembershipPlan $record): ?string => $record->description),
+                    // Truncated rather than wrapped: a two-line description on
+                    // every row sets the height of the whole table, and the
+                    // full text is one click away on the record itself.
+                    ->description(fn (MembershipPlan $record): ?string => $record->description)
+                    ->wrap(false)
+                    ->limit(60),
 
                 TextColumn::make('price_cents')
                     ->label('Price')
@@ -42,14 +47,25 @@ class MembershipPlansTable
 
                 /*
                  * The column the whole §5.5 redesign exists to make possible:
-                 * the value of a tier, in one line, without opening it. The
+                 * the value of a tier at a glance, without opening it. The
                  * predecessor's 17 boolean columns could not be summarised at
                  * all.
+                 *
+                 * A list, not the joined sentence. Given one long string the
+                 * cell wraps it at whatever character the column edge lands on,
+                 * so "3 live webinars per term · 3 recordings per term" became
+                 * a dozen ragged lines and dragged the table into a horizontal
+                 * scroll. Two lines shown, the rest behind "+n more", so a
+                 * four-format tier is no taller than a one-format tier.
                  */
                 TextColumn::make('allowances')
                     ->label('Grants')
-                    ->state(fn (MembershipPlan $record): string => $record->describeAllowances())
-                    ->wrap(),
+                    ->state(fn (MembershipPlan $record): array => $record->allowanceLines())
+                    ->listWithLineBreaks()
+                    ->limitList(2)
+                    ->expandableLimitedList()
+                    ->placeholder('Grants nothing yet')
+                    ->size('sm'),
 
                 TextColumn::make('active_subscribers_count')
                     ->label('Members')

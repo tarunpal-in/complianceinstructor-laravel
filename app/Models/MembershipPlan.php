@@ -177,10 +177,11 @@ class MembershipPlan extends Model
     }
 
     /**
-     * "4 live per term · unlimited transcripts", for the plan list.
+     * "4 live per term · unlimited transcripts" — the whole tier in one line.
      *
-     * The whole value of a tier in one line — which is what the client compares
-     * plans by, and what §5.5's 17 replaced columns could never show at a glance.
+     * For places with a line to spare: global search results, a tooltip. The
+     * admin list uses allowanceLines() instead, because four of these joined
+     * end to end is far wider than a table column.
      */
     public function describeAllowances(): string
     {
@@ -188,9 +189,35 @@ class MembershipPlan extends Model
             return 'Grants nothing yet';
         }
 
+        return implode(' · ', $this->allowanceLines());
+    }
+
+    /**
+     * The same allowances, one per entry.
+     *
+     * A table cell given the joined string has to wrap it, and with a column
+     * this narrow it wraps at nearly every word — three allowances became a
+     * dozen lines and pushed the whole table into a horizontal scroll. Handing
+     * the column a list lets it break where the meaning breaks, and show only
+     * the first couple.
+     *
+     * Sorted by format rather than by however the rows came back. Nothing
+     * orders `plan_entitlements`, so the database is free to return them in any
+     * order it likes — a plan whose allowances reshuffled between two page
+     * loads would read as a plan that had changed. Format order also happens to
+     * be the order a customer cares about: live first, then what they keep.
+     *
+     * @return array<int, string>
+     */
+    public function allowanceLines(): array
+    {
+        $order = array_flip(Format::values());
+
         return $this->entitlements
+            ->sortBy(fn (PlanEntitlement $entitlement): int => $order[$entitlement->format->value] ?? PHP_INT_MAX)
             ->map(fn (PlanEntitlement $entitlement): string => $entitlement->describe())
-            ->join(' · ');
+            ->values()
+            ->all();
     }
 
     // Publishing --------------------------------------------------------------
