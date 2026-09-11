@@ -9,6 +9,7 @@ use App\Enums\Format;
 use App\Enums\UserRole;
 use App\Filament\Resources\MembershipPlans\Pages\CreateMembershipPlan;
 use App\Filament\Resources\MembershipPlans\Pages\EditMembershipPlan;
+use App\Filament\Resources\MembershipPlans\Pages\ListMembershipPlans;
 use App\Models\MembershipPlan;
 use App\Models\PlanEntitlement;
 use App\Models\Subscription;
@@ -378,6 +379,56 @@ it('will not delete a plan people are still paying for', function (): void {
     $empty = plan();
 
     expect($empty->deletionBlockReason())->toBeNull();
+});
+
+// Deleting -------------------------------------------------------------------
+
+/**
+ * The bug this asserts against: the resource query strips the soft-delete
+ * scope so a deleted plan can still be opened and restored, and for a while
+ * nothing put the scope back. A deleted plan stayed in the list looking live,
+ * so the delete reported success and appeared to do nothing.
+ */
+it('takes a deleted plan out of the list', function (): void {
+    $this->actingAs(userWithRole(UserRole::SuperAdmin));
+
+    $kept = plan(['name' => 'Kept']);
+    $deleted = plan(['name' => 'Deleted']);
+
+    Livewire\Livewire::test(ListMembershipPlans::class)
+        ->assertCanSeeTableRecords([$kept, $deleted]);
+
+    $deleted->delete();
+
+    Livewire\Livewire::test(ListMembershipPlans::class)
+        ->assertCanSeeTableRecords([$kept])
+        ->assertCanNotSeeTableRecords([$deleted])
+        // Still reachable, which is why the scope is stripped in the first
+        // place: the filter is what hides it, not the query.
+        ->filterTable('trashed', true)
+        ->assertCanSeeTableRecords([$kept, $deleted]);
+});
+
+it('keeps a deleted plan off the pricing page', function (): void {
+    $plan = plan(['name' => 'Withdrawn', 'is_active' => true]);
+
+    $this->get('/')->assertSee('Withdrawn', escape: false);
+
+    $plan->delete();
+
+    $this->get('/')->assertDontSee('Withdrawn', escape: false);
+});
+
+it('puts a deleted plan back', function (): void {
+    $this->actingAs(userWithRole(UserRole::SuperAdmin));
+
+    $plan = plan();
+    $plan->delete();
+
+    Livewire\Livewire::test(EditMembershipPlan::class, ['record' => $plan->getKey()])
+        ->callAction('restore');
+
+    expect($plan->fresh()?->trashed())->toBeFalse();
 });
 
 // Seed data is a deliverable (§5.9) -------------------------------------------

@@ -12,12 +12,14 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Actions\RestoreBulkAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
+use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -122,13 +124,33 @@ class CouponsTable
                     ->query(fn (Builder $query): Builder => $query
                         ->whereNotNull('max_redemptions')
                         ->whereRaw('(select count(*) from coupon_redemptions where coupon_redemptions.coupon_id = coupons.id) >= coupons.max_redemptions')),
+
+                /*
+                 * Load-bearing, not decoration. The resource query strips the
+                 * soft-delete scope so a deleted coupon can still be opened and
+                 * restored — which also means nothing hides it from the list.
+                 * This filter's default state is `withoutTrashed()`, so it is
+                 * what puts the scope back. Without it a deleted coupon sits in
+                 * the list looking live, and the delete appears to have done
+                 * nothing.
+                 */
+                TrashedFilter::make()->label('Deleted coupons'),
             ], layout: FiltersLayout::AboveContentCollapsible)
             ->recordActions([
                 EditAction::make(),
                 DeleteAction::make(),
             ])
             ->toolbarActions([
-                BulkActionGroup::make([DeleteBulkAction::make()]),
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
+                    RestoreBulkAction::make(),
+                    /*
+                     * No ForceDeleteBulkAction. §5.1 soft-deletes anything
+                     * financial: a redemption row names the coupon it was taken
+                     * against, and destroying the coupon would make historic
+                     * discounts unreadable.
+                     */
+                ]),
             ])
             ->emptyStateHeading('No coupons yet')
             ->emptyStateDescription('Create one to run a promotion. Codes are validated on the server and never listed to customers.');

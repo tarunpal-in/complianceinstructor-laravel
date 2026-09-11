@@ -314,6 +314,35 @@ it('separates running codes from finished ones', function (): void {
         ->assertCanNotSeeTableRecords([$live]);
 });
 
+/**
+ * The same defect the plans list had: the resource query strips the soft-delete
+ * scope so a deleted coupon can still be opened and restored, and without the
+ * trashed filter nothing put the scope back — the delete reported success and
+ * the code stayed in the list looking live.
+ */
+it('takes a deleted coupon out of the list', function (): void {
+    $kept = Coupon::factory()->create();
+    $deleted = Coupon::factory()->create();
+
+    $deleted->delete();
+
+    Livewire\Livewire::actingAs(userWithRole(UserRole::Finance))
+        ->test(ListCoupons::class)
+        ->set('activeTab', 'all')
+        ->assertCanSeeTableRecords([$kept])
+        ->assertCanNotSeeTableRecords([$deleted])
+        ->filterTable('trashed', true)
+        ->assertCanSeeTableRecords([$kept, $deleted]);
+});
+
+/** A deleted code must not still work at checkout. */
+it('refuses a deleted coupon', function (): void {
+    $coupon = Coupon::factory()->create(['code' => 'GONE']);
+    $coupon->delete();
+
+    expect(Coupon::query()->matchingCode('GONE')->first())->toBeNull();
+});
+
 it('creates a percentage coupon from the form', function (): void {
     Livewire\Livewire::actingAs(userWithRole(UserRole::Finance))
         ->test(CreateCoupon::class)

@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Coupons\Pages;
 use App\Filament\Resources\Coupons\CouponResource;
 use App\Filament\Resources\Coupons\Schemas\CouponForm;
 use Filament\Actions\DeleteAction;
+use Filament\Actions\RestoreAction;
 use Filament\Resources\Pages\EditRecord;
 
 class EditCoupon extends EditRecord
@@ -15,7 +16,12 @@ class EditCoupon extends EditRecord
 
     protected function getHeaderActions(): array
     {
-        return [DeleteAction::make()];
+        return [
+            DeleteAction::make(),
+            // The way back. A deleted coupon is reachable through the list's
+            // "Deleted coupons" filter, and this is what undoes it.
+            RestoreAction::make(),
+        ];
     }
 
     /**

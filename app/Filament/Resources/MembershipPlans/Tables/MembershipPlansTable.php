@@ -11,12 +11,14 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Actions\RestoreBulkAction;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
+use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 
 class MembershipPlansTable
@@ -90,6 +92,17 @@ class MembershipPlansTable
                 SelectFilter::make('billing_period')
                     ->label('Billing')
                     ->options(BillingPeriod::options()),
+
+                /*
+                 * Load-bearing, not decoration. The resource query strips the
+                 * soft-delete scope so a deleted plan can still be opened and
+                 * restored — which also means nothing hides it from the list.
+                 * This filter's default state is `withoutTrashed()`, so it is
+                 * what puts the scope back. Without it a deleted plan sits in
+                 * the list looking live, and the delete appears to have done
+                 * nothing.
+                 */
+                TrashedFilter::make()->label('Deleted plans'),
             ], layout: FiltersLayout::AboveContentCollapsible)
             ->recordActions([
                 EditAction::make(),
@@ -116,7 +129,16 @@ class MembershipPlansTable
                     }),
             ])
             ->toolbarActions([
-                BulkActionGroup::make([DeleteBulkAction::make()]),
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
+                    RestoreBulkAction::make(),
+                    /*
+                     * No ForceDeleteBulkAction, deliberately. §5.1 soft-deletes
+                     * anything financial, and a plan is what a subscription
+                     * names: destroying the row would leave paying members
+                     * pointing at nothing. Deleted is as far as this goes.
+                     */
+                ]),
             ])
             ->emptyStateHeading('No membership plans yet')
             ->emptyStateDescription('A plan is a price and a set of allowances. Create one to start selling memberships.');

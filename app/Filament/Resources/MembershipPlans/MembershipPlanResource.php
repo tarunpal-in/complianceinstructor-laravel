@@ -139,4 +139,16 @@ class MembershipPlanResource extends Resource
     {
         return auth()->user()?->can('delete_membership_plan') ?? false;
     }
+
+    /**
+     * Undoing a delete needs no more authority than doing it.
+     *
+     * Without this, restore falls through to a policy that does not exist, so
+     * only the Super Admin's Gate::before bypass would let anyone put a plan
+     * back — including whoever had just deleted it by mistake.
+     */
+    public static function canRestore(Model $record): bool
+    {
+        return auth()->user()?->can('delete_membership_plan') ?? false;
+    }
 }

@@ -8,6 +8,7 @@ use App\Filament\Resources\MembershipPlans\MembershipPlanResource;
 use App\Filament\Resources\MembershipPlans\Schemas\MembershipPlanForm;
 use App\Models\MembershipPlan;
 use Filament\Actions\DeleteAction;
+use Filament\Actions\RestoreAction;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 
@@ -47,6 +48,10 @@ class EditMembershipPlan extends EditRecord
 
                     $action->cancel();
                 }),
+
+            // The way back. A deleted plan is reachable through the list's
+            // "Deleted plans" filter, and this is what undoes it.
+            RestoreAction::make(),
         ];
     }
 

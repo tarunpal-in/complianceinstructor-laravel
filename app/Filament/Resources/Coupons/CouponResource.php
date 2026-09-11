@@ -120,4 +120,16 @@ class CouponResource extends Resource
     {
         return auth()->user()?->can('delete_coupon') ?? false;
     }
+
+    /**
+     * Undoing a delete needs no more authority than doing it.
+     *
+     * Without this, restore falls through to a policy that does not exist, so
+     * only the Super Admin's Gate::before bypass would let anyone put a coupon
+     * back — including whoever had just deleted it by mistake.
+     */
+    public static function canRestore(Model $record): bool
+    {
+        return auth()->user()?->can('delete_coupon') ?? false;
+    }
 }
