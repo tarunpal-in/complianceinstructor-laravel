@@ -343,6 +343,29 @@ it('refuses a deleted coupon', function (): void {
     expect(Coupon::query()->matchingCode('GONE')->first())->toBeNull();
 });
 
+/**
+ * `code` is UNIQUE, and a UNIQUE index counts soft-deleted rows — so without
+ * this a deleted SAVE20 would reserve that code forever, against a record no
+ * screen would show.
+ */
+it('hands the code back when a coupon is deleted', function (): void {
+    $coupon = Coupon::factory()->create(['code' => 'SAVE20']);
+
+    $coupon->delete();
+
+    expect($coupon->fresh()?->code)->toBe('SAVE20-deleted-'.$coupon->getKey())
+        ->and(Coupon::factory()->create(['code' => 'SAVE20'])->code)->toBe('SAVE20');
+});
+
+/** The released code has to fit varchar(40) or the delete itself would fail. */
+it('keeps a released code inside the column', function (): void {
+    $coupon = Coupon::factory()->create(['code' => str_repeat('A', 40)]);
+
+    $coupon->delete();
+
+    expect(strlen((string) $coupon->fresh()?->code))->toBeLessThanOrEqual(40);
+});
+
 it('creates a percentage coupon from the form', function (): void {
     Livewire\Livewire::actingAs(userWithRole(UserRole::Finance))
         ->test(CreateCoupon::class)

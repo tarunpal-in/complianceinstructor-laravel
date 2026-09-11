@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\BillingPeriod;
 use App\Enums\Format;
+use App\Models\Concerns\ReleasesUniqueNameOnDelete;
 use App\Support\Money;
 use Database\Factories\MembershipPlanFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -30,7 +31,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 class MembershipPlan extends Model
 {
     /** @use HasFactory<MembershipPlanFactory> */
-    use HasFactory, LogsActivity, SoftDeletes;
+    use HasFactory, LogsActivity, ReleasesUniqueNameOnDelete, SoftDeletes;
 
     protected $fillable = [
         'name', 'slug', 'description', 'highlights', 'price_cents', 'currency', 'billing_period',

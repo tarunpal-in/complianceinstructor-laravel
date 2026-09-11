@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\CouponType;
 use App\Enums\Format;
+use App\Models\Concerns\ReleasesUniqueNameOnDelete;
 use App\Support\Money;
 use Database\Factories\CouponFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -37,7 +38,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 class Coupon extends Model
 {
     /** @use HasFactory<CouponFactory> */
-    use HasFactory, LogsActivity, SoftDeletes;
+    use HasFactory, LogsActivity, ReleasesUniqueNameOnDelete, SoftDeletes;
 
     protected $fillable = [
         'code', 'description', 'percent_off', 'amount_off_cents', 'currency',
@@ -53,6 +54,18 @@ class Coupon extends Model
             'ends_at' => 'datetime',
             'is_active' => 'boolean',
         ];
+    }
+
+    /** The public name this model releases on delete is its code, not a slug. */
+    protected function uniqueNameColumn(): string
+    {
+        return 'code';
+    }
+
+    /** `code` is varchar(40), so the released suffix has to fit inside that. */
+    protected function uniqueNameLength(): int
+    {
+        return 40;
     }
 
     protected static function booted(): void

@@ -419,6 +419,53 @@ it('keeps a deleted plan off the pricing page', function (): void {
     $this->get('/')->assertDontSee('Withdrawn', escape: false);
 });
 
+/**
+ * The reported bug: a UNIQUE index counts soft-deleted rows, so a deleted
+ * "Regular" plan kept `regular` reserved against a record no screen would show.
+ */
+it('hands the slug back when a plan is deleted', function (): void {
+    $plan = plan(['slug' => 'regular']);
+
+    $plan->delete();
+
+    expect($plan->fresh()?->slug)->toBe('regular-deleted-'.$plan->getKey());
+
+    // Which is the point: the name is free for something else to take.
+    $replacement = plan(['slug' => 'regular']);
+
+    expect($replacement->slug)->toBe('regular');
+});
+
+it('takes the slug back on restore when it is still free', function (): void {
+    $plan = plan(['slug' => 'regular']);
+
+    $plan->delete();
+    $plan->restore();
+
+    expect($plan->fresh()?->slug)->toBe('regular');
+});
+
+/** Somebody took the name in the meantime; the restored plan keeps its suffix. */
+it('does not steal a slug back from a live plan', function (): void {
+    $plan = plan(['slug' => 'regular']);
+    $plan->delete();
+
+    plan(['slug' => 'regular']);
+
+    $plan->restore();
+
+    expect($plan->fresh()?->slug)->toBe('regular-deleted-'.$plan->getKey());
+});
+
+it('leaves nothing behind when a plan is force deleted', function (): void {
+    $plan = plan(['slug' => 'regular']);
+
+    $plan->forceDelete();
+
+    expect(MembershipPlan::withTrashed()->count())->toBe(0)
+        ->and(plan(['slug' => 'regular'])->slug)->toBe('regular');
+});
+
 it('puts a deleted plan back', function (): void {
     $this->actingAs(userWithRole(UserRole::SuperAdmin));
 
