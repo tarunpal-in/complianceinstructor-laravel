@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models\Concerns;
 
+use App\Support\UniqueSlug;
 use Illuminate\Support\Str;
 
 /**
@@ -80,13 +81,76 @@ trait ReleasesUniqueNameOnDelete
         return 255;
     }
 
+    /**
+     * Unique columns emptied on delete rather than renamed.
+     *
+     * Some unique values belong to somebody else's system and mean nothing
+     * once altered. `membership_plans.stripe_price_id` is the case in hand: a
+     * Stripe price ID has to match Stripe byte for byte, so renaming it to
+     * `price_1QRstu...-deleted-7` would leave a reference to nothing that looks
+     * exactly like a real one — and the failure would surface as a declined
+     * payment rather than as an error anyone could read.
+     *
+     * A deleted plan cannot be sold, so the reference has no live purpose and
+     * only holds the price hostage against a new plan that wants it. Clearing
+     * it releases the price with no corrupted value written anywhere.
+     *
+     * The cost is that a restored record comes back without it. That state is
+     * already handled and already explained — MembershipPlan::problems() says
+     * "A recurring plan needs a Stripe price ID before anyone can subscribe",
+     * and the form refuses to put such a plan on the pricing page. Visible and
+     * self-describing beats silently wrong.
+     *
+     * Every column listed here must be nullable.
+     *
+     * @return array<int, string>
+     */
+    protected function namesClearedOnDelete(): array
+    {
+        return [];
+    }
+
+    /**
+     * The same, readable from outside — see releasedNameColumn().
+     *
+     * @return array<int, string>
+     */
+    public function clearedNameColumns(): array
+    {
+        return $this->namesClearedOnDelete();
+    }
+
     public function releaseUniqueName(): void
+    {
+        $changes = $this->releasedNameChange();
+
+        foreach ($this->namesClearedOnDelete() as $column) {
+            if ($this->getAttribute($column) !== null) {
+                $changes[$column] = null;
+            }
+        }
+
+        if ($changes === []) {
+            return;
+        }
+
+        // Quietly: this is bookkeeping on the way out, not a change anyone made,
+        // and it must not write an activity log entry or re-enter the delete.
+        $this->forceFill($changes)->saveQuietly();
+    }
+
+    /**
+     * The rename that frees the name, or nothing if there is none to do.
+     *
+     * @return array<string, string>
+     */
+    private function releasedNameChange(): array
     {
         $column = $this->uniqueNameColumn();
         $current = (string) $this->getAttribute($column);
 
         if ($current === '') {
-            return;
+            return [];
         }
 
         $suffix = self::RELEASED_MARKER.$this->getKey();
@@ -94,14 +158,20 @@ trait ReleasesUniqueNameOnDelete
         // Already released — a second delete of the same row, or a row released
         // by the backfill migration.
         if (str_ends_with($current, $suffix)) {
-            return;
+            return [];
         }
 
-        $base = Str::limit($current, max(1, $this->uniqueNameLength() - strlen($suffix)), '');
+        $length = $this->uniqueNameLength();
+        $base = Str::limit($current, max(1, $length - strlen($suffix)), '');
 
-        // Quietly: this is bookkeeping on the way out, not a change anyone made,
-        // and it must not write an activity log entry or re-enter the delete.
-        $this->forceFill([$column => $base.$suffix])->saveQuietly();
+        /*
+         * Through the resolver rather than used as-is. The suffix is built from
+         * the primary key so it is unique among *released* names, but nothing
+         * stops a live record from literally being called
+         * `regular-deleted-7` — and then the rename would collide and take the
+         * delete down with it. Absurdly unlikely, and free to rule out.
+         */
+        return [$column => UniqueSlug::for(static::class, $column, $base.$suffix, $this->getKey(), $length)];
     }
 
     public function reclaimUniqueName(): void

@@ -48,6 +48,20 @@ class MembershipPlan extends Model
         ];
     }
 
+    /**
+     * A deleted plan gives its Stripe price back.
+     *
+     * The ID cannot be renamed the way a slug can — it has to match Stripe
+     * exactly — and a deleted plan cannot be sold, so holding it only blocks a
+     * new plan from using that price. See the trait for the full reasoning.
+     *
+     * @return array<int, string>
+     */
+    protected function namesClearedOnDelete(): array
+    {
+        return ['stripe_price_id'];
+    }
+
     /** §9 — a plan is a price, and a price change is worth being able to trace. */
     public function getActivitylogOptions(): LogOptions
     {

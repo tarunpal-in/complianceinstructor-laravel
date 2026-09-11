@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Webinars\Pages;
 
 use App\Enums\WebinarStatus;
+use App\Filament\Concerns\ResolvesSlugOnSave;
 use App\Filament\Resources\Webinars\WebinarResource;
 use App\Models\Offering;
 use App\Models\Webinar;
@@ -17,6 +18,8 @@ use Illuminate\Support\Str;
 
 class EditWebinar extends EditRecord
 {
+    use ResolvesSlugOnSave;
+
     protected static string $resource = WebinarResource::class;
 
     protected function getHeaderActions(): array
@@ -26,6 +29,20 @@ class EditWebinar extends EditRecord
             $this->duplicateAction(),
             DeleteAction::make(),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        return $this->resolveSlug($data);
+    }
+
+    protected function afterSave(): void
+    {
+        $this->notifyIfSlugChanged();
     }
 
     /**

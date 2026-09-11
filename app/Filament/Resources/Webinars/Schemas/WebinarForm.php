@@ -78,7 +78,8 @@ class WebinarForm
                     TextInput::make('slug')
                         ->required()
                         ->maxLength(255)
-                        ->unique(ignoreRecord: true)
+                        // No unique rule: a clash is resolved to "{slug}-2" on
+                        // save and reported, rather than refusing the save.
                         ->columnSpanFull()
                         // TODO(P6): write the old path into `redirects` (§5.6) on change.
                         ->helperText('Changing this on a published webinar breaks existing links to it.'),

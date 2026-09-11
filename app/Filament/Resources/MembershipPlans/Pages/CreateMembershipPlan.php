@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\MembershipPlans\Pages;
 
+use App\Filament\Concerns\ResolvesSlugOnSave;
 use App\Filament\Resources\MembershipPlans\MembershipPlanResource;
 use App\Filament\Resources\MembershipPlans\Schemas\MembershipPlanForm;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreateMembershipPlan extends CreateRecord
 {
+    use ResolvesSlugOnSave;
+
     protected static string $resource = MembershipPlanResource::class;
 
     /**
@@ -18,7 +21,12 @@ class CreateMembershipPlan extends CreateRecord
      */
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        return MembershipPlanForm::mutate($data);
+        return $this->resolveSlug(MembershipPlanForm::mutate($data));
+    }
+
+    protected function afterCreate(): void
+    {
+        $this->notifyIfSlugChanged();
     }
 
     /**

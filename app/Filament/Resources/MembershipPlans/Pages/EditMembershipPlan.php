@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\MembershipPlans\Pages;
 
+use App\Filament\Concerns\ResolvesSlugOnSave;
 use App\Filament\Resources\MembershipPlans\MembershipPlanResource;
 use App\Filament\Resources\MembershipPlans\Schemas\MembershipPlanForm;
 use App\Models\MembershipPlan;
@@ -14,6 +15,8 @@ use Filament\Resources\Pages\EditRecord;
 
 class EditMembershipPlan extends EditRecord
 {
+    use ResolvesSlugOnSave;
+
     protected static string $resource = MembershipPlanResource::class;
 
     protected function getHeaderActions(): array
@@ -64,7 +67,17 @@ class EditMembershipPlan extends EditRecord
      */
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        return MembershipPlanForm::mutate($data);
+        return $this->resolveSlug(MembershipPlanForm::mutate($data));
+    }
+
+    /**
+     * Sent alongside the "cannot be sold yet" warning where both apply — a plan
+     * that was renamed *and* has no Stripe price has two things wrong with it,
+     * and neither message should displace the other.
+     */
+    protected function afterSave(): void
+    {
+        $this->notifyIfSlugChanged();
     }
 
     /**

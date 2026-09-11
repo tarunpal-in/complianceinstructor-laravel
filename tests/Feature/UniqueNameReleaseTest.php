@@ -46,12 +46,6 @@ function namesHeldOnPurpose(): array
         // nullOnDelete — so a reused sku would make historic invoice lines
         // ambiguous about which product was actually sold.
         'offerings.sku' => 'The sku is snapshotted onto order lines, so reuse makes historic lines ambiguous.',
-
-        // A Stripe identifier has to match Stripe exactly; suffixing it would
-        // turn it into a reference to nothing. Known limitation: to point a new
-        // plan at a Stripe price a deleted plan is holding, clear it on the
-        // deleted plan first.
-        'membership_plans.stripe_price_id' => 'A Stripe price ID must stay exact, so it cannot be renamed on the way out.',
     ];
 }
 
@@ -116,12 +110,14 @@ it('releases every unique name a deleted record would otherwise hold', function 
         $model = new $class;
         $table = $model->getTable();
 
-        $released = in_array(ReleasesUniqueNameOnDelete::class, class_uses_recursive($class), true)
-            ? $model->releasedNameColumn()
-            : null;
+        $covered = in_array(ReleasesUniqueNameOnDelete::class, class_uses_recursive($class), true)
+            // Renamed on the way out, or emptied — either way the deleted
+            // record stops holding the name.
+            ? [$model->releasedNameColumn(), ...$model->clearedNameColumns()]
+            : [];
 
         foreach (uniqueNameColumns($table) as $column) {
-            if ($column === $released) {
+            if (in_array($column, $covered, true)) {
                 continue;
             }
 
@@ -139,9 +135,44 @@ it('releases every unique name a deleted record would otherwise hold', function 
         '',
         ...array_map(static fn (string $c): string => '  - '.$c, $unaccounted),
         '',
-        'Either use ReleasesUniqueNameOnDelete on the model, or add the column to',
-        'NAMES_HELD_ON_PURPOSE in this file with the reason it keeps its name.',
+        'Cover it with ReleasesUniqueNameOnDelete — uniqueNameColumn() to rename it on the',
+        'way out, or namesClearedOnDelete() to empty it where the value belongs to another',
+        'system and cannot be renamed. Failing that, add the column to namesHeldOnPurpose()',
+        'in this file with the reason it keeps its name.',
     ]));
+});
+
+/**
+ * A Stripe price ID cannot be renamed — `price_1QRstu...-deleted-7` looks like
+ * a real reference and resolves to nothing, and that surfaces as a declined
+ * payment rather than as an error anyone can read. A deleted plan cannot be
+ * sold, so it gives the price back instead.
+ */
+it('gives a deleted plan\'s Stripe price back rather than mangling it', function (): void {
+    $plan = App\Models\MembershipPlan::factory()->create(['stripe_price_id' => 'price_1QRstuVWxyz0123']);
+
+    $plan->delete();
+
+    expect($plan->fresh()?->stripe_price_id)->toBeNull();
+
+    // Which is the point: a new plan can be pointed at the same Stripe price.
+    expect(App\Models\MembershipPlan::factory()->create(['stripe_price_id' => 'price_1QRstuVWxyz0123'])->stripe_price_id)
+        ->toBe('price_1QRstuVWxyz0123');
+});
+
+/** The slug is still released in the same breath as the Stripe price. */
+it('releases the slug and the Stripe price together', function (): void {
+    $plan = App\Models\MembershipPlan::factory()->create([
+        'slug' => 'regular',
+        'stripe_price_id' => 'price_together',
+    ]);
+
+    $plan->delete();
+
+    $fresh = $plan->fresh();
+
+    expect($fresh?->slug)->toBe('regular-deleted-'.$plan->getKey())
+        ->and($fresh?->stripe_price_id)->toBeNull();
 });
 
 // The three models added alongside the guard --------------------------------

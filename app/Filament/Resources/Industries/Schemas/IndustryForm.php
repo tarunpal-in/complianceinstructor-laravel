@@ -33,7 +33,9 @@ class IndustryForm
                     TextInput::make('slug')
                         ->required()
                         ->maxLength(255)
-                        ->unique(ignoreRecord: true)
+                        // No unique rule: a clash is resolved to "{slug}-2" on
+                        // save and reported, rather than refusing the save and
+                        // leaving the client to find who holds the name.
                         // Second segment of a webinar's breadcrumb, so it is
                         // part of the public URL.
                         ->helperText('Appears in webinar URLs: /live-webinars/{slug}/…'),

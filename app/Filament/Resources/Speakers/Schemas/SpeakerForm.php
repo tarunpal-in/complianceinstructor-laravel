@@ -37,7 +37,8 @@ class SpeakerForm
                     TextInput::make('slug')
                         ->required()
                         ->maxLength(255)
-                        ->unique(ignoreRecord: true)
+                        // No unique rule: a clash is resolved to "{slug}-2" on
+                        // save and reported, rather than refusing the save.
                         ->helperText('Used in the speaker profile URL.'),
 
                     TextInput::make('title')

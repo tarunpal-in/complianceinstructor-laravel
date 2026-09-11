@@ -47,7 +47,8 @@ class MembershipPlanForm
                 TextInput::make('slug')
                     ->required()
                     ->maxLength(255)
-                    ->unique(ignoreRecord: true)
+                    // No unique rule: a clash is resolved to "{slug}-2" on save
+                    // and reported, rather than refusing the save.
                     ->helperText('Used in the pricing page URL. Changing it on a live plan breaks existing links.'),
 
                 Textarea::make('description')
