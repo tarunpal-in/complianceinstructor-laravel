@@ -349,7 +349,10 @@ h1 span { color: #0c5484; }
 
 /* Pricing ----------------------------------------------------------------- */
 .pricing { max-width: none; padding-left: max(var(--gutter), calc((100% - var(--container)) / 2)); padding-right: max(var(--gutter), calc((100% - var(--container)) / 2)); background: #fffcf5; }
-.plans-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 59px; }
+/* Four across, as designed — but the cards come from `membership_plans` now, so
+   the count is the client's. The view passes it as --plan-columns, capped at
+   four: fewer fill the row instead of huddling at the left, more wrap. */
+.plans-grid { display: grid; grid-template-columns: repeat(var(--plan-columns, 4), 1fr); gap: 16px; margin-top: 59px; }
 .plan { background: white; border: 1px solid #e2e6eb; padding: 28px 27px; border-radius: 14px; position: relative; min-height: 460px; }
 .plan.popular { border: 2px solid #f6af1e; }
 .popular-tag { position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background: #f6af1e; border-radius: 15px; padding: 5px 13px; white-space: nowrap; font-size: 10px; font-weight: 700; }

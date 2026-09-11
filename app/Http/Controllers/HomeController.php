@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Models\MembershipPlan;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 /**
@@ -19,8 +21,9 @@ use Illuminate\View\View;
  *   $webinars   → Webinar::upcoming()->with('speaker')            (P2)
  *   $categories → Industry::active()->withCount('webinars')       (P2)
  *   $speakers   → Speaker::active()->featured()                   (P2)
- *   $plans      → MembershipPlan::active()->with('entitlements')  (P4)
  *   $stats      → settings (§5.6), never hardcoded in a template
+ *
+ * `$plans` has been swapped — it reads `membership_plans` (§5.5).
  *
  * In P6 the page becomes `pages` + `page_sections` rows edited through
  * Filament's Builder (§2), and each section component becomes a block.
@@ -152,56 +155,25 @@ class HomeController extends Controller
     }
 
     /**
-     * Prices are integer cents per CLAUDE.md §4 rule 6.
+     * The membership tiers, from the database — §5.5.
      *
-     * The included/excluded split is taken from the comp. Two things it implies
-     * must be confirmed against the §17 offering matrix before P4 builds on
-     * them: the lower tiers are limited to SHRM & HRCI credits while the upper
-     * two carry all providers — a plan-level accreditation scope that §5.5
-     * `plan_entitlements` currently cannot express — and the 5- and 7-month
-     * terms do not fit `billing_period(month|quarter|year|one_time)`.
+     * The card's quota badge is derived from `plan_entitlements`, so the
+     * headline number on the pricing page and the allowance the subscriber
+     * actually receives cannot drift apart. The tick-and-cross list underneath
+     * is `highlights`, which is copy and enforces nothing.
      *
-     * @return array<int, array<string, mixed>>
+     * One thing the comp implies that nothing here expresses: the lower tiers
+     * are limited to SHRM & HRCI credits while the upper two carry all
+     * providers. On the card that is a bullet. If it is meant to be a rule, it
+     * needs a real column, and the §17 offering matrix has to say so first.
+     *
+     * @return Collection<int, MembershipPlan>
      */
-    private function plans(): array
+    private function plans(): Collection
     {
-        return [
-            [
-                'name' => 'Regular',
-                'price_cents' => 29900,
-                'term' => '3 months',
-                'allowance' => '3 Live + Recording',
-                'popular' => false,
-                'features' => ['CEU Credits (SHRM & HRCI)', 'Certificate of Completion', 'PDF Study Materials'],
-                'muted' => ['E-Transcript Access', 'Recording Download', 'Dedicated Support Specialist'],
-            ],
-            [
-                'name' => 'Plus',
-                'price_cents' => 49900,
-                'term' => '5 months',
-                'allowance' => '5 Live Webinars',
-                'popular' => false,
-                'features' => ['CEU Credits (SHRM & HRCI)', 'Certificate of Completion', 'PDF Study Materials', 'E-Transcript Access', 'Recording Download'],
-                'muted' => ['Dedicated Support Specialist'],
-            ],
-            [
-                'name' => 'Standard',
-                'price_cents' => 79900,
-                'term' => '7 months',
-                'allowance' => '7 Live Webinars',
-                'popular' => false,
-                'features' => ['CEU Credits (All Providers)', 'Certificate of Completion', 'PDF Study Materials', 'E-Transcript Access', 'Recording Download Access', 'Priority Support Line'],
-                'muted' => [],
-            ],
-            [
-                'name' => 'Business',
-                'price_cents' => 99900,
-                'term' => '12 months',
-                'allowance' => '10 Live Webinars',
-                'popular' => true,
-                'features' => ['CEU Credits (All Providers)', 'Certificate of Completion', 'PDF Study Materials', 'E-Transcript Access', 'Recording Download Access', 'Dedicated Account Manager'],
-                'muted' => [],
-            ],
-        ];
+        return MembershipPlan::query()
+            ->active()
+            ->with('entitlements')
+            ->get();
     }
 }

@@ -33,10 +33,16 @@ enum BillingPeriod: string
     /** How the price reads on a pricing card — "$99 / month". */
     public function suffix(): string
     {
+        return $this === self::OneTime ? 'one-off' : '/ '.$this->noun();
+    }
+
+    /** The period as a bare noun, for a card that supplies its own slash. */
+    public function noun(): string
+    {
         return match ($this) {
-            self::Month => '/ month',
-            self::Quarter => '/ quarter',
-            self::Year => '/ year',
+            self::Month => 'month',
+            self::Quarter => 'quarter',
+            self::Year => 'year',
             self::OneTime => 'one-off',
         };
     }

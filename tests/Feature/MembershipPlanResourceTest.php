@@ -68,8 +68,8 @@ it('reads an allowance in the words the client uses', function (): void {
 
     $unlimited = PlanEntitlement::factory()->unlimited()->make(['format' => Format::Transcript]);
 
-    expect($counted->describe())->toBe('4 live webinar per month')
-        ->and($unlimited->describe())->toBe('unlimited transcript (pdf)')
+    expect($counted->describe())->toBe('4 live webinars per month')
+        ->and($unlimited->describe())->toBe('unlimited transcripts')
         ->and($unlimited->isUnlimited())->toBeTrue()
         ->and($counted->isUnlimited())->toBeFalse();
 });
@@ -102,7 +102,7 @@ it('summarises a whole tier in one line', function (): void {
     ]);
 
     expect($plan->load('entitlements')->describeAllowances())
-        ->toBe('4 live webinar per term · unlimited transcript (pdf)');
+        ->toBe('4 live webinars per term · unlimited transcripts');
 });
 
 /**
@@ -179,7 +179,7 @@ it('freezes what a subscriber was sold', function (): void {
     expect($subscription->entitlements)->toHaveCount(1)
         ->and($subscription->entitlements->first()?->quantity)->toBe(4)
         ->and($subscription->price_cents)->toBe(19900)
-        ->and($subscription->describeAllowances())->toBe('4 live webinar per term');
+        ->and($subscription->describeAllowances())->toBe('4 live webinars per term');
 });
 
 it('says when a subscriber is on different terms from the plan', function (): void {
@@ -254,7 +254,7 @@ it('stores a typed price as cents and an unlimited allowance as null', function 
     expect($plan->price_cents)->toBe(99900)
         ->and($plan->duration_months)->toBeNull()
         ->and($plan->entitlements)->toHaveCount(2)
-        ->and($plan->describeAllowances())->toBe('4 live webinar per month · unlimited transcript (pdf)');
+        ->and($plan->describeAllowances())->toBe('4 live webinars per month · unlimited transcripts');
 });
 
 /** A one-off has a duration and no Stripe price; a recurring plan the reverse. */
@@ -382,14 +382,19 @@ it('will not delete a plan people are still paying for', function (): void {
 
 // Seed data is a deliverable (§5.9) -------------------------------------------
 
-it('seeds four plans covering every shape the screen renders', function (): void {
+it('seeds the four tiers from the comp', function (): void {
     $this->seed(MembershipPlanSeeder::class);
 
     $plans = MembershipPlan::query()->with('entitlements')->orderBy('sort_order')->get();
 
     expect($plans)->toHaveCount(4)
-        ->and($plans->pluck('billing_period')->unique())->toHaveCount(3)
+        ->and($plans->pluck('name')->all())->toBe(['Regular', 'Plus', 'Standard', 'Business'])
+        ->and($plans->pluck('price_cents')->all())->toBe([29900, 49900, 79900, 99900])
+        ->and($plans->pluck('duration_months')->all())->toBe([3, 5, 7, 12])
         ->and($plans->where('is_featured', true))->toHaveCount(1)
+        // Every one of them is sellable, so seeding cannot produce a pricing
+        // page nobody can buy from.
+        ->and($plans->reject->isSellable())->toBeEmpty()
         // At least one unlimited allowance and one counted one.
         ->and($plans->flatMap->entitlements->filter->isUnlimited())->not->toBeEmpty()
         ->and($plans->flatMap->entitlements->reject->isUnlimited())->not->toBeEmpty();
@@ -401,5 +406,97 @@ it('seeds plans idempotently', function (): void {
     $this->seed(MembershipPlanSeeder::class);
 
     expect(MembershipPlan::query()->count())->toBe(4)
-        ->and(PlanEntitlement::query()->count())->toBe(11);
+        ->and(PlanEntitlement::query()->count())->toBe(15);
+});
+
+// The pricing card ------------------------------------------------------------
+
+it('reads a price and a term the way a pricing card does', function (): void {
+    $oneOff = MembershipPlan::factory()->oneTime(3)->make(['price_cents' => 29900]);
+    $monthly = MembershipPlan::factory()->monthly()->make(['price_cents' => 4900]);
+    $single = MembershipPlan::factory()->oneTime(1)->make(['price_cents' => 9900]);
+
+    expect($oneOff->cardPrice())->toBe('$299')
+        ->and($oneOff->describeTerm())->toBe('3 months')
+        ->and($monthly->describeTerm())->toBe('month')
+        ->and($single->describeTerm())->toBe('1 month');
+});
+
+/** The badge is the quota, so it comes from the entitlements and nowhere else. */
+it('derives the card badge from what the plan grants', function (): void {
+    $counted = MembershipPlan::factory()
+        ->granting([Format::Live->value => 3, Format::Recorded->value => 3])
+        ->create()
+        ->load('entitlements');
+
+    $unlimited = MembershipPlan::factory()
+        ->granting([Format::Live->value => null])
+        ->create()
+        ->load('entitlements');
+
+    // No live allowance at all: the first row leads rather than nothing.
+    $transcriptsOnly = MembershipPlan::factory()
+        ->granting([Format::Transcript->value => 6])
+        ->create()
+        ->load('entitlements');
+
+    expect($counted->describeHeadline())->toBe('3 Live Webinars')
+        ->and($unlimited->describeHeadline())->toBe('Unlimited Live Webinars')
+        ->and($transcriptsOnly->describeHeadline())->toBe('6 Transcripts')
+        ->and(MembershipPlan::factory()->create()->load('entitlements')->describeHeadline())->toBeNull();
+});
+
+/**
+ * `highlights` is a JSON column the client edits, so a malformed row must cost
+ * a missing bullet rather than the homepage.
+ */
+it('renders only the highlight rows it can read', function (): void {
+    $plan = MembershipPlan::factory()->make([
+        'highlights' => [
+            ['label' => 'Certificate of Completion', 'included' => true],
+            ['label' => 'E-Transcript Access', 'included' => false],
+            // Absent toggle reads as included; the rest are unusable.
+            ['label' => 'PDF Study Materials'],
+            ['included' => true],
+            'not an array',
+        ],
+    ]);
+
+    expect($plan->highlightRows())->toBe([
+        ['label' => 'Certificate of Completion', 'included' => true],
+        ['label' => 'E-Transcript Access', 'included' => false],
+        ['label' => 'PDF Study Materials', 'included' => true],
+    ]);
+
+    expect(MembershipPlan::factory()->make(['highlights' => null])->highlightRows())->toBe([]);
+});
+
+it('keeps the card copy through the form', function (): void {
+    $this->actingAs(userWithRole(UserRole::SuperAdmin));
+
+    Livewire\Livewire::test(CreateMembershipPlan::class)
+        ->fillForm([
+            'name' => 'Regular',
+            'slug' => 'regular',
+            'price' => '299.00',
+            'billing_period' => BillingPeriod::OneTime->value,
+            'duration_months' => 3,
+            'is_active' => true,
+            'entitlements' => [
+                ['format' => Format::Live->value, 'unlimited' => false, 'quantity' => 3, 'window' => AllowanceWindow::Term->value],
+            ],
+            'highlights' => [
+                ['label' => 'Certificate of Completion', 'included' => true],
+                ['label' => 'E-Transcript Access', 'included' => false],
+            ],
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $plan = MembershipPlan::query()->where('slug', 'regular')->firstOrFail();
+
+    expect($plan->highlightRows())->toBe([
+        ['label' => 'Certificate of Completion', 'included' => true],
+        ['label' => 'E-Transcript Access', 'included' => false],
+    ]);
 });

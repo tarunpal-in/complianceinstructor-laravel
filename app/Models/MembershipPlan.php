@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\BillingPeriod;
+use App\Enums\Format;
 use App\Support\Money;
 use Database\Factories\MembershipPlanFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -17,6 +18,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * @property BillingPeriod $billing_period
+ * @property array<array-key, mixed>|null $highlights
  * @property \Illuminate\Database\Eloquent\Collection<int, PlanEntitlement> $entitlements
  *
  * CLAUDE.md §5.5 — a membership tier.
@@ -31,7 +33,7 @@ class MembershipPlan extends Model
     use HasFactory, LogsActivity, SoftDeletes;
 
     protected $fillable = [
-        'name', 'slug', 'description', 'price_cents', 'currency', 'billing_period',
+        'name', 'slug', 'description', 'highlights', 'price_cents', 'currency', 'billing_period',
         'duration_months', 'stripe_price_id', 'is_active', 'is_featured', 'sort_order',
     ];
 
@@ -39,6 +41,7 @@ class MembershipPlan extends Model
     {
         return [
             'billing_period' => BillingPeriod::class,
+            'highlights' => 'array',
             'is_active' => 'boolean',
             'is_featured' => 'boolean',
         ];
@@ -85,6 +88,77 @@ class MembershipPlan extends Model
     public function describePrice(): string
     {
         return Money::format($this->price_cents, $this->currency).' '.$this->billing_period->suffix();
+    }
+
+    /**
+     * The price as a pricing card shows it — "$299", whole dollars.
+     *
+     * The comp has no cents on it, and a card reading "$299.00" is a card that
+     * has been generated rather than designed. Nothing is lost: the exact
+     * amount is what checkout charges, from `price_cents`.
+     */
+    public function cardPrice(): string
+    {
+        return '$'.number_format(intdiv($this->price_cents, 100));
+    }
+
+    /**
+     * What the price buys — "3 months", "month".
+     *
+     * A one-off says its span, because that is the only place the span is
+     * recorded. A recurring plan says its period, because it renews.
+     */
+    public function describeTerm(): string
+    {
+        if ($this->duration_months !== null) {
+            return $this->duration_months.' '.str('month')->plural($this->duration_months)->toString();
+        }
+
+        return $this->billing_period->noun();
+    }
+
+    /**
+     * The quota badge — "3 Live Webinars".
+     *
+     * Derived from the entitlements rather than typed, because it is the one
+     * line on the card the business is actually promising. The live allowance
+     * leads where there is one; otherwise the first row does.
+     */
+    public function describeHeadline(): ?string
+    {
+        $entitlement = $this->entitlements->firstWhere('format', Format::Live)
+            ?? $this->entitlements->first();
+
+        return $entitlement?->headline();
+    }
+
+    /**
+     * The tick-and-cross list, as the card needs it.
+     *
+     * Read defensively: `highlights` is a JSON column, so a hand-edited or
+     * half-migrated row must render a short card rather than a 500 on the
+     * homepage.
+     *
+     * @return array<int, array{label: string, included: bool}>
+     */
+    public function highlightRows(): array
+    {
+        $rows = [];
+
+        foreach ($this->highlights ?? [] as $highlight) {
+            if (! is_array($highlight) || ! is_string($highlight['label'] ?? null)) {
+                continue;
+            }
+
+            $rows[] = [
+                'label' => $highlight['label'],
+                // Absent means included: a list someone typed without touching
+                // the toggles should read as a list of what they get.
+                'included' => (bool) ($highlight['included'] ?? true),
+            ];
+        }
+
+        return $rows;
     }
 
     /**

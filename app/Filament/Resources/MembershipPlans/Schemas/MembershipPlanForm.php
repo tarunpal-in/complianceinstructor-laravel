@@ -177,6 +177,35 @@ class MembershipPlanForm
                         ->mutateRelationshipDataBeforeSaveUsing(self::toRow(...)),
                 ]),
 
+            Section::make('Pricing card')
+                ->description('The tick-and-cross list under the price. This is copy, not access — what the plan actually grants is the section above.')
+                ->schema([
+                    Repeater::make('highlights')
+                        ->hiddenLabel()
+                        ->columns(4)
+                        // No blank row to start: a card with nothing to say
+                        // should render nothing, not fail validation on an
+                        // empty bullet nobody asked for.
+                        ->defaultItems(0)
+                        ->addActionLabel('Add a line')
+                        ->itemLabel(fn (array $state): ?string => is_string($state['label'] ?? null) ? $state['label'] : null)
+                        ->schema([
+                            TextInput::make('label')
+                                ->hiddenLabel()
+                                ->required()
+                                ->maxLength(120)
+                                ->columnSpan(3)
+                                ->placeholder('Certificate of Completion'),
+
+                            Toggle::make('included')
+                                ->label('Included')
+                                ->default(true)
+                                // Off shows the line crossed out, which is how a
+                                // card says what the next tier up adds.
+                                ->helperText('Off: shown greyed out.'),
+                        ]),
+                ]),
+
             Section::make('Availability')
                 ->columns(3)
                 ->schema([

@@ -33,14 +33,30 @@ trait DescribesAllowance
         return $this->quantity === null;
     }
 
-    /** "4 live per term", "unlimited transcripts". */
+    /** "4 live webinars per term", "unlimited transcripts". */
     public function describe(): string
     {
-        $format = strtolower($this->format->label());
+        $format = strtolower($this->quantity === 1 ? $this->format->label() : $this->format->pluralLabel());
 
         return $this->isUnlimited()
             ? 'unlimited '.$format
             : $this->quantity.' '.$format.' '.$this->window->shortLabel();
+    }
+
+    /**
+     * The same allowance as a pricing-card badge — "4 Live Webinars".
+     *
+     * Title case and no window, because the card has room for the quota and not
+     * for the reset period. Derived rather than typed: this is the one line on
+     * the card the business is actually promising.
+     */
+    public function headline(): string
+    {
+        if ($this->isUnlimited()) {
+            return 'Unlimited '.$this->format->pluralLabel();
+        }
+
+        return $this->quantity.' '.($this->quantity === 1 ? $this->format->label() : $this->format->pluralLabel());
     }
 
     /**

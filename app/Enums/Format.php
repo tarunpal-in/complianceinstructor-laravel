@@ -32,6 +32,22 @@ enum Format: string
     }
 
     /**
+     * The label for a countable quantity — "4 Live Webinars".
+     *
+     * Spelled out rather than run through Str::plural(), which pluralises the
+     * last word: "Transcript (PDF)" would come back as "Transcript (PDFS)".
+     */
+    public function pluralLabel(): string
+    {
+        return match ($this) {
+            self::Live => 'Live Webinars',
+            self::Recorded => 'Recordings',
+            self::Transcript => 'Transcripts',
+            self::Download => 'Downloads',
+        };
+    }
+
+    /**
      * Key of the site-wide description shown in the purchase panel's tooltip.
      * The text is one setting per format, written once for the whole catalogue;
      * a bundle composes its tooltip from its constituent formats.
