@@ -29,6 +29,8 @@ class DatabaseSeeder extends Seeder
             SettingSeeder::class,
             MediaLibrarySeeder::class,
             MembershipPlanSeeder::class,
+            // After the plans, because every subscription snapshots one.
+            SubscriptionSeeder::class,
             // After the catalogue, because one of them scopes to an industry.
             CouponSeeder::class,
             // Needs a catalogue to sell, so it runs last and skips itself when

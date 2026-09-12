@@ -6,12 +6,12 @@ namespace Tests;
 
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use RuntimeException;
-use Tests\Support\DatabaseSafetyCheck;
+use Tests\Support\TestEnvironmentCheck;
 
 abstract class TestCase extends BaseTestCase
 {
     /**
-     * Check where we are before anything is allowed to drop a table.
+     * Check what we are running against before anything drops a table.
      *
      * setUpTraits() is the hook rather than setUp(), and the ordering is the
      * whole point: the application is booted by now, so the resolved connection
@@ -21,27 +21,28 @@ abstract class TestCase extends BaseTestCase
      */
     protected function setUpTraits(): array
     {
-        $this->refuseToRunAgainstARealDatabase();
+        $this->refuseToRunAgainstTheWrongThing();
 
         return parent::setUpTraits();
     }
 
-    private function refuseToRunAgainstARealDatabase(): void
+    private function refuseToRunAgainstTheWrongThing(): void
     {
         $connection = (string) config('database.default');
         $database = config("database.connections.{$connection}.database");
 
-        $problems = DatabaseSafetyCheck::problems(
+        $problems = TestEnvironmentCheck::problems(
             $this->app->configurationIsCached(),
             (string) config('app.env'),
             $connection,
             is_string($database) ? $database : null,
+            $this->app->routesAreCached(),
         );
 
         if ($problems === []) {
             return;
         }
 
-        throw new RuntimeException(DatabaseSafetyCheck::message($problems));
+        throw new RuntimeException(TestEnvironmentCheck::message($problems));
     }
 }
