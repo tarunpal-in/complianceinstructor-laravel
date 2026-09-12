@@ -81,11 +81,20 @@ class SubscriptionsTable
                         : null)
                     ->toggleable(),
 
-                TextColumn::make('created_at')
-                    ->label('Joined')
-                    ->date('j M Y')
-                    ->sortable()
-                    ->width('8rem'),
+                /*
+                 * The question this screen is asked most: from when, until
+                 * when. Both dates in one column because they are read
+                 * together — a start with no end is only half an answer, and it
+                 * is the half the client already had.
+                 */
+                TextColumn::make('term')
+                    ->label('Membership runs')
+                    ->state(fn (Subscription $record): string => $record->describeTermDates())
+                    ->description(fn (Subscription $record): ?string => self::remaining($record))
+                    ->sortable(query: fn (Builder $query, string $direction): Builder => $query
+                        ->orderBy('term_starts_at', $direction))
+                    ->wrap()
+                    ->width('11rem'),
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([
@@ -121,6 +130,25 @@ class SubscriptionsTable
             ->toolbarActions([])
             ->emptyStateHeading('No subscriptions yet')
             ->emptyStateDescription('Memberships appear here as customers subscribe. They are created by checkout, never by hand.');
+    }
+
+    /**
+     * "3 months left", or nothing where there is no end to count towards.
+     *
+     * Said in days only when it is close enough for the number of days to be
+     * the thing that matters — "87 days left" is arithmetic nobody asked for,
+     * and "3 days left" is the one worth noticing.
+     */
+    private static function remaining(Subscription $record): ?string
+    {
+        $days = $record->daysRemaining();
+
+        return match (true) {
+            $days === null => null,
+            $days === 0 => 'ends today',
+            $days <= 14 => $days.' '.str('day')->plural($days).' left',
+            default => 'ends '.$record->accessEndsAt()?->diffForHumans(),
+        };
     }
 
     /**

@@ -48,25 +48,32 @@ class SubscriptionOverview
                     ->helperText('What they signed up at, not the plan\'s price today.'),
             ]),
 
-            Section::make('Dates')
+            Section::make('Membership period')
+                ->description('When this membership runs from, and when it runs out.')
                 ->columns(4)
                 ->schema([
-                    TextEntry::make('created_at')
-                        ->label('Joined')
-                        ->dateTime('j M Y, H:i'),
+                    TextEntry::make('term_starts_at')
+                        ->label('Starts')
+                        ->state(fn (Subscription $record): ?string => $record->termStartsAt()?->format('j M Y'))
+                        ->helperText('When they bought it.'),
+
+                    TextEntry::make('term_ends_at')
+                        ->label('Ends')
+                        // Snapshotted at purchase from the plan's duration, so
+                        // editing the plan cannot move an existing member's end
+                        // date. Null means a recurring plan with no end.
+                        ->state(fn (Subscription $record): string => $record->accessEndsAt()?->format('j M Y') ?? 'Renews — no end date')
+                        ->helperText(fn (Subscription $record): ?string => match (true) {
+                            $record->onGracePeriod() => 'Cancelled, and paid up until then.',
+                            $record->termHasExpired() => 'This term has finished.',
+                            $record->daysRemaining() !== null => $record->daysRemaining().' days to go.',
+                            default => null,
+                        }),
 
                     TextEntry::make('trial_ends_at')
                         ->label('Trial ends')
                         ->dateTime('j M Y')
                         ->placeholder('No trial'),
-
-                    TextEntry::make('ends_at')
-                        ->label('Access ends')
-                        ->dateTime('j M Y')
-                        ->placeholder('Renews')
-                        ->helperText(fn (Subscription $record): ?string => $record->onGracePeriod()
-                            ? 'Cancelled, and paid up until then.'
-                            : null),
 
                     TextEntry::make('tenure')
                         ->label('Member for')

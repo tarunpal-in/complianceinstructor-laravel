@@ -75,6 +75,7 @@ class SnapshotPlanEntitlements
             $subscription->forceFill([
                 'membership_plan_id' => $plan->getKey(),
                 'price_cents' => $subscription->price_cents ?? $plan->price_cents,
+                ...$this->term($subscription, $plan),
             ])->save();
 
             $snapshot = new Collection($rows);
@@ -83,5 +84,36 @@ class SnapshotPlanEntitlements
 
             return $snapshot;
         });
+    }
+
+    /**
+     * The dates this membership runs between, set once and never moved.
+     *
+     * A one-off plan buys a fixed span, so the end is start plus the plan's
+     * duration. A recurring plan has no end — it renews until cancelled, and
+     * Cashier's `ends_at` takes over at that point.
+     *
+     * **Only when they are not already set.** This action runs a second time
+     * whenever an administrator corrects somebody's allowances, and re-deriving
+     * the term there would quietly extend or shorten access that has already
+     * been paid for — turning a correction to what a member *gets* into a
+     * change to how long they get it.
+     *
+     * @return array<string, mixed>
+     */
+    private function term(Subscription $subscription, MembershipPlan $plan): array
+    {
+        if ($subscription->term_starts_at !== null) {
+            return [];
+        }
+
+        $startsAt = $subscription->created_at ?? now();
+
+        return [
+            'term_starts_at' => $startsAt,
+            'term_ends_at' => $plan->billing_period->isRecurring() || $plan->duration_months === null
+                ? null
+                : $startsAt->copy()->addMonths($plan->duration_months),
+        ];
     }
 }

@@ -46,33 +46,41 @@ class SubscriptionSeeder extends Seeder
             ['Grace Adeyemi', 'grace.adeyemi@example.com'],
         ];
 
-        // Paid up and renewing — the ordinary case, and most of the list.
+        /*
+         * Join dates are chosen against each plan's duration so that every
+         * state is actually reachable. §5.9 asks for "a few mid-term
+         * memberships" and that is what these are: far enough in for the term
+         * column to read as a real period, not far enough for it to have run
+         * out — except the one that is meant to have.
+         */
+
+        // Paid up and part way through — the ordinary case, and most of a list.
         $this->subscribe($snapshot, $members[0], $plans->first(), fn (): array => [
-            'created_at' => now()->subMonths(2),
+            'created_at' => now()->subMonth(),
         ]);
 
         $this->subscribe($snapshot, $members[1], $plans->get(1) ?? $plans->first(), fn (): array => [
-            'created_at' => now()->subMonths(5),
+            'created_at' => now()->subMonths(2),
         ]);
 
         // Cancelled, still inside the period they paid for. The state the
         // status column exists to make visible.
         $this->subscribe($snapshot, $members[2], $plans->get(1) ?? $plans->first(), fn (): array => [
-            'created_at' => now()->subMonths(4),
+            'created_at' => now()->subMonths(3),
             'ends_at' => now()->addWeeks(3),
         ]);
 
-        // A card that stopped working. Someone has to chase this.
+        // A card that stopped working, with months of term left. Somebody has
+        // to chase this before the access they are still owed runs out.
         $this->subscribe($snapshot, $members[3], $plans->get(2) ?? $plans->first(), fn (): array => [
             'stripe_status' => 'past_due',
-            'created_at' => now()->subMonths(7),
+            'created_at' => now()->subMonths(2),
         ]);
 
-        // Over. Kept because the record of what they bought outlives them
-        // being a member.
+        // Term run out. Kept because the record of what they bought outlives
+        // them being a member.
         $this->subscribe($snapshot, $members[4], $plans->last(), fn (): array => [
-            'created_at' => now()->subYear(),
-            'ends_at' => now()->subMonth(),
+            'created_at' => now()->subMonths(14),
         ]);
 
         $this->leaveOneOnOldTerms();
@@ -110,6 +118,9 @@ class SubscriptionSeeder extends Seeder
             ],
         );
 
+        // Through the real action, so the seeded rows are shaped the way a
+        // signup shapes them — including the term dates, which it derives from
+        // the plan's duration and then never moves.
         if ($subscription->entitlements()->doesntExist()) {
             $snapshot($subscription, $plan);
         }

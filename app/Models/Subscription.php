@@ -26,6 +26,8 @@ use Laravel\Cashier\Subscription as CashierSubscription;
  * everything Cashier builds internally comes back as this class.
  *
  * @property int|null $price_cents
+ * @property CarbonInterface|null $term_starts_at
+ * @property CarbonInterface|null $term_ends_at
  * @property-read User|null $member
  * @property \Illuminate\Database\Eloquent\Collection<int, SubscriptionEntitlement> $entitlements
  */
@@ -71,6 +73,90 @@ class Subscription extends CashierSubscription
         return $this->hasMany(SubscriptionEntitlement::class);
     }
 
+    /**
+     * Only the two columns we add.
+     *
+     * Cashier declares `ends_at`, `trial_ends_at` and `quantity` on the `$casts`
+     * property, and getCasts() merges the property with this method — so
+     * restating them here would be duplication, and forgetting one would leave
+     * Cashier comparing a string to a date.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'term_starts_at' => 'datetime',
+            'term_ends_at' => 'datetime',
+        ];
+    }
+
+    // The term ----------------------------------------------------------------
+
+    /** When this membership runs from. Falls back to when the row was made. */
+    public function termStartsAt(): ?CarbonInterface
+    {
+        return $this->term_starts_at ?? $this->created_at;
+    }
+
+    /**
+     * When access stops, whichever reason comes first.
+     *
+     * A fixed-term membership ends when its term does; a cancelled one ends
+     * when Cashier says. Both can be set — somebody cancels a twelve-month pass
+     * in month three — and the earlier one is the one the member experiences.
+     */
+    public function accessEndsAt(): ?CarbonInterface
+    {
+        $dates = array_filter([$this->term_ends_at, $this->ends_at]);
+
+        return $dates === [] ? null : min($dates);
+    }
+
+    /** Whether a fixed term has run out. */
+    public function termHasExpired(): bool
+    {
+        return $this->term_ends_at !== null && $this->term_ends_at->isPast();
+    }
+
+    /**
+     * "12 Sep 2026 — 12 Dec 2026", or "12 Sep 2026 — renews".
+     *
+     * The question the client asked of this screen, in one column: when it
+     * started and when it finishes.
+     */
+    public function describeTermDates(): string
+    {
+        $starts = $this->termStartsAt()?->format('j M Y') ?? '—';
+        $ends = $this->accessEndsAt();
+
+        return $starts.' — '.($ends === null ? 'renews' : $ends->format('j M Y'));
+    }
+
+    /** "until 3 Oct 2026", or nothing for a membership that is simply renewing. */
+    public function describeAccessEnd(): ?string
+    {
+        $endsAt = $this->accessEndsAt();
+
+        return $endsAt === null ? null : 'until '.$endsAt->format('j M Y');
+    }
+
+    /**
+     * How much of a fixed term is left, for a membership that has one.
+     *
+     * Null for a recurring plan, which has no end to count towards.
+     */
+    public function daysRemaining(): ?int
+    {
+        $endsAt = $this->accessEndsAt();
+
+        if ($endsAt === null) {
+            return null;
+        }
+
+        return max(0, (int) now()->diffInDays($endsAt, absolute: false));
+    }
+
     // State -----------------------------------------------------------------
 
     /**
@@ -85,8 +171,15 @@ class Subscription extends CashierSubscription
     public function state(): SubscriptionState
     {
         return match (true) {
+            // A fixed term that has run out is over, whatever Stripe thinks.
+            // Stripe never knew about it: a one-off plan is not billed by
+            // Cashier, so `stripe_status` sits at whatever it was sold as.
+            $this->termHasExpired() => SubscriptionState::Ended,
             $this->ended() => SubscriptionState::Ended,
             $this->onGracePeriod() => SubscriptionState::Ending,
+            // A fixed term still running is not "ending" — it is simply what
+            // was bought, and every one-off member would otherwise show as on
+            // their way out from the day they joined.
             $this->pastDue() => SubscriptionState::PastDue,
             $this->onTrial() => SubscriptionState::Trialing,
             default => SubscriptionState::fromStripeStatus($this->stripe_status),
@@ -104,8 +197,19 @@ class Subscription extends CashierSubscription
      */
     public function scopeInState(Builder $query, SubscriptionState $state): void
     {
+        // A run-out term ends a membership regardless of its Stripe status, so
+        // every state except Ended has to exclude one — otherwise a finished
+        // one-off would still be counted among the active.
+        if ($state !== SubscriptionState::Ended) {
+            $query->where(fn (Builder $live) => $live
+                ->whereNull('term_ends_at')
+                ->orWhere('term_ends_at', '>', now()));
+        }
+
         match ($state) {
-            SubscriptionState::Ended => $query->ended(),
+            SubscriptionState::Ended => $query->where(fn (Builder $over) => $over
+                ->where('term_ends_at', '<=', now())
+                ->orWhere(fn (Builder $cancelled) => $cancelled->ended())),
             SubscriptionState::Ending => $query->onGracePeriod(),
             SubscriptionState::PastDue => $query->pastDue(),
             SubscriptionState::Trialing => $query->onTrial()->notOnGracePeriod(),
@@ -116,20 +220,6 @@ class Subscription extends CashierSubscription
             ),
             default => $query->where('stripe_status', $state->value)->notOnGracePeriod(),
         };
-    }
-
-    /** When access actually stops, for a subscription on its way out. */
-    public function accessEndsAt(): ?CarbonInterface
-    {
-        return $this->ends_at;
-    }
-
-    /** "until 3 Oct 2026", or nothing for a membership that is simply renewing. */
-    public function describeAccessEnd(): ?string
-    {
-        $endsAt = $this->accessEndsAt();
-
-        return $endsAt === null ? null : 'until '.$endsAt->format('j M Y');
     }
 
     /**

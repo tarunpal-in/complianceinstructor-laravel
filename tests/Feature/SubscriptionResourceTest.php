@@ -116,6 +116,103 @@ it('filters by state through Cashier own scopes', function (): void {
         ->and($inState(SubscriptionState::PastDue))->toBe([$pastDue->id]);
 });
 
+// The membership period -------------------------------------------------------
+
+/**
+ * The client's question: from when, until when. For a one-off plan the end has
+ * to be recorded at purchase — Cashier's `ends_at` only ever means "cancelled".
+ */
+it('records the period a one-off membership runs for', function (): void {
+    $plan = MembershipPlan::factory()->oneTime(3)->granting([Format::Live->value => 3])->create();
+    $subscription = Subscription::factory()->forPlan($plan)->create(['created_at' => now()->subMonth()]);
+
+    app(App\Actions\Memberships\SnapshotPlanEntitlements::class)($subscription);
+
+    $subscription = $subscription->fresh();
+
+    expect($subscription?->term_starts_at?->toDateString())->toBe(now()->subMonth()->toDateString())
+        ->and($subscription?->term_ends_at?->toDateString())->toBe(now()->addMonths(2)->toDateString())
+        ->and($subscription?->accessEndsAt()?->toDateString())->toBe(now()->addMonths(2)->toDateString());
+});
+
+/** A recurring plan has no end — it renews until somebody cancels. */
+it('leaves a recurring membership without an end date', function (): void {
+    $plan = MembershipPlan::factory()->monthly()->granting([Format::Live->value => 3])->create();
+    $subscription = Subscription::factory()->forPlan($plan)->create();
+
+    app(App\Actions\Memberships\SnapshotPlanEntitlements::class)($subscription);
+
+    expect($subscription->fresh()?->term_ends_at)->toBeNull()
+        ->and($subscription->fresh()?->describeTermDates())->toContain('renews');
+});
+
+/**
+ * The reason the term is snapshotted rather than computed: correcting somebody's
+ * allowances must not quietly extend or shorten access they have paid for.
+ */
+it('never moves a term that is already set', function (): void {
+    $plan = MembershipPlan::factory()->oneTime(3)->granting([Format::Live->value => 3])->create();
+    $subscription = Subscription::factory()->forPlan($plan)->create(['created_at' => now()->subMonths(2)]);
+
+    app(App\Actions\Memberships\SnapshotPlanEntitlements::class)($subscription);
+    $originalEnd = $subscription->fresh()?->term_ends_at;
+
+    // The plan is lengthened, and the member's allowances are re-applied.
+    $plan->update(['duration_months' => 12]);
+    app(App\Actions\Memberships\SnapshotPlanEntitlements::class)($subscription->fresh());
+
+    expect($subscription->fresh()?->term_ends_at?->toDateString())->toBe($originalEnd?->toDateString());
+});
+
+/** Cancel a twelve-month pass in month three and access stops at the cancellation. */
+it('takes whichever end comes first', function (): void {
+    $subscription = Subscription::factory()->create([
+        'term_ends_at' => now()->addMonths(9),
+        'ends_at' => now()->addWeek(),
+    ]);
+
+    expect($subscription->accessEndsAt()?->toDateString())->toBe(now()->addWeek()->toDateString());
+});
+
+/**
+ * A finished one-off is over, whatever Stripe thinks — it never knew about it,
+ * because a one-off plan is not billed through Cashier at all.
+ */
+it('treats a run-out term as ended', function (): void {
+    $expired = Subscription::factory()->create(['term_ends_at' => now()->subDay()]);
+    $running = Subscription::factory()->create(['term_ends_at' => now()->addMonth()]);
+
+    expect($expired->state())->toBe(SubscriptionState::Ended)
+        ->and($expired->state()->grantsAccess())->toBeFalse()
+        // Still running is not "ending" — it is simply what was bought.
+        ->and($running->state())->toBe(SubscriptionState::Active)
+        ->and($running->termHasExpired())->toBeFalse();
+});
+
+it('keeps a finished term out of the active list', function (): void {
+    $expired = Subscription::factory()->create(['term_ends_at' => now()->subDay()]);
+    $running = Subscription::factory()->create(['term_ends_at' => now()->addMonth()]);
+
+    expect(Subscription::query()->inState(SubscriptionState::Active)->pluck('id')->all())->toBe([$running->id])
+        ->and(Subscription::query()->inState(SubscriptionState::Ended)->pluck('id')->all())->toBe([$expired->id]);
+});
+
+it('shows both dates in one column', function (): void {
+    $subscription = subscriber([Format::Live->value => 3], [
+        'term_starts_at' => now()->subMonth(),
+        'term_ends_at' => now()->addMonths(2),
+    ]);
+
+    Livewire\Livewire::actingAs(userWithRole(UserRole::Finance))
+        ->test(ListSubscriptions::class)
+        ->set('activeTab', 'all')
+        ->assertTableColumnStateSet(
+            'term',
+            now()->subMonth()->format('j M Y').' — '.now()->addMonths(2)->format('j M Y'),
+            $subscription,
+        );
+});
+
 // Terms -----------------------------------------------------------------------
 
 it('shows a member the terms they were sold, not the plan today', function (): void {
@@ -276,6 +373,10 @@ it('seeds a few mid-term memberships in every state the screen renders', functio
         ->and($states)->toContain(SubscriptionState::Ended)
         // Every one snapshotted, because that is what a real signup does.
         ->and(SubscriptionEntitlement::query()->count())->toBeGreaterThan(0)
+        // And every one with a period, so the term column is never blank in
+        // client review.
+        ->and(Subscription::query()->whereNull('term_starts_at')->count())->toBe(0)
+        ->and(Subscription::query()->whereNull('term_ends_at')->count())->toBe(0)
         // And one left on old terms, so the badge and filter are reachable.
         ->and(Subscription::idsWithAlteredTerms()->count())->toBe(1);
 });
