@@ -15,6 +15,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use UnitEnum;
 
@@ -74,9 +75,34 @@ class UserResource extends Resource
         ];
     }
 
+    /**
+     * A customer, from the three directions support arrives from: what they
+     * bought, what they subscribe to, and what they can actually watch.
+     *
+     * @return array<int, class-string>
+     */
     public static function getRelations(): array
     {
-        return [];
+        return [
+            RelationManagers\OrdersRelationManager::class,
+            RelationManagers\MembershipsRelationManager::class,
+            RelationManagers\AccessRelationManager::class,
+        ];
+    }
+
+    /**
+     * The list draws each account's roles and counts what they have bought.
+     *
+     * Model::shouldBeStrict() is on outside production, so a missing eager load
+     * throws rather than quietly costing a query a row. The counts are aliased
+     * once, here: adding ->counts() on the column as well would put the same
+     * alias in the select twice, which MySQL rejects outright.
+     */
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->with('roles')
+            ->withCount(['orders', 'subscriptions', 'entitlements']);
     }
 
     public static function getPages(): array

@@ -11,6 +11,7 @@ use Filament\Panel;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Cashier\Billable;
@@ -32,6 +33,54 @@ class User extends Authenticatable implements FilamentUser
      * @use HasFactory<UserFactory>
      */
     use Billable, HasFactory, HasRoles, Notifiable;
+
+    // Relationships -------------------------------------------------------------
+
+    /** @return HasMany<Order, $this> */
+    public function orders(): HasMany
+    {
+        return $this->hasMany(Order::class);
+    }
+
+    /**
+     * Everything this person may access — §5.2's ledger from their end.
+     *
+     * @return HasMany<Entitlement, $this>
+     */
+    public function entitlements(): HasMany
+    {
+        return $this->hasMany(Entitlement::class);
+    }
+
+    // Who they are ----------------------------------------------------------------
+
+    /**
+     * Whether this account is a customer rather than a member of staff.
+     *
+     * §5.8 gives users no role column, so "customer" is not a value anywhere —
+     * it is the absence of the four §8 admin roles. Asked once here rather than
+     * written out at each call site, because a screen that answers it slightly
+     * differently from the panel gate is how an administrator ends up filed
+     * under the people who buy things.
+     */
+    public function isCustomer(): bool
+    {
+        return ! $this->hasAnyRole(UserRole::values());
+    }
+
+    /** "Customer", or the roles they hold. */
+    public function describeRoles(): string
+    {
+        if ($this->isCustomer()) {
+            return 'Customer';
+        }
+
+        // getRoleNames() rather than mapping over the relation: Spatie's role
+        // model is swappable, so nothing static can say it has a `name`.
+        return $this->getRoleNames()
+            ->map(fn (string $name): string => UserRole::tryFrom($name)?->label() ?? $name)
+            ->join(', ');
+    }
 
     /**
      * Gate on the admin panel.
