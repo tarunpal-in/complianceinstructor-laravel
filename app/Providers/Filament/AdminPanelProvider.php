@@ -116,7 +116,8 @@ class AdminPanelProvider extends PanelProvider
      *
      * Absent because a real resource or page already occupies the slot:
      * Customers, Settings, Speakers, Industries, Plans, Subscriptions,
-     * Entitlements — and Accreditations, which the resource adds to Catalogue.
+     * Entitlements, Certificates — and Accreditations, which the resource adds
+     * to Catalogue. The whole Learners group is now real.
      *
      * Not yet permission-gated — real resources gate on `view_any_*` through
      * their own can* methods (§8). Stubs are visible to any admin role until
@@ -129,8 +130,6 @@ class AdminPanelProvider extends PanelProvider
         /** @var array<int, array{0: string, 1: int, 2: string, 3: Heroicon}> $items */
         $items = [
             ['Catalogue', 20, 'Packages', Heroicon::OutlinedCube],
-
-            ['Learners', 30, 'Certificates', Heroicon::OutlinedAcademicCap],
 
             ['Content', 10, 'Pages', Heroicon::OutlinedDocumentText],
             ['Content', 20, 'Blog', Heroicon::OutlinedNewspaper],
