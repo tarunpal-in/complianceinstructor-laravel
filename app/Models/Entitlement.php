@@ -45,7 +45,17 @@ class Entitlement extends Model
         ];
     }
 
-    /** §9 — access granted and taken away is exactly what an audit trail is for. */
+    /**
+     * §9 — access granted and taken away is exactly what an audit trail is for.
+     *
+     * This is also the usage history. One row here is the *current* state of a
+     * grant — `GrantEntitlement` restores a revoked row rather than writing a
+     * second, which keeps the quota honest but means the row alone cannot say
+     * that access was given, taken back and given again. The activity entries
+     * can, so they are the history rather than a second table duplicating it
+     * (§9 already makes activity_log the audit trail, and two records of the
+     * same events would eventually disagree).
+     */
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
@@ -53,6 +63,29 @@ class Entitlement extends Model
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
             ->useLogName('entitlement');
+    }
+
+    /**
+     * What happened, in words, rather than "created" and "updated".
+     *
+     * A support person reading a timeline needs to know whether access was
+     * given, taken back or handed over again — not which columns changed.
+     */
+    public function getDescriptionForEvent(string $eventName): string
+    {
+        if ($eventName === 'created') {
+            return 'Access granted';
+        }
+
+        if ($eventName === 'deleted') {
+            return 'Record deleted';
+        }
+
+        return match (true) {
+            $this->wasChanged('revoked_at') && $this->revoked_at !== null => 'Given back',
+            $this->wasChanged('revoked_at') && $this->revoked_at === null => 'Access restored',
+            default => 'Updated',
+        };
     }
 
     // The only access question anyone asks -------------------------------------
