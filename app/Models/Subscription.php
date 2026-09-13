@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\AllowanceWindow;
+use App\Enums\EntitlementSource;
 use App\Enums\Format;
 use App\Enums\SubscriptionState;
 use App\Support\Money;
@@ -231,6 +233,127 @@ class Subscription extends CashierSubscription
     public function describeTenure(): string
     {
         return $this->created_at?->diffForHumans() ?? '—';
+    }
+
+    // Allowances ---------------------------------------------------------------
+
+    /**
+     * Everything this membership has spent — §5.2's ledger, filtered to us.
+     *
+     * @return HasMany<Entitlement, $this>
+     */
+    public function redemptions(): HasMany
+    {
+        return $this->hasMany(Entitlement::class, 'source_id')
+            ->where('source_type', EntitlementSource::Subscription);
+    }
+
+    /** What this member holds for one format, or null if they hold none. */
+    public function allowanceFor(Format $format): ?SubscriptionEntitlement
+    {
+        return $this->entitlements->firstWhere('format', $format);
+    }
+
+    /**
+     * The stretch of time the current allowance covers.
+     *
+     * Two windows, and the difference is substantial: "4 live per month" on a
+     * yearly membership is 48 a year, "4 per term" is 4.
+     *
+     * A month runs from the member's own start date, not the 1st (agreed
+     * 2026-09-13). Somebody who joins on the 28th would otherwise get one
+     * month's allowance, then another four days later, because the calendar
+     * turned over.
+     *
+     * @return array{0: CarbonInterface, 1: CarbonInterface}
+     */
+    public function windowFor(AllowanceWindow $allowanceWindow): array
+    {
+        $start = $this->termStartsAt() ?? now();
+
+        if ($allowanceWindow === AllowanceWindow::Term) {
+            return [$start, $this->accessEndsAt() ?? $start->copy()->addYears(100)];
+        }
+
+        // Whole months elapsed, so the window is the one containing today.
+        $elapsed = max(0, (int) $start->diffInMonths(now()));
+
+        // NoOverflow so a membership starting on the 31st lands on the 30th,
+        // 29th or 28th rather than skipping into the following month.
+        $windowStart = $start->copy()->addMonthsNoOverflow($elapsed);
+
+        return [$windowStart, $windowStart->copy()->addMonthNoOverflow()];
+    }
+
+    /**
+     * How many of a format this member has spent in the current window.
+     *
+     * Counted from the ledger rather than read from a counter (agreed
+     * 2026-09-13, replacing §5.5's `subscription_usage.used_count`): a counter
+     * drifts, and a number cannot be asked which session it stood for when
+     * somebody wants one back.
+     */
+    public function usedInWindow(Format $format): int
+    {
+        $allowance = $this->allowanceFor($format);
+
+        if ($allowance === null) {
+            return 0;
+        }
+
+        [$start, $end] = $this->windowFor($allowance->window);
+
+        return $this->redemptions()
+            ->where('format', $format)
+            ->notRevoked()
+            ->whereBetween('granted_at', [$start, $end])
+            ->count();
+    }
+
+    /**
+     * What is left of a format this window.
+     *
+     * Null means unlimited — never 0, which is the opposite (§5.5). Zero means
+     * the member holds this format and has spent it all; a member who was never
+     * sold the format also reads 0, because they have none to spend.
+     */
+    public function remainingFor(Format $format): ?int
+    {
+        $allowance = $this->allowanceFor($format);
+
+        if ($allowance === null) {
+            return 0;
+        }
+
+        return $allowance->remainingAfter($this->usedInWindow($format));
+    }
+
+    /** Whether one more of this format can be spent right now. */
+    public function canSpend(Format $format): bool
+    {
+        if (! $this->state()->grantsAccess()) {
+            return false;
+        }
+
+        $remaining = $this->remainingFor($format);
+
+        return $remaining === null || $remaining > 0;
+    }
+
+    /** "2 of 3 left", or "Unlimited" — how the admin reads a quota. */
+    public function describeRemaining(Format $format): string
+    {
+        $allowance = $this->allowanceFor($format);
+
+        if ($allowance === null) {
+            return 'Not included';
+        }
+
+        if ($allowance->isUnlimited()) {
+            return 'Unlimited';
+        }
+
+        return $this->remainingFor($format).' of '.$allowance->quantity.' left';
     }
 
     // Money -------------------------------------------------------------------

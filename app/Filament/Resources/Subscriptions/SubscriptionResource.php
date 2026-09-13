@@ -70,10 +70,17 @@ class SubscriptionResource extends Resource
             ->with(['member', 'entitlements', 'plan.entitlements']);
     }
 
-    /** @return array<int, class-string> */
+    /**
+     * What they were sold, then what they have spent of it.
+     *
+     * @return array<int, class-string>
+     */
     public static function getRelations(): array
     {
-        return [RelationManagers\EntitlementsRelationManager::class];
+        return [
+            RelationManagers\EntitlementsRelationManager::class,
+            RelationManagers\RedemptionsRelationManager::class,
+        ];
     }
 
     public static function getPages(): array
