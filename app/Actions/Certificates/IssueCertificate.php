@@ -9,6 +9,7 @@ use App\Models\Certificate;
 use App\Models\User;
 use App\Models\Webinar;
 use App\Support\CertificateSerial;
+use App\Support\CreditHours;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -68,17 +69,21 @@ class IssueCertificate
     /**
      * What this webinar is worth from this body.
      *
+     * Through the webinar, so the standard rule applies — 30 minutes of content
+     * is half a credit (agreed 2026-09-14) — unless the body has an override
+     * recorded for this session. One place decides, and it is not this one.
+     *
      * Refuses rather than defaulting to zero: a certificate for a body the
      * webinar is not accredited by is not a clerical slip to be smoothed over,
      * it is a claim the business cannot support.
      */
     private function creditsFor(Webinar $webinar, Accreditation $accreditation): string
     {
-        $pivot = $webinar->accreditations()
+        $isAccredited = $webinar->accreditations()
             ->where('accreditations.id', $accreditation->getKey())
-            ->first()?->pivot;
+            ->exists();
 
-        if ($pivot === null) {
+        if (! $isAccredited) {
             throw new RuntimeException(sprintf(
                 '"%s" is not accredited by %s, so no certificate can be issued for it.',
                 $webinar->title,
@@ -86,17 +91,42 @@ class IssueCertificate
             ));
         }
 
-        $credits = (string) $pivot->getAttribute('credits');
+        $credits = $webinar->creditsFor($accreditation);
 
         if ((float) $credits <= 0) {
             throw new RuntimeException(sprintf(
-                '%s awards no credits for "%s". Set the credit hours on the webinar first.',
-                $accreditation->code,
+                '"%s" awards no credits, so there is nothing to certify. %s',
                 $webinar->title,
+                $this->whyNoCredits($webinar, $accreditation),
             ));
         }
 
         return $credits;
+    }
+
+    /**
+     * Which of the two reasons it is.
+     *
+     * Worth separating: "too short" is fixed by changing the duration, and "set
+     * to zero by hand" is fixed somewhere else entirely. One message covering
+     * both would send somebody to the wrong screen.
+     */
+    private function whyNoCredits(Webinar $webinar, Accreditation $accreditation): string
+    {
+        $isOverridden = $webinar->accreditations()
+            ->where('accreditations.id', $accreditation->getKey())
+            ->first()
+            ?->pivot?->getAttribute('credits') !== null;
+
+        if ($isOverridden) {
+            return sprintf('Its %s credits are overridden to zero on the webinar.', $accreditation->code);
+        }
+
+        return sprintf(
+            'It runs %d minutes. %s',
+            (int) $webinar->duration_minutes,
+            CreditHours::describeRule(),
+        );
     }
 
     /**

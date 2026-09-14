@@ -8,6 +8,7 @@ use App\Enums\Format;
 use App\Enums\WebinarStatus;
 use App\Enums\WebinarType;
 use App\Models\Concerns\ReleasesUniqueNameOnDelete;
+use App\Support\CreditHours;
 use Database\Factories\WebinarFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -88,6 +89,45 @@ class Webinar extends Model implements HasMedia
         return $this->belongsToMany(Accreditation::class, 'webinar_accreditation')
             ->withPivot('credits')
             ->withTimestamps();
+    }
+
+    // Credits ---------------------------------------------------------------
+
+    /**
+     * What this webinar is worth, by the standard rule.
+     *
+     * The client's rule, given 2026-09-14: 30 minutes of content is half a
+     * credit, the same for every body. Derived from the duration rather than
+     * stored, so a webinar that gets longer or shorter cannot end up asserting
+     * credits it no longer earns.
+     */
+    public function standardCredits(): string
+    {
+        return CreditHours::forMinutes($this->duration_minutes);
+    }
+
+    /**
+     * What one body awards for this webinar.
+     *
+     * The pivot value is an override and is normally null. §12 warns these
+     * rules are prescribed by the bodies and not ours to invent, so the escape
+     * hatch exists for the day one of them differs — but the standard rule is
+     * what answers, and nobody has to keep it in step by hand.
+     */
+    public function creditsFor(Accreditation $accreditation): string
+    {
+        $override = $this->accreditations()
+            ->where('accreditations.id', $accreditation->getKey())
+            ->first()
+            ?->pivot?->getAttribute('credits');
+
+        return $override === null ? $this->standardCredits() : (string) $override;
+    }
+
+    /** Whether this webinar is long enough to be worth any credit at all. */
+    public function earnsCredits(): bool
+    {
+        return (float) $this->standardCredits() > 0;
     }
 
     /** @return MorphMany<Offering, $this> */
@@ -227,6 +267,20 @@ class Webinar extends Model implements HasMedia
 
         if ($this->accreditations()->doesntExist()) {
             $problems[] = 'It awards no accreditation credits.';
+        }
+
+        /*
+         * Accredited but too short to earn anything — 30 minutes of content is
+         * half a credit, so a 20-minute session carries bodies that award it
+         * nothing. Publishing that sells CEU credits the business cannot award,
+         * which is the one thing §1 says customers are actually buying.
+         */
+        if ($this->accreditations()->exists() && ! $this->earnsCredits()) {
+            $problems[] = sprintf(
+                'At %d minutes it earns no credits. %s',
+                (int) $this->duration_minutes,
+                CreditHours::describeRule(),
+            );
         }
 
         foreach ($this->disallowedFormats() as $format) {

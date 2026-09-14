@@ -19,15 +19,27 @@ beforeEach(function (): void {
     $this->seed(RolePermissionSeeder::class);
 });
 
-/** A webinar accredited by one body, worth some credits. */
-function accredited(string $credits = '2.00', string $code = 'HRCI'): array
+/**
+ * A webinar accredited by one body.
+ *
+ * Credits come from the duration by the standard rule — 30 minutes is half a
+ * credit — so the length is what a test sets. `$override` is for the exception
+ * path only.
+ *
+ * @return array{0: Webinar, 1: Accreditation}
+ */
+function accredited(int $minutes = 120, string $code = 'HRCI', ?string $override = null): array
 {
-    $webinar = Webinar::factory()->create(['title' => 'FMLA Compliance 2026']);
+    $webinar = Webinar::factory()->create([
+        'title' => 'FMLA Compliance 2026',
+        'duration_minutes' => $minutes,
+    ]);
+
     $accreditation = Accreditation::factory()->create(['code' => $code]);
 
-    $webinar->accreditations()->attach($accreditation->id, ['credits' => $credits]);
+    $webinar->accreditations()->attach($accreditation->id, ['credits' => $override]);
 
-    return [$webinar, $accreditation];
+    return [$webinar->fresh(), $accreditation];
 }
 
 // Authorization ---------------------------------------------------------------
@@ -92,7 +104,7 @@ it('rejects something that is not one of ours', function (string $serial): void 
 // Issuing ---------------------------------------------------------------------
 
 it('issues a certificate carrying what the document says', function (): void {
-    [$webinar, $accreditation] = accredited('2.00');
+    [$webinar, $accreditation] = accredited(120);
     $learner = User::factory()->create(['name' => 'Priya Raman']);
 
     $certificate = app(IssueCertificate::class)($learner, $webinar, $accreditation);
@@ -110,7 +122,7 @@ it('issues a certificate carrying what the document says', function (): void {
  * an accrediting body auditing this in three years must see what it said today.
  */
 it('does not change when the records behind it do', function (): void {
-    [$webinar, $accreditation] = accredited('2.00');
+    [$webinar, $accreditation] = accredited(120);
     $learner = User::factory()->create(['name' => 'Priya Raman']);
 
     $certificate = app(IssueCertificate::class)($learner, $webinar, $accreditation);
@@ -126,13 +138,64 @@ it('does not change when the records behind it do', function (): void {
         ->and($certificate?->credits)->toBe('2.00');
 });
 
-/** §12 — credit rules are prescribed by the body and not negotiable. */
-it('takes the credits from the webinar, never from a form', function (): void {
-    [$webinar, $accreditation] = accredited('1.50');
+/**
+ * The client's rule, given 2026-09-14: 30 minutes of content is half a credit.
+ * Set the duration and the credits follow — §12 has these prescribed by the
+ * bodies and not negotiable, so there is no form to type them into.
+ */
+it('works the credits out from how long the webinar runs', function (int $minutes, string $credits): void {
+    [$webinar, $accreditation] = accredited($minutes);
 
     $certificate = app(IssueCertificate::class)(User::factory()->create(), $webinar, $accreditation);
 
-    expect($certificate->credits)->toBe('1.50');
+    expect($certificate->credits)->toBe($credits);
+})->with([
+    'half an hour' => [30, '0.50'],
+    'an hour' => [60, '1.00'],
+    'ninety minutes' => [90, '1.50'],
+    'two hours' => [120, '2.00'],
+    // Complete half-hours only: 45 minutes is 0.5, not 0.75. Awarding credit
+    // for time not delivered is the direction an audit is unforgiving about.
+    'part of a block' => [45, '0.50'],
+]);
+
+/** Too short to be worth anything, and said as such rather than silently zero. */
+it('refuses a webinar shorter than half an hour', function (): void {
+    [$webinar, $accreditation] = accredited(20);
+
+    expect(fn () => app(IssueCertificate::class)(User::factory()->create(), $webinar, $accreditation))
+        ->toThrow(RuntimeException::class, 'It runs 20 minutes');
+});
+
+/** The rule is the same for every body — the client was explicit about that. */
+it('gives every body the same credits for the same webinar', function (): void {
+    [$webinar, $hrci] = accredited(90);
+    $shrm = Accreditation::factory()->create(['code' => 'SHRM']);
+    $webinar->accreditations()->attach($shrm->id, ['credits' => null]);
+
+    expect($webinar->creditsFor($hrci))->toBe('1.50')
+        ->and($webinar->fresh()->creditsFor($shrm))->toBe('1.50');
+});
+
+/** The exception §12 warns to leave room for, visible as an exception. */
+it('lets one body override the standard figure', function (): void {
+    [$webinar, $accreditation] = accredited(90, override: '2.00');
+
+    $certificate = app(IssueCertificate::class)(User::factory()->create(), $webinar, $accreditation);
+
+    expect($webinar->standardCredits())->toBe('1.50')
+        ->and($certificate->credits)->toBe('2.00');
+});
+
+/** Change the length, change what it earns — nothing to keep in step by hand. */
+it('follows the duration when it changes', function (): void {
+    [$webinar, $accreditation] = accredited(60);
+
+    expect($webinar->creditsFor($accreditation))->toBe('1.00');
+
+    $webinar->update(['duration_minutes' => 120]);
+
+    expect($webinar->fresh()->creditsFor($accreditation))->toBe('2.00');
 });
 
 it('refuses a body the webinar is not accredited by', function (): void {
@@ -144,10 +207,10 @@ it('refuses a body the webinar is not accredited by', function (): void {
 });
 
 it('refuses a webinar the body awards no credits for', function (): void {
-    [$webinar, $accreditation] = accredited('0.00');
+    [$webinar, $accreditation] = accredited(120, override: '0.00');
 
     expect(fn () => app(IssueCertificate::class)(User::factory()->create(), $webinar, $accreditation))
-        ->toThrow(RuntimeException::class, 'awards no credits');
+        ->toThrow(RuntimeException::class, 'overridden to zero');
 });
 
 /** One live certificate per learner, per webinar, per body. */
@@ -213,7 +276,7 @@ it('refuses to revoke twice', function (): void {
 it('issues one from the register', function (): void {
     $this->actingAs(userWithRole(UserRole::SuperAdmin));
 
-    [$webinar, $accreditation] = accredited('3.00');
+    [$webinar, $accreditation] = accredited(180);
     $learner = User::factory()->create(['name' => 'Daniel Okonkwo']);
 
     Livewire\Livewire::test(ListCertificates::class)
@@ -242,7 +305,7 @@ it('separates valid certificates from revoked ones', function (): void {
 it('revokes and reissues in one step', function (): void {
     $this->actingAs(userWithRole(UserRole::SuperAdmin));
 
-    [$webinar, $accreditation] = accredited('2.00');
+    [$webinar, $accreditation] = accredited(120);
     $learner = User::factory()->create();
     $original = app(IssueCertificate::class)($learner, $webinar, $accreditation);
 
