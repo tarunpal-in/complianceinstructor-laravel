@@ -230,6 +230,31 @@ it('separates live pages from drafts and the unfinished', function (): void {
         ->assertCanNotSeeTableRecords([$live, $draft]);
 });
 
+/**
+ * The View button points at the page itself — the only real preview there is.
+ * Shown on every row and disabled with the reason where there is nothing to
+ * open, rather than vanishing and reading as a missing feature.
+ */
+it('offers a view button that opens a live page', function (): void {
+    $this->actingAs(userWithRole(UserRole::ContentEditor));
+
+    $live = Page::factory()->withContent()->published()->create(['slug' => 'about']);
+
+    Livewire\Livewire::test(ListPages::class)
+        ->assertTableActionEnabled('visit', $live)
+        ->assertTableActionHasUrl('visit', '/about', $live);
+});
+
+it('disables the view button on a page that is not live', function (string $state): void {
+    $this->actingAs(userWithRole(UserRole::ContentEditor));
+
+    $page = Page::factory()->withContent()->{$state}()->create();
+
+    Livewire\Livewire::test(ListPages::class)
+        ->set('activeTab', 'all')
+        ->assertTableActionDisabled('visit', $page);
+})->with(['draft' => 'withContent', 'scheduled' => 'scheduled']);
+
 // The public page ---------------------------------------------------------------------
 
 it('serves a published page at its address', function (): void {

@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Pages\Tables;
 
 use App\Models\Page;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\RestoreBulkAction;
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\TrashedFilter;
@@ -66,6 +68,7 @@ class PagesTable
                 TrashedFilter::make()->label('Deleted pages'),
             ], layout: FiltersLayout::AboveContentCollapsible)
             ->recordActions([
+                self::visitAction(),
                 EditAction::make(),
                 DeleteAction::make(),
             ])
@@ -77,5 +80,28 @@ class PagesTable
             ])
             ->emptyStateHeading('No pages yet')
             ->emptyStateDescription('Build one from blocks — no developer required.');
+    }
+
+    /**
+     * Open the page itself, which is the only real preview.
+     *
+     * Shown on every row rather than only on live ones, and disabled with the
+     * reason when there is nothing to open. A button that vanishes on the
+     * Drafts tab reads as a missing feature; one that is there and explains
+     * itself teaches the rule — the same call as the Stripe actions on a
+     * membership.
+     */
+    private static function visitAction(): Action
+    {
+        return Action::make('visit')
+            ->label('View')
+            ->icon(Heroicon::OutlinedArrowTopRightOnSquare)
+            ->color('gray')
+            ->url(fn (Page $record): ?string => $record->isLive() ? $record->path() : null)
+            ->openUrlInNewTab()
+            ->disabled(fn (Page $record): bool => ! $record->isLive())
+            ->tooltip(fn (Page $record): string => $record->isLive()
+                ? 'Open '.$record->path()
+                : 'Not live yet, so there is nothing to open. Publish it first.');
     }
 }
