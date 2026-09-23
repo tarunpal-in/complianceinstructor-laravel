@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\BlogController;
+use App\Http\Controllers\CommentController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\PagePreviewController;
@@ -43,6 +44,18 @@ Route::get('/'.Post::PATH_PREFIX.'/preview/{post}', PostPreviewController::class
  * whose slug happens to be "preview".
  */
 Route::get('/'.Post::PATH_PREFIX.'/{slug}', PostController::class)->name('blog.show');
+
+/*
+ * Leaving a comment.
+ *
+ * Unauthenticated by design — most readers of a marketing blog do not have an
+ * account and never will — which makes it an open endpoint that writes a row,
+ * so it is throttled. Nothing it writes reaches the site: SubmitComment decides
+ * between the queue and the spam tab, and only the Comments screen publishes.
+ */
+Route::post('/'.Post::PATH_PREFIX.'/{slug}/comments', CommentController::class)
+    ->middleware('throttle:comments')
+    ->name('blog.comments.store');
 
 /*
  * A draft, shown to somebody who was sent the link.

@@ -57,6 +57,12 @@
         @endif
     </article>
 
+    {{-- Not shown on a preview: the article has no address yet, so there is
+         nothing for a comment to be attached to. --}}
+    @unless ($preview ?? false)
+        <x-blog.comments :post="$post" />
+    @endunless
+
     @if ($related->isNotEmpty())
         <section class="section blog-related">
             <div class="section-heading centered"><h2>More like this</h2></div>

@@ -34,7 +34,7 @@ class RolePermissionSeeder extends Seeder
         // Learners
         'user', 'entitlement', 'certificate',
         // Content
-        'page', 'post', 'navigation', 'redirect', 'seo_meta', 'media',
+        'page', 'post', 'comment', 'navigation', 'redirect', 'seo_meta', 'media',
         // Engagement
         'lead', 'subscriber', 'inquiry',
         // System
@@ -53,6 +53,10 @@ class RolePermissionSeeder extends Seeder
         'view_reports',
         'export_data',
         'manage_manual_payment',
+        // Approving and binning comments, grantable without the rest of the
+        // blog: moderation is a daily chore somebody may do who has no business
+        // rewriting articles.
+        'moderate_comment',
     ];
 
     public function run(): void
@@ -101,8 +105,9 @@ class RolePermissionSeeder extends Seeder
             UserRole::ContentEditor => [
                 ...$this->crudFor([
                     'webinar', 'package', 'speaker', 'industry', 'accreditation',
-                    'page', 'post', 'navigation', 'redirect', 'seo_meta', 'media',
+                    'page', 'post', 'comment', 'navigation', 'redirect', 'seo_meta', 'media',
                 ]),
+                'moderate_comment',
                 'view_any_lead', 'view_lead',
             ],
 

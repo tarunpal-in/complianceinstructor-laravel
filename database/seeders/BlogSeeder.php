@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use App\Enums\PublishStatus;
+use App\Models\Comment;
 use App\Models\Post;
 use App\Models\PostCategory;
 use App\Models\Tag;
@@ -72,5 +73,52 @@ class BlogSeeder extends Seeder
                     ->all(),
             );
         }
+
+        $this->seedComments($author);
+    }
+
+    /**
+     * One thread, in every state the moderation screen has a tab for.
+     *
+     * The queue is the screen that has to be reviewable, and a queue with
+     * nothing in it shows neither the badge, the tabs, nor what a moderator's
+     * day actually looks like. Put on the oldest article so it does not sit at
+     * the top of the blog index pretending to be a busy site.
+     */
+    private function seedComments(?User $author): void
+    {
+        $post = Post::query()->live()->oldest('published_at')->first();
+
+        if ($post === null || $post->comments()->exists()) {
+            return;
+        }
+
+        $published = Comment::factory()->on($post)->approved()->create([
+            'author_name' => 'Dana Whitfield',
+            'author_email' => 'dana.whitfield@example.com',
+            'body' => 'Placeholder comment. Useful for reviewing the thread — not real feedback from a real reader.',
+            'created_at' => now()->subDays(4),
+        ]);
+
+        if ($author !== null) {
+            Comment::factory()->replyTo($published)->by($author)->approved($author)->create([
+                'body' => 'Placeholder reply, posted from the admin Comments screen.',
+                'created_at' => now()->subDays(3),
+            ]);
+        }
+
+        Comment::factory()->on($post)->create([
+            'author_name' => 'Marcus Reed',
+            'author_email' => 'marcus.reed@example.com',
+            'body' => 'Placeholder comment awaiting review, so the queue has something in it.',
+            'created_at' => now()->subHours(6),
+        ]);
+
+        Comment::factory()->on($post)->spam('Contains 4 links.')->create([
+            'author_name' => 'cheap-seo-services',
+            'author_email' => 'noreply@example.net',
+            'body' => 'Placeholder spam, so the Spam tab and the filter\'s reasoning can both be seen.',
+            'created_at' => now()->subHours(2),
+        ]);
     }
 }

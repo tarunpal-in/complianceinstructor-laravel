@@ -51,7 +51,7 @@ class Post extends Model implements HasMedia
 
     protected $fillable = [
         'title', 'slug', 'excerpt', 'body', 'post_category_id', 'user_id',
-        'status', 'published_at',
+        'status', 'published_at', 'comments_enabled',
     ];
 
     protected function casts(): array
@@ -59,6 +59,7 @@ class Post extends Model implements HasMedia
         return [
             'status' => PublishStatus::class,
             'published_at' => 'datetime',
+            'comments_enabled' => 'boolean',
         ];
     }
 
@@ -111,6 +112,52 @@ class Post extends Model implements HasMedia
     public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    /**
+     * Every comment, whatever state it is in — the moderation queue's end.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany<Comment, $this>
+     */
+    public function comments(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Comment::class);
+    }
+
+    /**
+     * The thread a reader sees: published, top-level, oldest first.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany<Comment, $this>
+     */
+    public function publishedComments(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->comments()->approved()->roots()->oldest();
+    }
+
+    /**
+     * Comments on this article still to be read.
+     *
+     * Its own relation rather than a constrained count on the list, so the blog
+     * screen can say which article somebody is waiting on without that query
+     * living in a column closure.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany<Comment, $this>
+     */
+    public function commentsAwaitingReview(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->comments()->awaitingReview();
+    }
+
+    /**
+     * Whether somebody may leave a comment.
+     *
+     * Both halves matter: an unpublished article has nothing to comment on, and
+     * the per-article switch is how the client closes a thread that has gone
+     * somewhere they do not want to moderate.
+     */
+    public function acceptsComments(): bool
+    {
+        return $this->comments_enabled && $this->isLive();
     }
 
     /**

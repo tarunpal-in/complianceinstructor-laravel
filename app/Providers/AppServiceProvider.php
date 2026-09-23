@@ -11,8 +11,11 @@ use App\Payments\Drivers\ManualDriver;
 use App\Payments\Drivers\PayPalDriver;
 use App\Payments\Drivers\StripeDriver;
 use App\Payments\PaymentGatewayManager;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Cashier\Cashier;
 
@@ -51,6 +54,19 @@ class AppServiceProvider extends ServiceProvider
         Gate::before(static function (User $user, string $ability): ?bool {
             return $user->hasRole(UserRole::SuperAdmin->value) ? true : null;
         });
+
+        /*
+         * §9 — "rate limiting on login, registration, reset, coupon application
+         * and checkout". A public comment box belongs on that list for the same
+         * reason: it is an unauthenticated endpoint that writes a row.
+         *
+         * By IP rather than by email, because the email is supplied by whoever
+         * is posting and a script would simply vary it. Five a minute is far
+         * more than a person reading an article will ever need, and far less
+         * than a script wants.
+         */
+        RateLimiter::for('comments', static fn (Request $request): Limit => Limit::perMinute(5)
+            ->by((string) $request->ip()));
 
         // CLAUDE.md §3 — money is integer cents and nothing silently coerces.
         // Unguarded attributes would reintroduce §14 #1 (mass assignment of a

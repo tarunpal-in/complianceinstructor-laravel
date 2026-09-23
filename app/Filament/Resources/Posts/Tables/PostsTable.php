@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Posts\Tables;
 
+use App\Filament\Resources\Comments\CommentResource;
 use App\Models\Post;
 use App\Models\PostCategory;
 use Filament\Actions\Action;
@@ -64,6 +65,20 @@ class PostsTable
                 TextColumn::make('author.name')
                     ->label('Author')
                     ->placeholder('No byline')
+                    ->toggleable(),
+
+                TextColumn::make('commentsAwaitingReview')
+                    ->label('To read')
+                    ->counts('commentsAwaitingReview')
+                    ->badge()
+                    ->color('warning')
+                    // Nothing waiting is the normal state, and a column of
+                    // zeroes is noise. An empty cell says the same thing.
+                    ->formatStateUsing(fn (int $state): string => $state === 0 ? '—' : (string) $state)
+                    ->url(fn (Post $record): string => CommentResource::getUrl('index', [
+                        'tableFilters' => ['post_id' => ['value' => $record->getKey()]],
+                    ]))
+                    ->alignEnd()
                     ->toggleable(),
 
                 TextColumn::make('reading')

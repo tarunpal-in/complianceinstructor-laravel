@@ -31,6 +31,9 @@ class PostFactory extends Factory
             'user_id' => User::factory(),
             'status' => PublishStatus::Draft,
             'published_at' => null,
+            // Set here rather than left to the column default, so a factory-made
+            // model answers acceptsComments() without being read back first.
+            'comments_enabled' => true,
         ];
     }
 

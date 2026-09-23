@@ -774,3 +774,53 @@ h1 span { color: #0c5484; }
 @media (max-width: 900px) {
     .blog-article-header h1 { font-size: 30px; line-height: 38px; }
 }
+
+/* Comments — the thread under an article, and the box for adding to it. */
+.blog-comments { padding-top: 0; }
+.blog-comments-inner { max-width: 820px; }
+.blog-comments-heading { color: #1a1a2e; font-size: 24px; font-weight: 700; letter-spacing: -0.3px; margin-bottom: 20px; padding-top: 28px; border-top: 1px solid #e8eaed; }
+
+.comment-notice { background: #eaf7ef; border: 1px solid #bfe3cd; color: #1f6b3d; border-radius: 10px; padding: 12px 16px; font-size: 14.5px; margin-bottom: 22px; }
+.comment-empty { color: #6b7280; font-size: 15px; margin-bottom: 26px; }
+.comment-note { color: #6b7280; font-size: 14px; margin-bottom: 16px; }
+
+.comment-list, .comment-replies { list-style: none; padding: 0; margin: 0; }
+.comment { padding: 18px 0; border-bottom: 1px solid #eef0f3; }
+.comment-replies .comment:last-child { border-bottom: none; padding-bottom: 0; }
+.comment-replies { margin: 14px 0 0 24px; padding-left: 18px; border-left: 2px solid #e8eaed; }
+
+.comment-head { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; margin-bottom: 8px; }
+.comment-head strong { color: #1a1a2e; font-size: 15px; }
+.comment-head time { color: #9aa3ae; font-size: 13px; }
+.comment-badge { background: #eaf3fa; color: #0b5889; border-radius: 12px; padding: 2px 9px; font-size: 11.5px; font-weight: 600; }
+.comment-body { color: #4b5563; font-size: 15px; line-height: 1.65; overflow-wrap: anywhere; }
+
+.comment-reply { margin-top: 10px; }
+.comment-reply > summary { display: inline-block; cursor: pointer; color: #0b5889; font-size: 13.5px; font-weight: 600; list-style: none; }
+.comment-reply > summary::-webkit-details-marker { display: none; }
+.comment-reply[open] > summary { margin-bottom: 12px; }
+
+.comment-compose { margin-top: 36px; }
+.comment-compose h3 { color: #1a1a2e; font-size: 19px; font-weight: 700; margin-bottom: 6px; }
+
+.comment-form-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.comment-field { display: block; margin-bottom: 14px; }
+.comment-field > span { display: block; color: #4b5563; font-size: 13.5px; font-weight: 600; margin-bottom: 6px; }
+.comment-field > span small { color: #9aa3ae; font-weight: 400; }
+.comment-field input, .comment-field textarea { width: 100%; border: 1px solid #d8dde3; border-radius: 9px; padding: 10px 13px; font: inherit; font-size: 15px; color: #1a1a2e; background: #fff; }
+.comment-field input:focus, .comment-field textarea:focus { outline: 2px solid #0b5889; outline-offset: 1px; border-color: #0b5889; }
+.comment-field textarea { resize: vertical; min-height: 88px; }
+
+.comment-errors { list-style: none; padding: 12px 16px; margin: 0 0 14px; background: #fdeeee; border: 1px solid #f2c4c4; border-radius: 10px; color: #a22; font-size: 14px; }
+
+.comment-submit { border: none; border-radius: 9px; background: #0b5889; color: #fff; padding: 11px 22px; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
+.comment-submit:hover { background: #094a74; }
+
+/* The honeypot. Off-screen rather than display:none — some filler scripts skip
+   anything genuinely hidden, and this one is meant to be found and filled. */
+.comment-trap { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+
+@media (max-width: 900px) {
+    .comment-form-fields { grid-template-columns: 1fr; }
+    .comment-replies { margin-left: 8px; padding-left: 14px; }
+}

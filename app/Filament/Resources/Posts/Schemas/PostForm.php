@@ -14,6 +14,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Str;
@@ -163,6 +164,15 @@ class PostForm
                         // and a customer account appearing there would be one
                         // nobody made.
                         ->helperText('Shown as the byline.'),
+
+                    Toggle::make('comments_enabled')
+                        ->label('Accept comments')
+                        ->default(true)
+                        // Per article, because closing one thread that has gone
+                        // somewhere the client does not want to moderate should
+                        // not mean turning the feature off site-wide.
+                        ->helperText('Nothing left here is published until it is approved on the Comments screen.')
+                        ->columnSpanFull(),
                 ]),
         ]);
     }

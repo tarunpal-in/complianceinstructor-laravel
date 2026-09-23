@@ -23,7 +23,14 @@ class PostController extends Controller
         $post = Post::query()
             ->live()
             ->where('slug', $slug)
-            ->with(['category', 'author', 'tags', 'media'])
+            // The thread, two levels, in one go. Model::shouldBeStrict turns a
+            // missed relation into an exception rather than a slow page, which
+            // is the point of loading it here rather than in the view.
+            ->with([
+                'category', 'author', 'tags', 'media',
+                'publishedComments.replies.author',
+                'publishedComments.author',
+            ])
             ->first();
 
         if ($post === null) {
