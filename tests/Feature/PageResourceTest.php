@@ -245,15 +245,97 @@ it('offers a view button that opens a live page', function (): void {
         ->assertTableActionHasUrl('visit', '/about', $live);
 });
 
-it('disables the view button on a page that is not live', function (string $state): void {
+it('points the view button at a preview when the page is not live', function (string $state): void {
     $this->actingAs(userWithRole(UserRole::ContentEditor));
 
     $page = Page::factory()->withContent()->{$state}()->create();
 
     Livewire\Livewire::test(ListPages::class)
         ->set('activeTab', 'all')
-        ->assertTableActionDisabled('visit', $page);
+        ->assertTableActionEnabled('visit', $page)
+        ->assertTableActionHasUrl('visit', $page->previewUrl(), $page);
 })->with(['draft' => 'withContent', 'scheduled' => 'scheduled']);
+
+// Previewing a draft -------------------------------------------------------------------
+
+/**
+ * Writing a page you cannot look at until you publish it is backwards, and
+ * publishing to check means the client sees the half-finished version.
+ */
+it('shows a draft through a signed link', function (): void {
+    $page = Page::factory()
+        ->withContent('rich_text', ['body' => '<p>Not finished yet.</p>'])
+        ->create(['slug' => 'about', 'title' => 'About Us']);
+
+    // Not reachable at its own address.
+    $this->get('/about')->assertNotFound();
+
+    $this->get($page->previewUrl())
+        ->assertSuccessful()
+        ->assertSee('Not finished yet.', escape: false)
+        // Loud, because somebody sent this link has no other way to tell.
+        ->assertSee('Preview', escape: false)
+        ->assertSee('has not been published', escape: false);
+});
+
+/** §9 — signed and expiring, never a guessable path. */
+it('refuses a preview link that was not signed', function (): void {
+    $page = Page::factory()->withContent()->create();
+
+    $this->get('/preview/'.$page->getKey())->assertForbidden();
+});
+
+it('refuses a preview link somebody edited', function (): void {
+    $page = Page::factory()->withContent()->create();
+    $other = Page::factory()->withContent()->create();
+
+    // Swapping the id invalidates the signature, which is the point of signing
+    // the whole URL rather than trusting a parameter.
+    $tampered = str_replace('/preview/'.$page->getKey(), '/preview/'.$other->getKey(), $page->previewUrl());
+
+    $this->get($tampered)->assertForbidden();
+});
+
+it('refuses a preview link that has run out', function (): void {
+    $page = Page::factory()->withContent()->create();
+    $link = $page->previewUrl();
+
+    $this->travel(Page::PREVIEW_LIFETIME_DAYS + 1)->days();
+
+    $this->get($link)->assertForbidden();
+});
+
+/** A preview must show what publishing would show, or it decides nothing. */
+it('leaves hidden blocks out of a preview too', function (): void {
+    $page = Page::factory()->create(['slug' => 'partial-draft']);
+
+    PageSection::factory()->at(0)->create(['page_id' => $page->id, 'data' => ['body' => '<p>Visible copy.</p>']]);
+    PageSection::factory()->at(1)->hidden()->create(['page_id' => $page->id, 'data' => ['body' => '<p>Hidden copy.</p>']]);
+
+    $this->get($page->previewUrl())
+        ->assertSee('Visible copy.', escape: false)
+        ->assertDontSee('Hidden copy.', escape: false);
+});
+
+it('says when a scheduled page goes live', function (): void {
+    $page = Page::factory()->withContent()->scheduled()->create();
+
+    $this->get($page->previewUrl())
+        ->assertSuccessful()
+        ->assertSee('goes live on', escape: false);
+});
+
+/** A published page carries no banner — it is the real thing. */
+it('shows no preview banner on a live page', function (): void {
+    Page::factory()->withContent()->published()->create(['slug' => 'about']);
+
+    $this->get('/about')->assertDontSee('page-preview-banner', escape: false);
+});
+
+/** `preview` cannot be taken as a slug, or the route would be ambiguous. */
+it('reserves the preview path', function (): void {
+    expect(Page::RESERVED_SLUGS)->toContain('preview');
+});
 
 // The public page ---------------------------------------------------------------------
 

@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\URL;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
@@ -42,7 +43,16 @@ class Page extends Model
         'admin', 'login', 'logout', 'register', 'password', 'forgot-password',
         'reset-password', 'two-factor-challenge', 'passkeys', 'webinars',
         'stripe', 'horizon', 'storage', 'up', 'api', 'livewire', 'filament',
+        'preview',
     ];
+
+    /**
+     * How long a preview link stays good for.
+     *
+     * Long enough to send to a client and hear back, short enough that a link
+     * forwarded on months later does not still open an unpublished page.
+     */
+    public const PREVIEW_LIFETIME_DAYS = 7;
 
     protected $fillable = ['title', 'slug', 'status', 'published_at', 'layout'];
 
@@ -136,6 +146,34 @@ class Page extends Model
     public function path(): string
     {
         return '/'.$this->slug;
+    }
+
+    /**
+     * A link that opens this page before it is published.
+     *
+     * Signed and expiring rather than guessable, which is the same rule §9
+     * applies to files: "signed, expiring URLs on a private disk — never a
+     * guessable path". A draft is unreleased marketing copy, and `/about?draft`
+     * would hand it to anyone who tried.
+     *
+     * Deliberately not behind a login. The point is to send it to somebody for
+     * review — a client, a compliance officer — and requiring them to have an
+     * admin account would mean either no review or an account nobody should
+     * have. The signature is the access control, and it runs out.
+     */
+    public function previewUrl(): string
+    {
+        return URL::temporarySignedRoute(
+            'pages.preview',
+            now()->addDays(self::PREVIEW_LIFETIME_DAYS),
+            ['page' => $this->getKey()],
+        );
+    }
+
+    /** Where View should send somebody: the page, or a preview of it. */
+    public function viewableUrl(): string
+    {
+        return $this->isLive() ? $this->path() : $this->previewUrl();
     }
 
     /**

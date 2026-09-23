@@ -64,16 +64,24 @@ class EditPage extends EditRecord
 
     // Publishing ------------------------------------------------------------------
 
-    /** Straight to the page itself, which is the only real preview. */
+    /**
+     * Straight to the page itself, which is the only real preview.
+     *
+     * A draft opens through a signed, expiring link rather than not at all —
+     * checking a page by publishing it means the client sees the half-finished
+     * version, and that is the whole reason previews exist.
+     */
     private function viewAction(): Action
     {
         return Action::make('visit')
-            ->label('View page')
+            ->label(fn (Page $record): string => $record->isLive() ? 'View page' : 'Preview')
             ->icon(Heroicon::OutlinedArrowTopRightOnSquare)
             ->color('gray')
-            ->url(fn (Page $record): string => $record->path())
+            ->url(fn (Page $record): string => $record->viewableUrl())
             ->openUrlInNewTab()
-            ->visible(fn (Page $record): bool => $record->isLive());
+            ->tooltip(fn (Page $record): ?string => $record->isLive()
+                ? null
+                : 'A private link that works for '.Page::PREVIEW_LIFETIME_DAYS.' days. Safe to send to somebody for review.');
     }
 
     /**

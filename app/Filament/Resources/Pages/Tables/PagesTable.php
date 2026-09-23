@@ -83,25 +83,23 @@ class PagesTable
     }
 
     /**
-     * Open the page itself, which is the only real preview.
+     * Open the page itself — the only real preview there is.
      *
-     * Shown on every row rather than only on live ones, and disabled with the
-     * reason when there is nothing to open. A button that vanishes on the
-     * Drafts tab reads as a missing feature; one that is there and explains
-     * itself teaches the rule — the same call as the Stripe actions on a
-     * membership.
+     * Works whatever state the page is in. A live page opens at its address; a
+     * draft opens through a signed, expiring link, because writing a page you
+     * cannot look at until you publish it is backwards, and publishing to check
+     * means the client sees the half-finished version.
      */
     private static function visitAction(): Action
     {
         return Action::make('visit')
-            ->label('View')
+            ->label(fn (Page $record): string => $record->isLive() ? 'View' : 'Preview')
             ->icon(Heroicon::OutlinedArrowTopRightOnSquare)
             ->color('gray')
-            ->url(fn (Page $record): ?string => $record->isLive() ? $record->path() : null)
+            ->url(fn (Page $record): string => $record->viewableUrl())
             ->openUrlInNewTab()
-            ->disabled(fn (Page $record): bool => ! $record->isLive())
             ->tooltip(fn (Page $record): string => $record->isLive()
                 ? 'Open '.$record->path()
-                : 'Not live yet, so there is nothing to open. Publish it first.');
+                : 'Open a private preview. The link works for '.Page::PREVIEW_LIFETIME_DAYS.' days and can be shared.');
     }
 }

@@ -734,3 +734,8 @@ h1 span { color: #0c5484; }
     .pb-hero-heading { font-size: 34px; line-height: 42px; }
     .pb-cta { flex-direction: column; align-items: flex-start; }
 }
+
+/* Preview banner. Deliberately not subtle — somebody sent a preview link has no
+   other way to tell it from the live site. */
+.page-preview-banner { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; background: #fff1cd; color: #6b4a00; border-bottom: 2px solid #f6af1e; padding: 12px max(var(--gutter), calc((100% - var(--container)) / 2)); font-size: 14px; }
+.page-preview-banner strong { background: #f6af1e; color: #1a1a2e; border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }

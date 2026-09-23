@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\PageController;
+use App\Http\Controllers\PagePreviewController;
 use App\Http\Controllers\WebinarController;
 use Illuminate\Support\Facades\Route;
 
@@ -18,6 +19,19 @@ Route::get('/', HomeController::class)->name('home');
  * when it happens, and this slug stays the canonical tail of it either way.
  */
 Route::get('/webinars/{webinar:slug}', WebinarController::class)->name('webinars.show');
+
+/*
+ * A draft, shown to somebody who was sent the link.
+ *
+ * Before the catch-all so the path is unambiguous, and `signed` is the whole
+ * access control — §9 makes signed expiring URLs the rule for anything that
+ * must not be reachable by guessing. No auth: the point is to send it to a
+ * client for review, and requiring an admin account would mean either no review
+ * or an account they should not have.
+ */
+Route::get('/preview/{page}', PagePreviewController::class)
+    ->middleware('signed')
+    ->name('pages.preview');
 
 /*
  * Client-built marketing pages — §5.6 and §2's second leverage decision.
