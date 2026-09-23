@@ -27,3 +27,21 @@ Schedule::command('refunds:release-due')
     ->everyMinute()
     ->withoutOverlapping()
     ->runInBackground();
+
+/*
+ * Certifies live attendees once their session is 24 hours behind them — the
+ * client's rule, agreed 2026-09-23. Hourly rather than every minute: the delay
+ * is measured in hours, so minute precision would be work done for nothing.
+ *
+ * withoutOverlapping because two sweeps would find the same learners. The
+ * action skips anyone already certified as well, so this is the outer of two
+ * guards rather than the only one.
+ *
+ * **This needs cron**, the same `* * * * * php artisan schedule:run` the
+ * refunds sweep depends on. Without it, certificates are simply never issued
+ * and nobody finds out until a customer asks where theirs is.
+ */
+Schedule::command('certificates:issue-due')
+    ->hourly()
+    ->withoutOverlapping()
+    ->runInBackground();

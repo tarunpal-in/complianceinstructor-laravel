@@ -36,6 +36,16 @@ class SettingSeeder extends Seeder
             // with the client; 0 sends on the next sweep, within a minute.
             ['orders', 'refund_delay_minutes', 60, 'integer'],
 
+            /*
+             * When a certificate is earned — the client's rules, agreed
+             * 2026-09-23. Settings rather than constants because §12 has
+             * accreditation rules prescribed by the bodies and warns to keep
+             * the thresholds configurable, never hardcoded: a body changing its
+             * mind should cost the client a value, not a deploy.
+             */
+            ['certificates', 'live_delay_hours', 24, 'integer'],
+            ['certificates', 'watch_tolerance_minutes', 10, 'integer'],
+
             ['promo_bar', 'enabled', true, 'boolean'],
             ['promo_bar', 'text', 'Purchase any webinar and use code :code at checkout to save $10.', 'string'],
             ['promo_bar', 'code', 'TRAINING', 'string'],
