@@ -28,6 +28,7 @@ class DatabaseSeeder extends Seeder
             RolePermissionSeeder::class,
             SettingSeeder::class,
             MediaLibrarySeeder::class,
+            PageSeeder::class,
             MembershipPlanSeeder::class,
             // After the plans, because every subscription snapshots one.
             SubscriptionSeeder::class,
