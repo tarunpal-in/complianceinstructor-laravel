@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
-use App\Enums\PageStatus;
+use App\Enums\PublishStatus;
 use App\Models\Page;
 use Illuminate\Database\Seeder;
 
@@ -25,7 +25,7 @@ class PageSeeder extends Seeder
 {
     public function run(): void
     {
-        $this->page('About Us', 'about', PageStatus::Published, [
+        $this->page('About Us', 'about', PublishStatus::Published, [
             ['hero', [
                 'eyebrow' => 'WHO WE ARE',
                 'heading' => 'Compliance training that holds up',
@@ -58,7 +58,7 @@ class PageSeeder extends Seeder
             ]],
         ]);
 
-        $this->page('Privacy Policy', 'privacy-policy', PageStatus::Draft, [
+        $this->page('Privacy Policy', 'privacy-policy', PublishStatus::Draft, [
             ['rich_text', [
                 'heading' => 'Privacy Policy',
                 'body' => '<p><strong>Placeholder.</strong> This page needs the client\'s own policy text before launch — it is not legal copy and must not be published as it stands.</p>'
@@ -78,14 +78,14 @@ class PageSeeder extends Seeder
     /**
      * @param  array<int, array{0: string, 1: array<string, mixed>}>  $blocks
      */
-    private function page(string $title, string $slug, PageStatus $status, array $blocks): void
+    private function page(string $title, string $slug, PublishStatus $status, array $blocks): void
     {
         $page = Page::firstOrCreate(
             ['slug' => $slug],
             [
                 'title' => $title,
                 'status' => $status,
-                'published_at' => $status === PageStatus::Published ? now()->subWeek() : null,
+                'published_at' => $status === PublishStatus::Published ? now()->subWeek() : null,
                 'layout' => 'standard',
             ],
         );

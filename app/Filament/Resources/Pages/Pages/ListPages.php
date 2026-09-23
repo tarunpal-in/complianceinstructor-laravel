@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Pages\Pages;
 
-use App\Enums\PageStatus;
+use App\Enums\PublishStatus;
 use App\Filament\Resources\Pages\PageResource;
 use App\Models\Page;
 use Filament\Actions\CreateAction;
@@ -39,15 +39,15 @@ class ListPages extends ListRecords
 
             'scheduled' => Tab::make('Scheduled')
                 ->modifyQueryUsing(fn (Builder $query): Builder => $query
-                    ->where('status', PageStatus::Published)
+                    ->where('status', PublishStatus::Published)
                     ->whereNotNull('published_at')
                     ->where('published_at', '>', now()))
                 ->badgeColor('warning'),
 
             'draft' => Tab::make('Drafts')
                 ->modifyQueryUsing(fn (Builder $query): Builder => $query
-                    ->where('status', PageStatus::Draft))
-                ->badge(fn (): int => Page::query()->where('status', PageStatus::Draft)->count()),
+                    ->where('status', PublishStatus::Draft))
+                ->badge(fn (): int => Page::query()->where('status', PublishStatus::Draft)->count()),
 
             'empty' => Tab::make('Needs content')
                 // A page with nothing visible on it cannot be published, and

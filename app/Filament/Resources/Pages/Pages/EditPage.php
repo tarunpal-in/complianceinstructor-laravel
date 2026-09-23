@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Pages\Pages;
 
-use App\Enums\PageStatus;
+use App\Enums\PublishStatus;
 use App\Filament\Concerns\ResolvesSlugOnSave;
 use App\Filament\Resources\Pages\PageResource;
 use App\Models\Page;
@@ -121,7 +121,7 @@ class EditPage extends EditRecord
                 }
 
                 $record->update([
-                    'status' => PageStatus::Published,
+                    'status' => PublishStatus::Published,
                     // Kept if it was already set — a page taken down and put
                     // back should not claim to be new.
                     'published_at' => $record->published_at ?? now(),
@@ -150,7 +150,7 @@ class EditPage extends EditRecord
             ->modalHeading('Take this page down?')
             ->modalDescription('It stops being reachable. The content is kept, and the date it first went live is kept with it.')
             ->action(function (Page $record): void {
-                $record->update(['status' => PageStatus::Draft]);
+                $record->update(['status' => PublishStatus::Draft]);
 
                 Notification::make()->warning()->title('Taken down')->send();
 

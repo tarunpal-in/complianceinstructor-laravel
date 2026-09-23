@@ -26,12 +26,21 @@ class Tag extends Model
 
     public const TYPE_MEDIA = 'media';
 
+    /** The blog's vocabulary, arrived at P7 as this class always expected. */
+    public const TYPE_POST = 'post';
+
     protected $fillable = ['name', 'slug', 'type'];
 
     /** @return MorphToMany<Media, $this> */
     public function media(): MorphToMany
     {
         return $this->morphedByMany(Media::class, 'taggable');
+    }
+
+    /** @return MorphToMany<Post, $this> */
+    public function posts(): MorphToMany
+    {
+        return $this->morphedByMany(Post::class, 'taggable');
     }
 
     /**

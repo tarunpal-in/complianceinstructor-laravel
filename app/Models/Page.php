@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Enums\PageStatus;
+use App\Enums\PublishStatus;
 use App\Models\Concerns\ReleasesUniqueNameOnDelete;
 use Carbon\CarbonInterface;
 use Database\Factories\PageFactory;
@@ -20,7 +20,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 /**
  * A marketing page — CLAUDE.md §5.6.
  *
- * @property PageStatus $status
+ * @property PublishStatus $status
  * @property CarbonInterface|null $published_at
  * @property \Illuminate\Database\Eloquent\Collection<int, PageSection> $sections
  */
@@ -59,7 +59,7 @@ class Page extends Model
     protected function casts(): array
     {
         return [
-            'status' => PageStatus::class,
+            'status' => PublishStatus::class,
             'published_at' => 'datetime',
         ];
     }
@@ -110,7 +110,7 @@ class Page extends Model
      */
     public function scopeLive(Builder $query): void
     {
-        $query->where('status', PageStatus::Published)
+        $query->where('status', PublishStatus::Published)
             ->where(fn (Builder $dated): Builder => $dated
                 ->whereNull('published_at')
                 ->orWhere('published_at', '<=', now()));
@@ -131,15 +131,15 @@ class Page extends Model
      * Derived rather than stored so the list cannot disagree with the date
      * beside it.
      */
-    public function derivedStatus(): PageStatus
+    public function derivedStatus(): PublishStatus
     {
-        if ($this->status !== PageStatus::Published) {
+        if ($this->status !== PublishStatus::Published) {
             return $this->status;
         }
 
         return $this->published_at !== null && $this->published_at->isFuture()
-            ? PageStatus::Scheduled
-            : PageStatus::Published;
+            ? PublishStatus::Scheduled
+            : PublishStatus::Published;
     }
 
     /** Its address on the site. */

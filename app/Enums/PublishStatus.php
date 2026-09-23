@@ -5,14 +5,19 @@ declare(strict_types=1);
 namespace App\Enums;
 
 /**
- * Whether a marketing page is live — CLAUDE.md §5.6.
+ * Whether a piece of content is live — CLAUDE.md §5.6 and §5.7.
+ *
+ * Shared by pages and blog posts, because they have the same lifecycle: write
+ * it, hold it back until a date, put it out, take it down. Two identical enums
+ * would drift the first time one of them gained a state, and "why does a post
+ * say Scheduled where a page says Pending" is a question with no good answer.
  *
  * A backed enum rather than loose strings (§4 rule 5). Scheduled is a state of
  * its own rather than "published with a future date", because the difference
  * matters to the person looking at the list: one of them is a mistake if the
  * date was wrong, and the other is not.
  */
-enum PageStatus: string
+enum PublishStatus: string
 {
     case Draft = 'draft';
     case Scheduled = 'scheduled';

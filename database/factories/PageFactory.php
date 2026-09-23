@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
-use App\Enums\PageStatus;
+use App\Enums\PublishStatus;
 use App\Models\Page;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
@@ -23,7 +23,7 @@ class PageFactory extends Factory
         return [
             'title' => $title,
             'slug' => Str::slug($title),
-            'status' => PageStatus::Draft,
+            'status' => PublishStatus::Draft,
             'published_at' => null,
             'layout' => 'standard',
         ];
@@ -32,7 +32,7 @@ class PageFactory extends Factory
     public function published(): static
     {
         return $this->state(fn (): array => [
-            'status' => PageStatus::Published,
+            'status' => PublishStatus::Published,
             'published_at' => now()->subDay(),
         ]);
     }
@@ -41,7 +41,7 @@ class PageFactory extends Factory
     public function scheduled(): static
     {
         return $this->state(fn (): array => [
-            'status' => PageStatus::Published,
+            'status' => PublishStatus::Published,
             'published_at' => now()->addWeek(),
         ]);
     }

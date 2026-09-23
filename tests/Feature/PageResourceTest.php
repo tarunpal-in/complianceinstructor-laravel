@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Enums\PageStatus;
+use App\Enums\PublishStatus;
 use App\Enums\UserRole;
 use App\Filament\Resources\Pages\Pages\CreatePage;
 use App\Filament\Resources\Pages\Pages\EditPage;
@@ -50,7 +50,7 @@ it('builds a page out of blocks', function (): void {
         ->fillForm([
             'title' => 'About Us',
             'slug' => 'about',
-            'status' => PageStatus::Draft->value,
+            'status' => PublishStatus::Draft->value,
             'layout' => 'standard',
             'sections' => [
                 block('hero', ['heading' => 'Training that holds up']),
@@ -84,7 +84,7 @@ it('lifts a block\'s visibility onto its row', function (): void {
         ->fillForm([
             'title' => 'Mixed',
             'slug' => 'mixed',
-            'status' => PageStatus::Draft->value,
+            'status' => PublishStatus::Draft->value,
             'layout' => 'standard',
             'sections' => [
                 block('rich_text', ['body' => '<p>Shown.</p>']),
@@ -127,7 +127,7 @@ it('refuses a slug the site already uses', function (string $slug): void {
         ->fillForm([
             'title' => 'Sneaky',
             'slug' => $slug,
-            'status' => PageStatus::Draft->value,
+            'status' => PublishStatus::Draft->value,
             'layout' => 'standard',
             'sections' => [block('rich_text', ['body' => '<p>x</p>'])],
         ])
@@ -145,7 +145,7 @@ it('numbers a slug another page already holds', function (): void {
         ->fillForm([
             'title' => 'About',
             'slug' => 'about',
-            'status' => PageStatus::Draft->value,
+            'status' => PublishStatus::Draft->value,
             'layout' => 'standard',
             'sections' => [block('rich_text', ['body' => '<p>x</p>'])],
         ])
@@ -210,7 +210,7 @@ it('takes a page down without losing it', function (): void {
 it('reads a future date as scheduled', function (): void {
     $scheduled = Page::factory()->withContent()->scheduled()->create();
 
-    expect($scheduled->derivedStatus())->toBe(PageStatus::Scheduled)
+    expect($scheduled->derivedStatus())->toBe(PublishStatus::Scheduled)
         ->and($scheduled->isLive())->toBeFalse()
         ->and(Page::query()->live()->count())->toBe(0);
 });

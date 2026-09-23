@@ -29,6 +29,7 @@ class DatabaseSeeder extends Seeder
             SettingSeeder::class,
             MediaLibrarySeeder::class,
             PageSeeder::class,
+            BlogSeeder::class,
             MembershipPlanSeeder::class,
             // After the plans, because every subscription snapshots one.
             SubscriptionSeeder::class,

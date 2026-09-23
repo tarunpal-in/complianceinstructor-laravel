@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Pages\Schemas;
 
-use App\Enums\PageStatus;
+use App\Enums\PublishStatus;
 use App\Models\Page;
 use App\Models\PageSection;
 use Closure;
@@ -86,8 +86,8 @@ class PageForm
                 ->columns(3)
                 ->schema([
                     Select::make('status')
-                        ->options(PageStatus::options())
-                        ->default(PageStatus::Draft->value)
+                        ->options(PublishStatus::options())
+                        ->default(PublishStatus::Draft->value)
                         ->required()
                         ->live()
                         // Publishing goes through the gated action on the edit

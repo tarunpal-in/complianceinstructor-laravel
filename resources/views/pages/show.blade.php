@@ -15,7 +15,7 @@
         <div class="page-preview-banner" role="status">
             <strong>Preview</strong>
             <span>
-                @if ($page->derivedStatus() === \App\Enums\PageStatus::Scheduled)
+                @if ($page->derivedStatus() === \App\Enums\PublishStatus::Scheduled)
                     {{ 'This page is scheduled and goes live on '.$page->published_at?->format('j M Y').'.' }}
                 @else
                     {{ 'This page has not been published.' }}
