@@ -433,18 +433,42 @@ As the **site user**, `crontab -e`:
 * * * * * cd /home/ci-staging/htdocs/staging.complianceinstructor.com && php artisan schedule:run >> /dev/null 2>&1
 ```
 
-**Do not skip this on a server that takes payments.** Refunds sit out a
-cooling-off window before they reach Stripe or PayPal, and `refunds:release-due`
-— scheduled every minute — is what ends it. Without cron a refund is agreed,
-every administrator is emailed to say it is going out, and then it never does.
-The customer chases it days later and the record says it was issued.
+One line covers everything scheduled. Two things depend on it, and both fail
+silently — which is why this gets its own section rather than a footnote.
+
+**Refunds never reach the gateway.** They sit out a cooling-off window, and
+`refunds:release-due` — every minute — is what ends it. Without cron a refund is
+agreed, every administrator is emailed to say it is going out, and then it never
+does. The customer chases it days later and the record says it was issued.
+
+**Certificates are never issued.** `certificates:issue-due` — hourly — certifies
+everyone holding live access 24 hours after their session. Without cron nobody
+is certified, nothing errors, and the first anyone hears of it is a customer
+asking where theirs is. That one is worse than it sounds: the credits are what
+customers are buying, and the delay makes it look like normal processing time
+for days before anybody suspects a fault.
 
 Check it is running after any server move:
 
 ```bash
-php artisan schedule:list          # refunds:release-due should be listed
-php artisan refunds:release-due    # safe to run by hand; it is idempotent
+php artisan schedule:list          # both commands should be listed with a next-due time
+php artisan refunds:release-due    # safe to run by hand; idempotent
+php artisan certificates:issue-due # likewise — it skips anyone already certified
 ```
+
+### 6.3 Running the scheduler in local development
+
+Windows has no cron. While testing anything that depends on the scheduler, run
+it in a terminal of its own:
+
+```bash
+php artisan schedule:work
+```
+
+That stays in the foreground and invokes the scheduler every minute, so it is
+the local equivalent of the crontab line. Stop it with Ctrl+C. Neither command
+needs it to be running to be tested — both are safe to invoke directly, and the
+test suite calls them without a scheduler at all.
 
 ---
 
