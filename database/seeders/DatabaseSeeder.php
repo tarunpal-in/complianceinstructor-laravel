@@ -38,6 +38,10 @@ class DatabaseSeeder extends Seeder
             // Needs a catalogue to sell, so it runs last and skips itself when
             // there is nothing published yet.
             OrderSeeder::class,
+            // After the orders, because one seeded lead is deliberately the
+            // same email as a customer who bought — which is how the derived
+            // Outcome column gets something to find.
+            LeadSeeder::class,
         ]);
 
         $admin = User::firstOrCreate(

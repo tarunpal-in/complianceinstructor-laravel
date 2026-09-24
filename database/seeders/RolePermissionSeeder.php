@@ -115,6 +115,10 @@ class RolePermissionSeeder extends Seeder
             UserRole::Finance => [
                 ...$this->crudFor(['order', 'payment', 'coupon', 'subscription', 'offering']),
                 ...$this->readFor(['webinar', 'package', 'membership_plan', 'user', 'entitlement', 'media']),
+                // Read-only on leads, because §8's funnel report runs from
+                // them. Finance holds `export_data`, so it is also the role
+                // that can pull the list.
+                ...$this->readFor(['lead']),
                 // Deliberately not `refund_payment`. Refunding is the one admin
                 // action that moves money out irreversibly, and the client has
                 // reserved it for the Super Admin. Finance still reads every
@@ -130,6 +134,12 @@ class RolePermissionSeeder extends Seeder
                     'order', 'payment', 'user', 'entitlement', 'certificate',
                     'subscription', 'webinar', 'package', 'inquiry', 'media',
                 ]),
+                // Leads in full: Support is the desk that actually rings these
+                // people back, and a register somebody can read but not update
+                // is one where the follow-up is recorded somewhere else.
+                // Deliberately without `export_data` — reading a lead and
+                // taking the whole list off the system are different things.
+                ...$this->crudFor(['lead']),
                 'grant_entitlement', 'revoke_entitlement', 'impersonate_user',
                 'update_inquiry',
             ],
