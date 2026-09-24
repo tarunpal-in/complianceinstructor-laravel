@@ -4,20 +4,20 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
-use App\Enums\LeadSource;
-use App\Enums\LeadStatus;
+use App\Enums\InquirySource;
+use App\Enums\InquiryStatus;
 use App\Models\Industry;
-use App\Models\Lead;
+use App\Models\Inquiry;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
 /**
- * @extends Factory<Lead>
+ * @extends Factory<Inquiry>
  */
-class LeadFactory extends Factory
+class InquiryFactory extends Factory
 {
-    protected $model = Lead::class;
+    protected $model = Inquiry::class;
 
     public function definition(): array
     {
@@ -27,13 +27,13 @@ class LeadFactory extends Factory
             'company' => fake()->company(),
             'job_title' => fake()->randomElement([
                 'HR Director', 'Payroll Manager', 'Compliance Officer',
-                'People Operations Lead', 'Benefits Administrator',
+                'People Operations Inquiry', 'Benefits Administrator',
             ]),
             'phone' => fake()->numerify('+1 ###-###-####'),
             'industry_id' => null,
-            'source' => LeadSource::Quiz,
+            'source' => InquirySource::Quiz,
             'source_detail' => null,
-            'status' => LeadStatus::New,
+            'status' => InquiryStatus::New,
             'assigned_to' => null,
             'contacted_at' => null,
             'message' => null,
@@ -47,7 +47,7 @@ class LeadFactory extends Factory
         ];
     }
 
-    public function from(LeadSource $source, ?string $detail = null): static
+    public function from(InquirySource $source, ?string $detail = null): static
     {
         return $this->state(fn (): array => [
             'source' => $source,
@@ -55,7 +55,7 @@ class LeadFactory extends Factory
         ]);
     }
 
-    public function status(LeadStatus $status): static
+    public function status(InquiryStatus $status): static
     {
         return $this->state(fn (): array => ['status' => $status]);
     }
@@ -64,7 +64,7 @@ class LeadFactory extends Factory
     {
         return $this->state(fn (): array => [
             'assigned_to' => $user->getKey(),
-            'status' => LeadStatus::Working,
+            'status' => InquiryStatus::Working,
             'contacted_at' => now()->subDay(),
         ]);
     }
@@ -73,7 +73,7 @@ class LeadFactory extends Factory
     public function untouched(int $daysAgo = 5): static
     {
         return $this->state(fn (): array => [
-            'status' => LeadStatus::New,
+            'status' => InquiryStatus::New,
             'assigned_to' => null,
             'contacted_at' => null,
             'created_at' => now()->subDays($daysAgo),

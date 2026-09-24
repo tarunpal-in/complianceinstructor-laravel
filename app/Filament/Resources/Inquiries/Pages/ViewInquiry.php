@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Filament\Resources\Leads\Pages;
+namespace App\Filament\Resources\Inquiries\Pages;
 
-use App\Enums\LeadStatus;
-use App\Filament\Resources\Leads\LeadResource;
-use App\Models\Lead;
+use App\Enums\InquiryStatus;
+use App\Filament\Resources\Inquiries\InquiryResource;
+use App\Models\Inquiry;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Textarea;
@@ -14,13 +14,13 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Support\Icons\Heroicon;
 
-class ViewLead extends ViewRecord
+class ViewInquiry extends ViewRecord
 {
-    protected static string $resource = LeadResource::class;
+    protected static string $resource = InquiryResource::class;
 
     public function getTitle(): string
     {
-        /** @var Lead $record */
+        /** @var Inquiry $record */
         $record = $this->getRecord();
 
         return $record->name;
@@ -28,7 +28,7 @@ class ViewLead extends ViewRecord
 
     public function getSubheading(): ?string
     {
-        /** @var Lead $record */
+        /** @var Inquiry $record */
         $record = $this->getRecord();
 
         return $record->describeRole() ?? $record->email;
@@ -50,13 +50,13 @@ class ViewLead extends ViewRecord
             ->label('Take it')
             ->icon(Heroicon::OutlinedHandRaised)
             ->color('primary')
-            ->visible(fn (Lead $record): bool => $record->assigned_to === null
+            ->visible(fn (Inquiry $record): bool => $record->assigned_to === null
                 && $record->isOpen()
                 && $this->canWork())
-            ->action(function (Lead $record): void {
+            ->action(function (Inquiry $record): void {
                 $record->forceFill([
                     'assigned_to' => auth()->id(),
-                    'status' => LeadStatus::Working,
+                    'status' => InquiryStatus::Working,
                 ])->save();
 
                 Notification::make()->success()->title('Yours now')->send();
@@ -66,69 +66,70 @@ class ViewLead extends ViewRecord
     }
 
     /**
-     * Record a call, and what was said.
+     * Record a reply, and what was said.
      *
-     * The note is appended rather than replacing what is there. Overwriting the
-     * previous call's note is how the second conversation loses the first — and
+     * The note is appended rather than replacing what is there. Overwriting
+     * the previous exchange is how the second message loses the first — and
      * the History panel below keeps every version anyway, but nobody reading
-     * the lead should have to go digging for the last thing that happened.
+     * the inquiry should have to go digging for the last thing that happened.
      */
     private function logContactAction(): Action
     {
         return Action::make('logContact')
-            ->label('Log a call')
-            ->icon(Heroicon::OutlinedPhone)
-            ->color('gray')
+            ->label('Log a reply')
+            ->icon(Heroicon::OutlinedPaperAirplane)
+            ->color('success')
             ->visible(fn (): bool => $this->canWork())
             ->schema([
                 Textarea::make('note')
-                    ->label('What was said')
+                    ->label('What you told them')
                     ->rows(3)
                     ->maxLength(2000)
                     ->helperText('Added above the existing notes, with today\'s date.'),
             ])
-            ->action(function (Lead $record, array $data): void {
+            ->action(function (Inquiry $record, array $data): void {
                 $entry = trim((string) ($data['note'] ?? ''));
 
                 $record->forceFill([
                     'contacted_at' => now(),
-                    'status' => $record->status === LeadStatus::New ? LeadStatus::Working : $record->status,
+                    'status' => InquiryStatus::Answered,
                     'assigned_to' => $record->assigned_to ?? auth()->id(),
                     'note' => $entry === ''
                         ? $record->note
                         : trim(now()->format('j M Y').' — '.$entry."\n\n".(string) $record->note),
                 ])->save();
 
-                Notification::make()->success()->title('Call logged')->send();
+                Notification::make()->success()->title('Reply logged')->send();
 
                 $this->refreshFormData([]);
             });
     }
 
     /**
-     * Close it off.
+     * Close it without replying — spam, a duplicate, a wrong number.
      *
-     * Deliberately asks for a reason. "Not a fit" with nothing behind it is a
-     * row somebody re-opens in six months because nobody can remember why.
+     * Deliberately asks for a reason. A closed inquiry with nothing behind it
+     * is a row somebody re-opens in six months because nobody can remember
+     * why nothing was sent.
      */
     private function closeAction(): Action
     {
         return Action::make('close')
-            ->label('Not a fit')
+            ->label('Close it')
             ->icon(Heroicon::OutlinedXCircle)
             ->color('gray')
-            ->visible(fn (Lead $record): bool => $record->isOpen() && $this->canWork())
+            ->visible(fn (Inquiry $record): bool => $record->isOpen() && $this->canWork())
             ->schema([
                 Textarea::make('note')
                     ->label('Why')
                     ->required()
                     ->rows(2)
                     ->maxLength(500)
-                    ->placeholder('Wrong size of organisation; no budget this year'),
+                    ->placeholder('Duplicate of an earlier message; spam'),
             ])
-            ->action(function (Lead $record, array $data): void {
+            ->action(function (Inquiry $record, array $data): void {
                 $record->forceFill([
-                    'status' => LeadStatus::Unqualified,
+                    'status' => InquiryStatus::Closed,
                     'note' => trim(now()->format('j M Y').' — Closed: '.$data['note']."\n\n".(string) $record->note),
                 ])->save();
 
@@ -140,6 +141,6 @@ class ViewLead extends ViewRecord
 
     private function canWork(): bool
     {
-        return auth()->user()?->can('update_lead') ?? false;
+        return auth()->user()?->can('update_inquiry') ?? false;
     }
 }

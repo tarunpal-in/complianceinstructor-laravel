@@ -9,6 +9,12 @@ use Illuminate\Support\Facades\Schema;
 /**
  * Captured leads — §5.7, and the "leads" half of §6's Quiz & leads module.
  *
+ * > **Renamed the same day.** This table is `inquiries` now — see
+ * > 2026_09_24_120000_rename_leads_to_inquiries, which explains why. The model
+ * > referred to below is `App\Models\Inquiry`. This file is left as written
+ * > because it is a true record of what was created; everything below describes
+ * > the table that still exists, under its other name.
+ *
  * Kept apart from `inquiries` and `subscribers`, which §5.7 lists separately
  * and which are different things: an inquiry is a question expecting an answer,
  * a subscriber is a mailing list membership, and a lead is somebody who showed

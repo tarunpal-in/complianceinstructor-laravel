@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Enums\LeadSource;
-use App\Enums\LeadStatus;
+use App\Enums\InquirySource;
+use App\Enums\InquiryStatus;
 use Carbon\CarbonInterface;
-use Database\Factories\LeadFactory;
+use Database\Factories\InquiryFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -20,16 +20,21 @@ use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
- * Somebody who showed interest without buying anything — §5.7.
+ * Somebody who got in touch — §5.7.
+ *
+ * One register for everyone who contacts the site, whatever brought them:
+ * the contact form, a quiz result, a gated download, a phone call. `source`
+ * records which, so §8's attribution has something to group by without there
+ * being a second table holding the same columns under the name "leads".
  *
  * @property string $email The accessor below defines a mutator of the same name, which hides the column from static analysis unless it is declared here.
- * @property LeadStatus $status
- * @property LeadSource $source
+ * @property InquiryStatus $status
+ * @property InquirySource $source
  * @property CarbonInterface|null $contacted_at
  */
-class Lead extends Model
+class Inquiry extends Model
 {
-    /** @use HasFactory<LeadFactory> */
+    /** @use HasFactory<InquiryFactory> */
     use HasFactory, LogsActivity, SoftDeletes;
 
     protected $fillable = [
@@ -42,8 +47,8 @@ class Lead extends Model
     protected function casts(): array
     {
         return [
-            'status' => LeadStatus::class,
-            'source' => LeadSource::class,
+            'status' => InquiryStatus::class,
+            'source' => InquirySource::class,
             'contacted_at' => 'datetime',
             'marketing_opt_in' => 'boolean',
         ];
@@ -54,9 +59,9 @@ class Lead extends Model
      * rather than at each call site.
      *
      * A mutator rather than a job for the intake action, because Filament
-     * writes this row directly when staff add a lead by hand — and a register
+     * writes this row directly when staff add an inquiry by hand — and a register
      * where "Dana@Example.com" and "dana@example.com" are two different people
-     * cannot count repeat enquiries or find their account.
+     * cannot count repeat inquiries or find their account.
      *
      * @return Attribute<string, string>
      */
@@ -68,8 +73,10 @@ class Lead extends Model
     }
 
     /**
-     * §9 — who changed a lead's status, and who it was handed to. Both get
-     * asked when a deal is argued over.
+     * §9 — who answered this and when.
+     *
+     * The question that follows "we never heard back from you", which is the
+     * one complaint a contact form reliably produces.
      */
     public function getActivitylogOptions(): LogOptions
     {
@@ -77,7 +84,7 @@ class Lead extends Model
             ->logOnly(['status', 'assigned_to', 'contacted_at', 'note', 'marketing_opt_in'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
-            ->useLogName('lead');
+            ->useLogName('inquiry');
     }
 
     // Relationships ----------------------------------------------------------------
@@ -97,7 +104,7 @@ class Lead extends Model
     /**
      * Their account, if the email matches one.
      *
-     * Joined on the email rather than on a stored `user_id`, because a lead
+     * Joined on the email rather than on a stored `user_id`, because an inquiry
      * usually arrives before the account does — somebody takes a quiz in March
      * and buys in June. A column written at capture time would be null forever
      * for exactly the people who matter most.
@@ -110,15 +117,15 @@ class Lead extends Model
     }
 
     /**
-     * Every enquiry from this address, this one included.
+     * Every inquiry from this address, this one included.
      *
      * Email is deliberately not unique — the same person filling in two forms
      * three months apart is two pieces of evidence about two campaigns. This is
      * what lets the register say "third time" without a query per row.
      *
-     * @return HasMany<Lead, $this>
+     * @return HasMany<Inquiry, $this>
      */
-    public function enquiries(): HasMany
+    public function fromSameEmail(): HasMany
     {
         return $this->hasMany(self::class, 'email', 'email');
     }
@@ -126,36 +133,37 @@ class Lead extends Model
     // Scopes ------------------------------------------------------------------------
 
     /**
-     * Leads somebody still has to do something about.
+     * Inquiries somebody still has to do something about.
      *
-     * @param  Builder<Lead>  $query
+     * @param  Builder<Inquiry>  $query
      */
     public function scopeOpen(Builder $query): void
     {
-        $query->whereIn('status', [LeadStatus::New->value, LeadStatus::Working->value]);
+        $query->whereIn('status', [InquiryStatus::New->value, InquiryStatus::Working->value]);
     }
 
     /**
      * Came in and was never picked up.
      *
-     * The one query that matters commercially: a lead nobody has touched is the
-     * marketing spend that produced it going to waste quietly.
+     * The one query on this table that costs money to ignore. Somebody asked a
+     * question and nobody has answered it — and on a site selling invoiced team
+     * seats, that is as likely to be a twelve-seat order as it is a nuisance.
      *
-     * @param  Builder<Lead>  $query
+     * @param  Builder<Inquiry>  $query
      */
     public function scopeUntouched(Builder $query): void
     {
-        $query->where('status', LeadStatus::New)
+        $query->where('status', InquiryStatus::New)
             ->whereNull('contacted_at')
             ->whereNull('assigned_to');
     }
 
     /**
-     * Leads whose email belongs to an account that has bought something.
+     * Inquiries whose email belongs to an account that has bought something.
      *
      * Derived every time it is asked, never stored. See the table comment.
      *
-     * @param  Builder<Lead>  $query
+     * @param  Builder<Inquiry>  $query
      */
     public function scopeConverted(Builder $query): void
     {
@@ -194,7 +202,7 @@ class Lead extends Model
      * Whether this email belongs to an account.
      *
      * The register adds both of these as subselects (see
-     * LeadResource::getEloquentQuery), so a list of fifty leads costs two extra
+     * InquiryResource::getEloquentQuery), so a list of fifty inquiries costs two extra
      * subqueries rather than a hundred. A record opened on its own has no such
      * attribute and asks directly — which is why the fallback is here and not
      * a second copy of the rule in a column closure.
@@ -244,7 +252,7 @@ class Lead extends Model
         return $this->status->isOpen();
     }
 
-    /** How long a new lead has been sitting there. */
+    /** How long a new inquiry has been sitting there. */
     public function ageInDays(): int
     {
         return (int) ($this->created_at?->diffInDays(now()) ?? 0);
@@ -254,7 +262,7 @@ class Lead extends Model
      * Who they are, in one line, for a list that has to stay scannable.
      *
      * Job title and company rather than the email, because that is what tells
-     * somebody whether this lead is worth an hour.
+     * somebody whether this inquiry is worth an hour.
      */
     public function describeRole(): ?string
     {

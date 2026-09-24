@@ -116,13 +116,19 @@ class AdminPanelProvider extends PanelProvider
      *
      * Absent because a real resource or page already occupies the slot:
      * Customers, Settings, Speakers, Industries, Plans, Subscriptions,
-     * Entitlements, Certificates, Pages, Blog, Leads — and Accreditations, which
-     * the resource adds to Catalogue. The whole Learners group is now real.
+     * Entitlements, Certificates, Pages, Blog, Inquiries — and Accreditations,
+     * which the resource adds to Catalogue. The whole Learners group is now
+     * real, and Inbox is down to Subscribers.
+     *
+     * Leads is gone rather than built: the register that would have sat there
+     * is the same screen as Inquiries, and the client's intake is the website
+     * contact form. One Inbox screen, with `source` recording how somebody
+     * arrived — see the rename migration.
      *
      * A stub left behind after its resource lands shows as two identical items
      * in the same group, one of which goes nowhere. AdminDashboardTest asserts
-     * no label appears in both lists, because "does the sidebar contain Leads"
-     * is true either way and will not catch it.
+     * no label appears in both lists, because "does the sidebar contain
+     * Inquiries" is true either way and will not catch it.
      *
      * Not yet permission-gated — real resources gate on `view_any_*` through
      * their own can* methods (§8). Stubs are visible to any admin role until
@@ -137,7 +143,6 @@ class AdminPanelProvider extends PanelProvider
             ['Catalogue', 20, 'Packages', Heroicon::OutlinedCube],
 
             ['Inbox', 20, 'Subscribers', Heroicon::OutlinedEnvelope],
-            ['Inbox', 30, 'Inquiries', Heroicon::OutlinedChatBubbleLeftRight],
 
             ['Reports', 10, 'Reports', Heroicon::OutlinedChartBar],
 

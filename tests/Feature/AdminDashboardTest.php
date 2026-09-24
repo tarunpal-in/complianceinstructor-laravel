@@ -94,15 +94,16 @@ it('renders the agreed navigation items', function (string $item): void {
     'Plans', 'Subscriptions',
     'Customers', 'Entitlements', 'Certificates',
     'Pages', 'Blog',
-    'Leads', 'Subscribers', 'Inquiries',
+    'Subscribers', 'Inquiries',
     'Settings', 'Activity Log', 'Backups',
 ]);
 
 /*
  * The stub for a resource that has since been built shows as two identical
  * items in the same group, one of which links to '#'. The presence test above
- * cannot see it — "does the sidebar contain Leads" is true either way — so this
- * compares the two lists directly.
+ * cannot see it — "does the sidebar contain Inquiries" is true either way — so
+ * this compares the two lists directly. It caught exactly that when Leads was
+ * built over its own stub, and again when Leads became Inquiries.
  */
 it('drops a placeholder once its resource lands', function (): void {
     $panel = Filament\Facades\Filament::getPanel('admin');

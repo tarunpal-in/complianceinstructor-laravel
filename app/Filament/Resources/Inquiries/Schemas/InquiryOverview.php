@@ -2,24 +2,24 @@
 
 declare(strict_types=1);
 
-namespace App\Filament\Resources\Leads\Schemas;
+namespace App\Filament\Resources\Inquiries\Schemas;
 
 use App\Filament\Resources\Orders\OrderResource;
 use App\Filament\Resources\Users\UserResource;
-use App\Models\Lead;
+use App\Models\Inquiry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
 /**
- * One lead, and what became of them.
+ * One inquiry, and what became of them.
  *
  * The Outcome section is the reason this page exists rather than the edit form
  * being enough: it answers "did this ever turn into anything" by looking at the
- * account and its orders, which is a question no column on `leads` can be
+ * account and its orders, which is a question no column on `inquiries` can be
  * trusted to answer.
  */
-class LeadOverview
+class InquiryOverview
 {
     public static function configure(Schema $schema): Schema
     {
@@ -29,12 +29,12 @@ class LeadOverview
                 TextEntry::make('name')
                     ->label('Name')
                     ->weight('bold')
-                    ->helperText(fn (Lead $record): ?string => $record->describeRole()),
+                    ->helperText(fn (Inquiry $record): ?string => $record->describeRole()),
 
                 TextEntry::make('email')
                     ->label('Email')
                     ->copyable()
-                    ->helperText(fn (Lead $record): string => $record->marketing_opt_in
+                    ->helperText(fn (Inquiry $record): string => $record->marketing_opt_in
                         ? 'Agreed to be emailed.'
                         : 'Has not agreed to marketing email.'),
 
@@ -46,8 +46,8 @@ class LeadOverview
                 TextEntry::make('status')
                     ->label('Status')
                     ->badge()
-                    ->state(fn (Lead $record): string => $record->status->label())
-                    ->color(fn (Lead $record): string => $record->status->color()),
+                    ->state(fn (Inquiry $record): string => $record->status->label())
+                    ->color(fn (Inquiry $record): string => $record->status->color()),
             ]),
 
             Section::make('What became of them')
@@ -57,26 +57,26 @@ class LeadOverview
                     TextEntry::make('outcome')
                         ->label('Outcome')
                         ->badge()
-                        ->state(fn (Lead $record): string => $record->describeOutcome())
-                        ->color(fn (Lead $record): string => $record->outcomeColor()),
+                        ->state(fn (Inquiry $record): string => $record->describeOutcome())
+                        ->color(fn (Inquiry $record): string => $record->outcomeColor()),
 
                     TextEntry::make('account')
                         ->label('Account')
-                        ->state(fn (Lead $record): string => $record->customer === null
+                        ->state(fn (Inquiry $record): string => $record->customer === null
                             ? 'No account on this address'
                             : 'Registered '.$record->customer->created_at?->format('j M Y'))
                         // The customer list filtered to them, rather than their
                         // edit screen: this link is followed by support and
                         // finance, who can read an account without being able
                         // to change one.
-                        ->url(fn (Lead $record): ?string => self::linkTo(UserResource::class, $record))
-                        ->color(fn (Lead $record): string => $record->customer === null ? 'gray' : 'primary'),
+                        ->url(fn (Inquiry $record): ?string => self::linkTo(UserResource::class, $record))
+                        ->color(fn (Inquiry $record): string => $record->customer === null ? 'gray' : 'primary'),
 
                     TextEntry::make('orders')
                         ->label('Orders')
-                        ->state(fn (Lead $record): string => self::describeOrders($record))
-                        ->url(fn (Lead $record): ?string => self::linkTo(OrderResource::class, $record))
-                        ->color(fn (Lead $record): string => $record->customer === null ? 'gray' : 'primary'),
+                        ->state(fn (Inquiry $record): string => self::describeOrders($record))
+                        ->url(fn (Inquiry $record): ?string => self::linkTo(OrderResource::class, $record))
+                        ->color(fn (Inquiry $record): string => $record->customer === null ? 'gray' : 'primary'),
                 ]),
 
             Section::make('Where they came from')
@@ -85,8 +85,8 @@ class LeadOverview
                     TextEntry::make('source')
                         ->label('Source')
                         ->badge()
-                        ->state(fn (Lead $record): string => $record->source->label())
-                        ->color(fn (Lead $record): string => $record->source->color()),
+                        ->state(fn (Inquiry $record): string => $record->source->label())
+                        ->color(fn (Inquiry $record): string => $record->source->color()),
 
                     TextEntry::make('source_detail')
                         ->label('Which one')
@@ -99,7 +99,7 @@ class LeadOverview
                     TextEntry::make('created_at')
                         ->label('Came in')
                         ->dateTime('j M Y, H:i')
-                        ->helperText(fn (Lead $record): ?string => $record->created_at?->diffForHumans()),
+                        ->helperText(fn (Inquiry $record): ?string => $record->created_at?->diffForHumans()),
 
                     TextEntry::make('message')
                         ->label('What they said')
@@ -110,15 +110,15 @@ class LeadOverview
 
             /*
              * Repeats are evidence, which is why the email is not unique. A
-             * second enquiry three months later says the first campaign did not
+             * second inquiry three months later says the first campaign did not
              * close them and the second nearly did.
              */
-            Section::make('Other enquiries from this address')
-                ->visible(fn (Lead $record): bool => $record->enquiries()->whereKeyNot($record->getKey())->exists())
+            Section::make('Other inquiries from this address')
+                ->visible(fn (Inquiry $record): bool => $record->fromSameEmail()->whereKeyNot($record->getKey())->exists())
                 ->schema([
-                    TextEntry::make('enquiries')
+                    TextEntry::make('inquiries')
                         ->hiddenLabel()
-                        ->state(fn (Lead $record): string => self::describeRepeats($record))
+                        ->state(fn (Inquiry $record): string => self::describeRepeats($record))
                         ->prose(),
                 ]),
 
@@ -130,13 +130,13 @@ class LeadOverview
                         ->placeholder('Nobody yet'),
 
                     TextEntry::make('contacted_at')
-                        ->label('Last spoken to')
+                        ->label('Last contacted')
                         ->dateTime('j M Y, H:i')
                         ->placeholder('Never'),
 
                     TextEntry::make('age')
                         ->label('Age')
-                        ->state(fn (Lead $record): string => $record->ageInDays().' days'),
+                        ->state(fn (Inquiry $record): string => $record->ageInDays().' days'),
 
                     TextEntry::make('note')
                         ->label('Notes')
@@ -173,7 +173,7 @@ class LeadOverview
      *
      * @param  class-string<\Filament\Resources\Resource>  $resource
      */
-    private static function linkTo(string $resource, Lead $record): ?string
+    private static function linkTo(string $resource, Inquiry $record): ?string
     {
         if ($record->customer === null || ! $resource::canViewAny()) {
             return null;
@@ -182,7 +182,7 @@ class LeadOverview
         return $resource::getUrl('index', ['tableSearch' => $record->email]);
     }
 
-    private static function describeOrders(Lead $record): string
+    private static function describeOrders(Inquiry $record): string
     {
         if ($record->customer === null) {
             return 'No account, so nothing to look at';
@@ -195,15 +195,15 @@ class LeadOverview
             : trans_choice(':count settled order|:count settled orders', $settled, ['count' => $settled]);
     }
 
-    private static function describeRepeats(Lead $record): string
+    private static function describeRepeats(Inquiry $record): string
     {
-        $others = $record->enquiries()
+        $others = $record->fromSameEmail()
             ->whereKeyNot($record->getKey())
             ->orderByDesc('created_at')
             ->get();
 
         return $others
-            ->map(fn (Lead $other): string => $other->source->label()
+            ->map(fn (Inquiry $other): string => $other->source->label()
                 .' on '.$other->created_at?->format('j M Y')
                 .' — '.$other->status->label())
             ->implode("\n");

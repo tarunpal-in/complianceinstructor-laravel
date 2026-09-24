@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Filament\Resources\Leads\Schemas;
+namespace App\Filament\Resources\Inquiries\Schemas;
 
-use App\Enums\LeadSource;
-use App\Enums\LeadStatus;
+use App\Enums\InquirySource;
+use App\Enums\InquiryStatus;
 use App\Models\Industry;
 use App\Models\User;
 use Filament\Forms\Components\DateTimePicker;
@@ -17,7 +17,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
 /**
- * Adding or working a lead.
+ * Adding or working an inquiry.
  *
  * Two jobs on one screen, and the order reflects which is more common: almost
  * every visit here is somebody recording what happened on a phone call, not
@@ -25,11 +25,11 @@ use Filament\Schemas\Schema;
  * follow-up fields — owner, status, when they were last spoken to — are what
  * the screen is really for.
  *
- * What a captured lead said about itself is deliberately editable. These rows
+ * What a captured inquiry said about itself is deliberately editable. These rows
  * arrive from forms filled in by hand and arrive misspelt; a register nobody
  * can correct becomes a register nobody trusts.
  */
-class LeadForm
+class InquiryForm
 {
     public static function configure(Schema $schema): Schema
     {
@@ -73,8 +73,8 @@ class LeadForm
                 ->columns(2)
                 ->schema([
                     Select::make('source')
-                        ->options(LeadSource::options())
-                        ->default(LeadSource::Manual->value)
+                        ->options(InquirySource::options())
+                        ->default(InquirySource::Manual->value)
                         ->required()
                         ->live(),
 
@@ -105,8 +105,8 @@ class LeadForm
                 ->columns(3)
                 ->schema([
                     Select::make('status')
-                        ->options(LeadStatus::options())
-                        ->default(LeadStatus::New->value)
+                        ->options(InquiryStatus::options())
+                        ->default(InquiryStatus::New->value)
                         ->required()
                         // No "converted": whether they bought is worked out
                         // from their orders, not remembered here.
@@ -121,10 +121,10 @@ class LeadForm
                             ->all())
                         ->searchable()
                         ->placeholder('Nobody yet')
-                        ->helperText('Staff only. A lead with no owner is one nobody rings.'),
+                        ->helperText('Staff only. An inquiry with no owner is one nobody answers.'),
 
                     DateTimePicker::make('contacted_at')
-                        ->label('Last spoken to')
+                        ->label('Last contacted')
                         ->seconds(false)
                         ->placeholder('Never'),
 
@@ -141,6 +141,6 @@ class LeadForm
     private static function sourceIsSelfSubmitted(mixed $source): bool
     {
         return is_string($source)
-            && LeadSource::tryFrom($source)?->isSelfSubmitted() === true;
+            && InquirySource::tryFrom($source)?->isSelfSubmitted() === true;
     }
 }

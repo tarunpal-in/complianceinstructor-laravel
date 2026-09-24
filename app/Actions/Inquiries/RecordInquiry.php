@@ -2,34 +2,34 @@
 
 declare(strict_types=1);
 
-namespace App\Actions\Leads;
+namespace App\Actions\Inquiries;
 
-use App\Enums\LeadSource;
-use App\Enums\LeadStatus;
-use App\Models\Lead;
+use App\Enums\InquirySource;
+use App\Enums\InquiryStatus;
+use App\Models\Inquiry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use RuntimeException;
 
 /**
- * One door in for a lead — §4 rule 2.
+ * One door in for an inquiry — §4 rule 2.
  *
  * There is only one intake today (staff typing one in), but there are four
- * coming: the quiz result form, a gated download, a webinar enquiry and the
+ * coming: the quiz result form, a gated download, a webinar inquiry and the
  * contact form. The predecessor's lesson is not about how many call sites exist
  * now but about what happens when the fourth one is written by somebody who
  * copies the third: §14 #9 is one access rule duplicated four times with an
  * inconsistent filter, and this is the same shape in a different corner.
  *
- * So the rules live here: the status a lead starts at, the campaign it carries,
+ * So the rules live here: the status an inquiry starts at, the campaign it carries,
  * and what it is never allowed to arrive already claiming.
  */
-class RecordLead
+class RecordInquiry
 {
     public function __invoke(
         string $name,
         string $email,
-        LeadSource $source,
+        InquirySource $source,
         ?string $company = null,
         ?string $jobTitle = null,
         ?string $phone = null,
@@ -38,15 +38,15 @@ class RecordLead
         ?string $message = null,
         bool $marketingOptIn = false,
         ?Request $request = null,
-    ): Lead {
+    ): Inquiry {
         $name = trim($name);
         $email = Str::lower(trim($email));
 
         if ($name === '' || $email === '') {
-            throw new RuntimeException('A lead needs a name and an email address.');
+            throw new RuntimeException('An inquiry needs a name and an email address.');
         }
 
-        return Lead::create([
+        return Inquiry::create([
             'name' => $name,
             'email' => $email,
             'company' => $this->clean($company),
@@ -57,10 +57,10 @@ class RecordLead
             'source_detail' => $this->clean($sourceDetail),
             /*
              * Always New, never taken from the caller. A form that could post
-             * its own status is §14 #2 with the stakes lowered — and a lead
+             * its own status is §14 #2 with the stakes lowered — and an inquiry
              * arriving pre-marked "qualified" is one nobody rings.
              */
-            'status' => LeadStatus::New,
+            'status' => InquiryStatus::New,
             // A TEXT column, so a far longer limit than the string fields —
             // but still a limit, because "whatever they typed" is not a size.
             'message' => $this->clean($message, 5000),
@@ -74,7 +74,7 @@ class RecordLead
     }
 
     /**
-     * The campaign that produced them — §8's lead source attribution.
+     * The campaign that produced them — §8's inquiry source attribution.
      *
      * Read from the request rather than passed in, so a new form does not have
      * to remember to forward five query parameters. Truncated because these are

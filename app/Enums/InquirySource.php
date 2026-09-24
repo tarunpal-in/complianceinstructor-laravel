@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Enums;
 
 /**
- * Where a lead came from — §8's "lead source attribution".
+ * Where an inquiry came from — §8's "inquiry source attribution".
  *
  * A backed enum rather than a free string (§4 rule 5), because this is the
  * column the funnel report groups by, and §14 #12 is the predecessor losing a
@@ -18,7 +18,7 @@ namespace App\Enums;
  * yet, so a polymorphic key here would point at nothing and commit us to a
  * shape nobody has specified.
  */
-enum LeadSource: string
+enum InquirySource: string
 {
     /** §6's quiz engine: answered a quiz and left their details for the result. */
     case Quiz = 'quiz';
@@ -29,7 +29,7 @@ enum LeadSource: string
     /** Asked about a specific webinar without buying a seat. */
     case Webinar = 'webinar';
 
-    /** Came through a contact or enquiry form. */
+    /** The website contact form — the main way these arrive. */
     case Contact = 'contact';
 
     /** Loaded from a list: a conference badge scan, a bought list, a spreadsheet. */
@@ -43,7 +43,7 @@ enum LeadSource: string
         return match ($this) {
             self::Quiz => 'Quiz',
             self::Download => 'Downloaded something',
-            self::Webinar => 'Webinar enquiry',
+            self::Webinar => 'Webinar inquiry',
             self::Contact => 'Contact form',
             self::Import => 'Imported list',
             self::Manual => 'Added by staff',

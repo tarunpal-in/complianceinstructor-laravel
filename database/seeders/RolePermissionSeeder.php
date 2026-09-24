@@ -36,7 +36,7 @@ class RolePermissionSeeder extends Seeder
         // Content
         'page', 'post', 'comment', 'navigation', 'redirect', 'seo_meta', 'media',
         // Engagement
-        'lead', 'subscriber', 'inquiry',
+        'subscriber', 'inquiry',
         // System
         'role', 'setting',
     ];
@@ -108,17 +108,17 @@ class RolePermissionSeeder extends Seeder
                     'page', 'post', 'comment', 'navigation', 'redirect', 'seo_meta', 'media',
                 ]),
                 'moderate_comment',
-                'view_any_lead', 'view_lead',
+                'view_any_inquiry', 'view_inquiry',
             ],
 
             // Everything that touches money, plus reporting and exports.
             UserRole::Finance => [
                 ...$this->crudFor(['order', 'payment', 'coupon', 'subscription', 'offering']),
                 ...$this->readFor(['webinar', 'package', 'membership_plan', 'user', 'entitlement', 'media']),
-                // Read-only on leads, because §8's funnel report runs from
-                // them. Finance holds `export_data`, so it is also the role
-                // that can pull the list.
-                ...$this->readFor(['lead']),
+                // Read-only on inquiries, because §8's funnel report runs
+                // from them. Finance holds `export_data`, so it is also the
+                // role that can pull the list.
+                ...$this->readFor(['inquiry']),
                 // Deliberately not `refund_payment`. Refunding is the one admin
                 // action that moves money out irreversibly, and the client has
                 // reserved it for the Super Admin. Finance still reads every
@@ -132,16 +132,15 @@ class RolePermissionSeeder extends Seeder
             UserRole::Support => [
                 ...$this->readFor([
                     'order', 'payment', 'user', 'entitlement', 'certificate',
-                    'subscription', 'webinar', 'package', 'inquiry', 'media',
+                    'subscription', 'webinar', 'package', 'media',
                 ]),
-                // Leads in full: Support is the desk that actually rings these
-                // people back, and a register somebody can read but not update
-                // is one where the follow-up is recorded somewhere else.
-                // Deliberately without `export_data` — reading a lead and
+                // Inquiries in full: Support is the desk that actually answers
+                // them, and a register somebody can read but not update is one
+                // where the reply gets recorded somewhere else.
+                // Deliberately without `export_data` — answering an inquiry and
                 // taking the whole list off the system are different things.
-                ...$this->crudFor(['lead']),
+                ...$this->crudFor(['inquiry']),
                 'grant_entitlement', 'revoke_entitlement', 'impersonate_user',
-                'update_inquiry',
             ],
         };
     }

@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Support;
 
-use App\Models\Lead;
+use App\Models\Inquiry;
 use Illuminate\Database\Eloquent\Builder;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * The lead register as a CSV — §6's "lead export".
+ * The inquiry register as a CSV — §6's "inquiry export".
  *
  * Its own class rather than a method on the list page, for two reasons. The
  * columns are a contract with whoever receives the file — a mailing house, a
@@ -23,7 +23,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * the browser starts receiving immediately is not that, and a queued export
  * would mean building a downloads area to collect it from.
  */
-final class LeadCsv
+final class InquiryCsv
 {
     /** Rows are read in batches so a large export never holds the list in memory. */
     private const CHUNK = 200;
@@ -44,31 +44,31 @@ final class LeadCsv
             'Name', 'Email', 'Company', 'Job title', 'Phone', 'Industry',
             'Source', 'Which one', 'Status', 'Owner', 'Agreed to email',
             'Campaign source', 'Campaign medium', 'Campaign name',
-            'Came in', 'Last spoken to', 'Outcome',
+            'Came in', 'Last contacted', 'Outcome',
         ];
     }
 
     /** @return array<int, string|null> */
-    public static function row(Lead $lead): array
+    public static function row(Inquiry $inquiry): array
     {
         return [
-            $lead->name,
-            $lead->email,
-            $lead->company,
-            $lead->job_title,
-            $lead->phone,
-            $lead->industry?->name,
-            $lead->source->label(),
-            $lead->source_detail,
-            $lead->status->label(),
-            $lead->assignedTo?->name,
-            $lead->marketing_opt_in ? 'Yes' : 'No',
-            $lead->utm_source,
-            $lead->utm_medium,
-            $lead->utm_campaign,
-            $lead->created_at?->format('Y-m-d H:i'),
-            $lead->contacted_at?->format('Y-m-d H:i'),
-            $lead->describeOutcome(),
+            $inquiry->name,
+            $inquiry->email,
+            $inquiry->company,
+            $inquiry->job_title,
+            $inquiry->phone,
+            $inquiry->industry?->name,
+            $inquiry->source->label(),
+            $inquiry->source_detail,
+            $inquiry->status->label(),
+            $inquiry->assignedTo?->name,
+            $inquiry->marketing_opt_in ? 'Yes' : 'No',
+            $inquiry->utm_source,
+            $inquiry->utm_medium,
+            $inquiry->utm_campaign,
+            $inquiry->created_at?->format('Y-m-d H:i'),
+            $inquiry->contacted_at?->format('Y-m-d H:i'),
+            $inquiry->describeOutcome(),
         ];
     }
 
@@ -80,25 +80,25 @@ final class LeadCsv
      * gets emailed to a mailing house.
      *
      * @param  resource  $handle
-     * @param  Builder<Lead>  $query
+     * @param  Builder<Inquiry>  $query
      */
     public static function writeTo($handle, Builder $query): void
     {
         fputcsv($handle, self::headers());
 
         $query->with(['industry', 'assignedTo', 'customer'])
-            ->chunk(self::CHUNK, function ($leads) use ($handle): void {
-                /** @var Lead $lead */
-                foreach ($leads as $lead) {
-                    fputcsv($handle, self::row($lead));
+            ->chunk(self::CHUNK, function ($inquiries) use ($handle): void {
+                /** @var Inquiry $inquiry */
+                foreach ($inquiries as $inquiry) {
+                    fputcsv($handle, self::row($inquiry));
                 }
             });
     }
 
-    /** @param  Builder<Lead>  $query */
+    /** @param  Builder<Inquiry>  $query */
     public static function download(Builder $query): StreamedResponse
     {
-        $name = 'leads-'.now()->format('Y-m-d-His').'.csv';
+        $name = 'inquiries-'.now()->format('Y-m-d-His').'.csv';
 
         return response()->streamDownload(function () use ($query): void {
             $handle = fopen('php://output', 'wb');

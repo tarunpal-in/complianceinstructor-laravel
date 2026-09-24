@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Filament\Resources\Leads\RelationManagers;
+namespace App\Filament\Resources\Inquiries\RelationManagers;
 
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Spatie\Activitylog\Models\Activity;
 
 /**
- * What has happened to this lead.
+ * What has happened to this inquiry.
  *
  * The row holds the current state — who owns it, what it was last set to. It
  * cannot say that it was handed from one person to another, closed, and
@@ -68,14 +68,14 @@ class HistoryRelationManager extends RelationManager
             ])
             ->defaultSort('id', 'desc')
             ->emptyStateHeading('Nothing recorded')
-            ->emptyStateDescription('Changes appear here as this lead is handed on, worked and closed.');
+            ->emptyStateDescription('Changes appear here as this inquiry is handed on, answered and closed.');
     }
 
     /**
      * The change in a sentence.
      *
      * The raw property bag is a JSON diff, which is exactly what somebody
-     * picking up a lead should not have to read to find out what happened to
+     * picking up an inquiry should not have to read to find out what happened to
      * it last.
      */
     private static function describeChange(Activity $record): string
@@ -89,7 +89,7 @@ class HistoryRelationManager extends RelationManager
             $parts[] = match ($key) {
                 'status' => 'Status set to '.(is_string($value) ? $value : '—'),
                 'assigned_to' => $value === null ? 'Owner cleared' : 'Handed to somebody',
-                'contacted_at' => 'Marked as contacted',
+                'contacted_at' => 'Marked as answered',
                 'note' => 'Notes updated',
                 'marketing_opt_in' => $value ? 'Agreed to email' : 'Withdrew email consent',
                 default => 'Changed '.$key,
