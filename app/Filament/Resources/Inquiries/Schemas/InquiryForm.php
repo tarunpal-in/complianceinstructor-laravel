@@ -6,28 +6,26 @@ namespace App\Filament\Resources\Inquiries\Schemas;
 
 use App\Enums\InquirySource;
 use App\Enums\InquiryStatus;
-use App\Models\Industry;
 use App\Models\User;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
 /**
- * Adding or working an inquiry.
+ * Adding an inquiry by hand, or correcting one.
  *
- * Two jobs on one screen, and the order reflects which is more common: almost
- * every visit here is somebody recording what happened on a phone call, not
- * correcting a spelling. So who they are sits at the top and is short, and the
- * follow-up fields — owner, status, when they were last spoken to — are what
- * the screen is really for.
+ * The fields are exactly what a contact form collects, plus the handling
+ * columns. There is no job title, industry or campaign here because nobody
+ * types those into a contact form — an earlier version of this screen carried
+ * all three, left over from when this register was for captured marketing
+ * leads.
  *
- * What a captured inquiry said about itself is deliberately editable. These rows
- * arrive from forms filled in by hand and arrive misspelt; a register nobody
- * can correct becomes a register nobody trusts.
+ * Correcting a mistyped address or a name in caps is legitimate; the message
+ * itself is editable for the same reason, though rewriting what somebody sent
+ * is not what it is for.
  */
 class InquiryForm
 {
@@ -35,7 +33,7 @@ class InquiryForm
     {
         return $schema->components([
 
-            Section::make('Who they are')
+            Section::make('Who wrote')
                 ->columns(2)
                 ->schema([
                     TextInput::make('name')
@@ -46,71 +44,48 @@ class InquiryForm
                         ->email()
                         ->required()
                         ->maxLength(255)
-                        // Not unique, on purpose: the same person enquiring
-                        // twice is two pieces of evidence about two campaigns,
-                        // and the register counts the repeats instead.
+                        // Not unique, on purpose: somebody writing twice is two
+                        // messages, and the second is often because the first
+                        // was not answered well enough.
                         ->helperText('Lower-cased on save. The same address may appear more than once.'),
 
                     TextInput::make('company')->maxLength(255),
 
-                    TextInput::make('job_title')
-                        ->label('Job title')
-                        ->maxLength(255),
-
                     TextInput::make('phone')
                         ->tel()
                         ->maxLength(40),
-
-                    Select::make('industry_id')
-                        ->label('Industry')
-                        ->options(fn (): array => Industry::query()->orderBy('name')->pluck('name', 'id')->all())
-                        ->searchable()
-                        ->placeholder('Not given')
-                        ->helperText('What they train for — which webinars are worth putting in front of them.'),
                 ]),
 
-            Section::make('Where they came from')
-                ->columns(2)
+            Section::make('What they asked')
                 ->schema([
+                    TextInput::make('subject')
+                        ->maxLength(255)
+                        ->placeholder('Group rates for twelve seats')
+                        ->helperText('What the message is about. Shown in the list, so it is worth filling in.'),
+
+                    Textarea::make('message')
+                        ->label('Message')
+                        ->rows(6)
+                        ->maxLength(5000),
+
                     Select::make('source')
+                        ->label('Arrived by')
                         ->options(InquirySource::options())
                         ->default(InquirySource::Manual->value)
                         ->required()
-                        ->live(),
-
-                    TextInput::make('source_detail')
-                        ->label('Which one')
-                        ->maxLength(255)
-                        ->placeholder('Which quiz, guide or webinar')
-                        // A label, never a key — see the migration. Said here
-                        // too, because the next person to touch this screen
-                        // will be the one tempted to put an id in it.
-                        ->helperText('Free text. Not a link to a record.'),
-
-                    Textarea::make('message')
-                        ->label('What they said')
-                        ->rows(3)
-                        ->maxLength(5000)
-                        ->columnSpanFull(),
-
-                    Toggle::make('marketing_opt_in')
-                        ->label('Agreed to be emailed')
-                        ->helperText('Only ever true because they said so. An imported list did not agree to anything.')
-                        ->disabled(fn (callable $get): bool => ! self::sourceIsSelfSubmitted($get('source')))
-                        ->columnSpanFull(),
+                        ->helperText('Manual is right for anything typed in from a call or a forwarded email.'),
                 ]),
 
-            Section::make('Follow-up')
-                ->description('Who owns this, and what has happened so far.')
+            Section::make('Handling')
                 ->columns(3)
                 ->schema([
                     Select::make('status')
                         ->options(InquiryStatus::options())
                         ->default(InquiryStatus::New->value)
                         ->required()
-                        // No "converted": whether they bought is worked out
-                        // from their orders, not remembered here.
-                        ->helperText('Whether they bought is worked out from their account, not set here.'),
+                        // Whether they bought is read off their orders, not set
+                        // here — see InquiryStatus.
+                        ->helperText('Use the Log a reply action rather than this, so the date is stamped too.'),
 
                     Select::make('assigned_to')
                         ->label('Owner')
@@ -135,12 +110,5 @@ class InquiryForm
                         ->helperText('Changes are kept in the History below, so an overwritten note is not lost.'),
                 ]),
         ]);
-    }
-
-    /** The toggle is only meaningful where the person themselves filled a form in. */
-    private static function sourceIsSelfSubmitted(mixed $source): bool
-    {
-        return is_string($source)
-            && InquirySource::tryFrom($source)?->isSelfSubmitted() === true;
     }
 }

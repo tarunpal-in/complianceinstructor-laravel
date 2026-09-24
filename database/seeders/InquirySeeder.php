@@ -6,21 +6,24 @@ namespace Database\Seeders;
 
 use App\Enums\InquirySource;
 use App\Enums\InquiryStatus;
-use App\Models\Industry;
 use App\Models\Inquiry;
 use App\Models\Order;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
 /**
- * A worked register — §5.9.
+ * A working inbox — §5.9.
  *
- * Every tab has to have something in it or the screen cannot be reviewed:
- * untouched inquiries, one somebody is working, a repeat inquiry from the same
- * address, and — the one that matters — an inquiry whose email belongs to a
- * customer who has actually bought, so the derived Outcome column has something
- * to find. That last one is the whole argument for deriving it rather than
- * storing a `converted` flag, and it is invisible until a seeded row proves it.
+ * Every tab needs something in it or the screen cannot be reviewed: messages
+ * nobody has picked up, one somebody is handling, a second message from an
+ * address that already wrote once, and — the one that matters — an inquiry
+ * whose email belongs to a customer who has actually bought. That last one is
+ * the whole argument for deriving the Customer column rather than storing a
+ * flag, and it is invisible until a seeded row proves it.
+ *
+ * The copy says it is placeholder. §12 has content readiness as the most common
+ * cause of slipped launches, and seeded text that reads like real customer
+ * messages is how a screenshot ends up in a client deck.
  */
 class InquirySeeder extends Seeder
 {
@@ -30,88 +33,87 @@ class InquirySeeder extends Seeder
             return;
         }
 
-        $industries = Industry::query()->orderBy('id')->get();
         $staff = User::query()->whereHas('roles')->orderBy('id')->first();
 
-        // Untouched: the default tab, and the badge in the sidebar.
+        // Waiting: the default tab, and the badge in the sidebar.
         Inquiry::factory()
-            ->count(4)
+            ->count(3)
             ->untouched()
-            ->from(InquirySource::Quiz, 'Which HR compliance gaps are costing you?')
-            ->fromCampaign('google', 'cpc', 'hr-compliance-2026')
+            ->about('Placeholder — group rates for a team of twelve')
             ->create([
-                'industry_id' => $industries->first()?->getKey(),
+                'message' => 'Placeholder message. Seeded so the inbox can be reviewed with something in it.',
             ]);
 
         Inquiry::factory()
             ->count(2)
             ->untouched(12)
-            ->from(InquirySource::Download, 'Wage and hour audit checklist')
+            ->from(InquirySource::Webinar, 'Placeholder — does this carry HRCI credit?')
             ->create();
 
-        // Being worked, with an owner.
+        // Being handled, with an owner.
         if ($staff !== null) {
             Inquiry::factory()
                 ->count(2)
                 ->assignedTo($staff)
-                ->from(InquirySource::Webinar, 'FMLA in 2026')
+                ->about('Placeholder — invoice rather than card')
                 ->create([
-                    'note' => 'Placeholder note — seeded so the follow-up panel has something in it.',
+                    'note' => 'Placeholder note — seeded so the Handling panel has something in it.',
                 ]);
         }
 
         Inquiry::factory()
             ->status(InquiryStatus::Answered)
-            ->from(InquirySource::Contact)
+            ->about('Placeholder — certificate not received')
             ->create([
                 'company' => 'Northwind Logistics',
-                'message' => 'Placeholder inquiry. Asked about seats for a team of twelve.',
+                'contacted_at' => now()->subDays(2),
             ]);
 
         Inquiry::factory()
             ->status(InquiryStatus::Closed)
-            ->from(InquirySource::Import, 'SHRM conference badge scans')
-            ->create(['marketing_opt_in' => false]);
+            ->from(InquirySource::Contact, 'Placeholder — duplicate of an earlier message')
+            ->create();
 
-        $this->seedRepeatEnquiry();
-        $this->seedConvertedInquiry();
+        $this->seedRepeatSender();
+        $this->seedInquiryFromACustomer();
     }
 
     /**
      * The same address twice, months apart.
      *
-     * Why the email column carries no UNIQUE index: the second inquiry is
-     * evidence that the first campaign did not close them, and a table that
-     * refused it would lose that.
+     * Why the email column carries no UNIQUE index: somebody writing again is
+     * usually somebody whose first message was not answered well enough, and
+     * whoever picks up the second should be able to see the first.
      */
-    private function seedRepeatEnquiry(): void
+    private function seedRepeatSender(): void
     {
-        $email = 'returning.enquirer@example.com';
+        $email = 'returning.sender@example.com';
 
-        Inquiry::factory()->from(InquirySource::Download, 'Year-end payroll close checklist')->create([
+        Inquiry::factory()->fromAddress($email)->status(InquiryStatus::Closed)->create([
             'name' => 'Priya Raman',
-            'email' => $email,
             'company' => 'Cedar & Vale',
-            'status' => InquiryStatus::Closed,
+            'subject' => 'Placeholder — first message, closed without a reply',
             'created_at' => now()->subMonths(4),
             'updated_at' => now()->subMonths(4),
         ]);
 
-        Inquiry::factory()->untouched(2)->from(InquirySource::Quiz, 'Is your payroll year-end ready?')->create([
+        Inquiry::factory()->fromAddress($email)->untouched(2)->create([
             'name' => 'Priya Raman',
-            'email' => $email,
             'company' => 'Cedar & Vale',
+            'subject' => 'Placeholder — writing again, still waiting',
+            'message' => 'Placeholder message. This address has written before, which the record shows.',
         ]);
     }
 
     /**
-     * An inquiry whose email belongs to somebody who went on to buy.
+     * A message from somebody who has already bought.
      *
-     * Nothing on the inquiry row says so. The register works it out by joining the
-     * email to an account and asking whether that account has a settled order,
-     * which is the behaviour worth being able to see in review.
+     * Nothing on the row says so. The register works it out by joining the
+     * email to an account and asking whether that account has a settled order —
+     * which is the behaviour worth being able to see in review, and the reason
+     * whoever answers writes a different reply.
      */
-    private function seedConvertedInquiry(): void
+    private function seedInquiryFromACustomer(): void
     {
         $customer = Order::query()->settled()->with('user')->first()?->user;
 
@@ -121,11 +123,8 @@ class InquirySeeder extends Seeder
 
         Inquiry::factory()
             ->matching($customer)
-            ->from(InquirySource::Quiz, 'Which HR compliance gaps are costing you?')
-            ->status(InquiryStatus::Answered)
-            ->create([
-                'note' => 'Placeholder — seeded to show an inquiry that went on to buy.',
-                'contacted_at' => now()->subMonth(),
-            ]);
+            ->untouched(1)
+            ->about('Placeholder — can I move my seat to the recorded version?')
+            ->create();
     }
 }

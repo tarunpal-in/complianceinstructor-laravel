@@ -9,6 +9,7 @@ use App\Enums\UserRole;
 use App\Filament\Resources\Inquiries\Pages\CreateInquiry;
 use App\Filament\Resources\Inquiries\Pages\ListInquiries;
 use App\Filament\Resources\Inquiries\Pages\ViewInquiry;
+use App\Filament\Resources\Inquiries\RelationManagers\HistoryRelationManager;
 use App\Models\Inquiry;
 use App\Models\Order;
 use App\Models\User;
@@ -72,19 +73,19 @@ it('records an inquiry through the action', function (): void {
     $inquiry = app(RecordInquiry::class)(
         name: '  Dana Whitfield ',
         email: '  DANA@Example.COM ',
-        source: InquirySource::Quiz,
+        source: InquirySource::Contact,
+        subject: 'Group rates for twelve seats',
+        message: 'We have twelve people who need HRCI credit before December.',
         company: 'Northwind',
-        sourceDetail: 'Which HR gaps are costing you?',
-        marketingOptIn: true,
     );
 
     expect($inquiry->email)->toBe('dana@example.com')
         ->and($inquiry->name)->toBe('Dana Whitfield')
-        ->and($inquiry->status)->toBe(InquiryStatus::New)
-        ->and($inquiry->marketing_opt_in)->toBeTrue();
+        ->and($inquiry->subject)->toBe('Group rates for twelve seats')
+        ->and($inquiry->status)->toBe(InquiryStatus::New);
 });
 
-/** §14 #2, in a smaller corner: a form does not get to say it is qualified. */
+/** §14 #2, in a smaller corner: a form does not get to say it is answered. */
 it('always starts an inquiry at new', function (): void {
     $inquiry = app(RecordInquiry::class)(
         name: 'Dana',
@@ -95,36 +96,27 @@ it('always starts an inquiry at new', function (): void {
     expect($inquiry->status)->toBe(InquiryStatus::New);
 });
 
-/** An imported list did not agree to anything, whatever the spreadsheet said. */
-it('refuses to record consent for a source nobody submitted', function (): void {
-    $inquiry = app(RecordInquiry::class)(
-        name: 'Dana',
-        email: 'dana@example.com',
-        source: InquirySource::Import,
-        marketingOptIn: true,
-    );
-
-    expect($inquiry->marketing_opt_in)->toBeFalse();
-});
-
 it('refuses an inquiry with no name or email', function (): void {
     expect(fn () => app(RecordInquiry::class)('  ', 'dana@example.com', InquirySource::Manual))
         ->toThrow(RuntimeException::class);
 });
 
-it('carries the campaign that produced them', function (): void {
-    $request = Request::create('/quiz?utm_source=google&utm_medium=cpc&utm_campaign=hr-2026');
+/*
+ * A crafted user agent must not be able to fail the insert and take the
+ * contact form down with it — the column is 255 and the header is whatever
+ * the sender chose to send.
+ */
+it('truncates a crafted user agent rather than failing the insert', function (): void {
+    $request = Request::create('/contact', 'POST', server: ['HTTP_USER_AGENT' => str_repeat('x', 5000)]);
 
     $inquiry = app(RecordInquiry::class)(
         name: 'Dana',
         email: 'dana@example.com',
-        source: InquirySource::Quiz,
+        source: InquirySource::Contact,
         request: $request,
     );
 
-    expect($inquiry->utm_source)->toBe('google')
-        ->and($inquiry->utm_medium)->toBe('cpc')
-        ->and($inquiry->utm_campaign)->toBe('hr-2026');
+    expect(strlen((string) $inquiry->user_agent))->toBeLessThanOrEqual(255);
 });
 
 it('lowercases an email typed in by staff', function (): void {
@@ -413,5 +405,47 @@ it('seeds a register with every tab populated', function (): void {
 
     expect(Inquiry::query()->untouched()->count())->toBeGreaterThan(0)
         ->and(Inquiry::query()->where('status', InquiryStatus::Answered)->count())->toBeGreaterThan(0)
-        ->and(Inquiry::query()->where('email', 'returning.enquirer@example.com')->count())->toBe(2);
+        ->and(Inquiry::query()->where('status', InquiryStatus::Closed)->count())->toBeGreaterThan(0)
+        // The repeat sender, which is why the email column has no UNIQUE index.
+        ->and(Inquiry::query()->where('email', 'returning.sender@example.com')->count())->toBe(2);
+});
+
+// History ------------------------------------------------------------------------------------------
+
+/*
+ * On a create, every logged attribute sits in the activity's property bag — so
+ * running them through the change list produced "Status set to new. Owner
+ * cleared. Marked as answered. Notes updated." against a brand-new, unanswered
+ * inquiry: four statements, three of them false. A row that has just appeared
+ * has not changed; it arrived.
+ */
+it('reads a brand-new inquiry as having arrived', function (): void {
+    $inquiry = Inquiry::factory()->untouched()->create();
+
+    Livewire\Livewire::actingAs(userWithRole(UserRole::Support))
+        ->test(HistoryRelationManager::class, [
+            'ownerRecord' => $inquiry,
+            'pageClass' => ViewInquiry::class,
+        ])
+        ->assertSee('Arrived.')
+        ->assertDontSee('Marked as answered')
+        ->assertDontSee('Owner cleared');
+});
+
+it('describes a real change in the words the badge uses', function (): void {
+    $support = userWithRole(UserRole::Support);
+    $inquiry = Inquiry::factory()->untouched()->create();
+
+    $this->actingAs($support);
+
+    Livewire\Livewire::test(ListInquiries::class)->callTableAction('logContact', $inquiry);
+
+    Livewire\Livewire::test(HistoryRelationManager::class, [
+        'ownerRecord' => $inquiry->fresh(),
+        'pageClass' => ViewInquiry::class,
+    ])
+        // The enum's own label, so History and the status badge cannot
+        // drift apart into saying different things about one row.
+        ->assertSee('Status set to '.InquiryStatus::Answered->label())
+        ->assertSee('Recorded as contacted');
 });

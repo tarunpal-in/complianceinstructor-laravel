@@ -83,7 +83,7 @@ class InquiryResource extends Resource
             // `customer` is loaded rather than left lazy because the record
             // pages read it, and Model::shouldBeStrict turns a lazy load into
             // an exception.
-            ->with(['industry', 'assignedTo', 'customer'])
+            ->with(['assignedTo', 'customer'])
             ->withCount('fromSameEmail')
             ->withExists([
                 'customer as has_account',

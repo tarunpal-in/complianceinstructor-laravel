@@ -6,7 +6,6 @@ namespace Database\Factories;
 
 use App\Enums\InquirySource;
 use App\Enums\InquiryStatus;
-use App\Models\Industry;
 use App\Models\Inquiry;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -23,36 +22,36 @@ class InquiryFactory extends Factory
     {
         return [
             'name' => fake()->name(),
+            // Unique by default: repeat enquiries from one address are a
+            // behaviour the register has to show, so two unrelated seeded
+            // people must not accidentally look like the same person.
             'email' => Str::lower(fake()->unique()->safeEmail()),
             'company' => fake()->company(),
-            'job_title' => fake()->randomElement([
-                'HR Director', 'Payroll Manager', 'Compliance Officer',
-                'People Operations Inquiry', 'Benefits Administrator',
-            ]),
             'phone' => fake()->numerify('+1 ###-###-####'),
-            'industry_id' => null,
-            'source' => InquirySource::Quiz,
-            'source_detail' => null,
+            // The contact form is the intake this register was built around.
+            'source' => InquirySource::Contact,
+            'subject' => fake()->sentence(5),
+            'message' => fake()->paragraph(),
             'status' => InquiryStatus::New,
             'assigned_to' => null,
             'contacted_at' => null,
-            'message' => null,
             'note' => null,
-            'marketing_opt_in' => true,
-            'utm_source' => null,
-            'utm_medium' => null,
-            'utm_campaign' => null,
             'ip_address' => fake()->ipv4(),
             'user_agent' => fake()->userAgent(),
         ];
     }
 
-    public function from(InquirySource $source, ?string $detail = null): static
+    public function from(InquirySource $source, ?string $subject = null): static
     {
-        return $this->state(fn (): array => [
+        return $this->state(fn (): array => array_filter([
             'source' => $source,
-            'source_detail' => $detail,
-        ]);
+            'subject' => $subject,
+        ], fn (mixed $value): bool => $value !== null));
+    }
+
+    public function about(string $subject): static
+    {
+        return $this->state(fn (): array => ['subject' => $subject]);
     }
 
     public function status(InquiryStatus $status): static
@@ -81,7 +80,7 @@ class InquiryFactory extends Factory
         ]);
     }
 
-    /** The same address as an existing account, so the outcome column has something to find. */
+    /** The same address as an existing account, so the Customer column has something to find. */
     public function matching(User $user): static
     {
         return $this->state(fn (): array => [
@@ -90,17 +89,8 @@ class InquiryFactory extends Factory
         ]);
     }
 
-    public function in(Industry $industry): static
+    public function fromAddress(string $email): static
     {
-        return $this->state(fn (): array => ['industry_id' => $industry->getKey()]);
-    }
-
-    public function fromCampaign(string $source, string $medium, string $campaign): static
-    {
-        return $this->state(fn (): array => [
-            'utm_source' => $source,
-            'utm_medium' => $medium,
-            'utm_campaign' => $campaign,
-        ]);
+        return $this->state(fn (): array => ['email' => Str::lower($email)]);
     }
 }

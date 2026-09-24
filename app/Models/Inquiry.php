@@ -38,10 +38,10 @@ class Inquiry extends Model
     use HasFactory, LogsActivity, SoftDeletes;
 
     protected $fillable = [
-        'name', 'email', 'company', 'job_title', 'phone', 'industry_id',
-        'source', 'source_detail', 'status', 'assigned_to', 'contacted_at',
-        'message', 'note', 'marketing_opt_in',
-        'utm_source', 'utm_medium', 'utm_campaign', 'ip_address', 'user_agent',
+        'name', 'email', 'company', 'phone',
+        'source', 'subject', 'message',
+        'status', 'assigned_to', 'contacted_at', 'note',
+        'ip_address', 'user_agent',
     ];
 
     protected function casts(): array
@@ -50,7 +50,6 @@ class Inquiry extends Model
             'status' => InquiryStatus::class,
             'source' => InquirySource::class,
             'contacted_at' => 'datetime',
-            'marketing_opt_in' => 'boolean',
         ];
     }
 
@@ -81,19 +80,13 @@ class Inquiry extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['status', 'assigned_to', 'contacted_at', 'note', 'marketing_opt_in'])
+            ->logOnly(['status', 'assigned_to', 'contacted_at', 'note'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
             ->useLogName('inquiry');
     }
 
     // Relationships ----------------------------------------------------------------
-
-    /** @return BelongsTo<Industry, $this> */
-    public function industry(): BelongsTo
-    {
-        return $this->belongsTo(Industry::class);
-    }
 
     /** @return BelongsTo<User, $this> */
     public function assignedTo(): BelongsTo
@@ -259,15 +252,19 @@ class Inquiry extends Model
     }
 
     /**
-     * Who they are, in one line, for a list that has to stay scannable.
+     * What the message is about, in one line.
      *
-     * Job title and company rather than the email, because that is what tells
-     * somebody whether this inquiry is worth an hour.
+     * The subject where there is one, falling back to the opening of the
+     * message. A list of inquiries with nothing but names in it cannot be
+     * triaged, and the subject is the only field written by somebody trying to
+     * summarise their own question.
      */
-    public function describeRole(): ?string
+    public function describeSubject(int $length = 80): ?string
     {
-        $parts = array_filter([$this->job_title, $this->company]);
+        if (filled($this->subject)) {
+            return Str::limit($this->subject, $length);
+        }
 
-        return $parts === [] ? null : implode(' · ', $parts);
+        return blank($this->message) ? null : Str::limit(trim($this->message), $length);
     }
 }

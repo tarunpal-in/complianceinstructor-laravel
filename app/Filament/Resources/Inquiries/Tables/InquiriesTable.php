@@ -6,7 +6,6 @@ namespace App\Filament\Resources\Inquiries\Tables;
 
 use App\Enums\InquirySource;
 use App\Enums\InquiryStatus;
-use App\Models\Industry;
 use App\Models\Inquiry;
 use App\Models\User;
 use Filament\Actions\Action;
@@ -22,19 +21,21 @@ use Filament\Notifications\Notification;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\FiltersLayout;
-use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
 /**
- * The inquiry register.
+ * The inbox.
  *
  * Built around one question — who is still waiting for an answer — because that
- * is the only thing on this screen that costs anything to ignore. Everything
- * else is reference.
+ * is the only thing on this screen that costs anything to ignore.
+ *
+ * Who wrote and what they asked take most of the width; everything else is
+ * toggleable and off by default where it is not needed to triage. An earlier
+ * version of this table led with campaign and industry columns, which is what a
+ * lead-capture register wants and not what somebody clearing an inbox does.
  */
 class InquiriesTable
 {
@@ -43,36 +44,29 @@ class InquiriesTable
         return $table
             ->columns([
                 TextColumn::make('name')
+                    ->label('From')
                     ->searchable()
                     ->sortable()
                     ->weight('bold')
-                    // Title and company, not the email: that is what tells
-                    // somebody whether this inquiry is worth an hour.
-                    ->description(fn (Inquiry $record): ?string => $record->describeRole())
+                    // The company, not the email: this is a B2B inbox, and the
+                    // organisation is what tells somebody how to answer.
+                    ->description(fn (Inquiry $record): ?string => $record->company)
                     ->wrap()
-                    ->width('16rem'),
+                    ->width('13rem'),
 
-                TextColumn::make('email')
-                    ->searchable()
-                    ->copyable()
-                    ->color('gray')
-                    // Set by the register's subselect — see InquiryResource.
-                    ->badge(fn (Inquiry $record): bool => $record->from_same_email_count > 1)
-                    ->description(fn (Inquiry $record): ?string => $record->from_same_email_count > 1
-                        ? $record->from_same_email_count.' inquiries from this address'
-                        : null)
+                /*
+                 * What they asked, which is what a list of messages is actually
+                 * triaged on. Falls back to the opening of the message where no
+                 * subject was given, because a blank cell here would mean
+                 * opening every row to find out what it is.
+                 */
+                TextColumn::make('subject')
+                    ->label('About')
+                    ->searchable(['subject', 'message'])
+                    ->state(fn (Inquiry $record): ?string => $record->describeSubject(110))
+                    ->placeholder('No subject')
                     ->wrap()
-                    ->width('16rem')
-                    ->toggleable(),
-
-                TextColumn::make('source')
-                    ->label('Came from')
-                    ->badge()
-                    ->state(fn (Inquiry $record): string => $record->source->label())
-                    ->color(fn (Inquiry $record): string => $record->source->color())
-                    ->description(fn (Inquiry $record): ?string => $record->source_detail)
-                    ->wrap()
-                    ->width('12rem'),
+                    ->width('26rem'),
 
                 TextColumn::make('status')
                     ->label('Status')
@@ -81,32 +75,57 @@ class InquiriesTable
                     ->color(fn (Inquiry $record): string => $record->status->color())
                     ->sortable(),
 
-                /*
-                 * Derived, never stored. Two subselects on the resource query
-                 * answer it for the whole page — see the enum's comment for why
-                 * there is no "converted" status to read instead.
-                 */
-                TextColumn::make('outcome')
-                    ->label('Outcome')
-                    ->badge()
-                    ->state(fn (Inquiry $record): string => $record->describeOutcome())
-                    ->color(fn (Inquiry $record): string => $record->outcomeColor())
-                    ->tooltip('Worked out from their account and orders, not from a column.'),
-
-                TextColumn::make('assignedTo.name')
-                    ->label('Owner')
-                    ->placeholder('Nobody')
-                    ->color(fn (Inquiry $record): string => $record->assigned_to === null && $record->isOpen()
-                        ? 'danger'
-                        : 'gray')
-                    ->toggleable(),
-
                 TextColumn::make('created_at')
                     ->label('Came in')
                     ->dateTime('j M Y')
                     ->description(fn (Inquiry $record): ?string => $record->created_at?->diffForHumans())
                     ->sortable()
                     ->width('11rem'),
+
+                TextColumn::make('assignedTo.name')
+                    ->label('Owner')
+                    ->placeholder('Nobody')
+                    // Red when it is open and unclaimed, which is the state this
+                    // screen exists to make impossible to miss.
+                    ->color(fn (Inquiry $record): string => $record->assigned_to === null && $record->isOpen()
+                        ? 'danger'
+                        : 'gray'),
+
+                TextColumn::make('email')
+                    ->searchable()
+                    ->copyable()
+                    ->color('gray')
+                    // Set by the register's subselect — see InquiryResource.
+                    ->badge(fn (Inquiry $record): bool => $record->from_same_email_count > 1)
+                    ->description(fn (Inquiry $record): ?string => $record->from_same_email_count > 1
+                        ? 'Written '.$record->from_same_email_count.' times'
+                        : null)
+                    ->wrap()
+                    ->width('16rem')
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('source')
+                    ->label('Arrived by')
+                    ->badge()
+                    ->state(fn (Inquiry $record): string => $record->source->label())
+                    ->color(fn (Inquiry $record): string => $record->source->color())
+                    // Off by default: once the contact form is the overwhelming
+                    // majority, a column reading "Contact form" on every row is
+                    // width spent saying nothing.
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                /*
+                 * Derived, never stored. Two subselects on the resource query
+                 * answer it for the whole page — see InquiryStatus for why
+                 * there is no "converted" status to read instead.
+                 */
+                TextColumn::make('outcome')
+                    ->label('Customer?')
+                    ->badge()
+                    ->state(fn (Inquiry $record): string => $record->describeOutcome())
+                    ->color(fn (Inquiry $record): string => $record->outcomeColor())
+                    ->tooltip('Worked out from their account and orders, not from a column.')
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('contacted_at')
                     ->label('Last contacted')
@@ -115,15 +134,10 @@ class InquiriesTable
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
-            // Newest first: an inquiry goes cold, so the top of this list is where
-            // the work is.
+            // Newest first: the top of this list is where the work is.
             ->defaultSort('created_at', 'desc')
             ->filters([
-                SelectFilter::make('source')->options(InquirySource::options()),
-
-                SelectFilter::make('industry_id')
-                    ->label('Industry')
-                    ->options(fn (): array => Industry::query()->orderBy('name')->pluck('name', 'id')->all()),
+                SelectFilter::make('source')->label('Arrived by')->options(InquirySource::options()),
 
                 SelectFilter::make('assigned_to')
                     ->label('Owner')
@@ -132,10 +146,6 @@ class InquiriesTable
                         ->orderBy('name')
                         ->pluck('name', 'id')
                         ->all()),
-
-                Filter::make('marketing_opt_in')
-                    ->label('Agreed to be emailed')
-                    ->query(self::onlyOptedIn(...)),
 
                 /*
                  * No status filter — the tabs are the status. A filter doing a
@@ -162,7 +172,7 @@ class InquiriesTable
             ->emptyStateDescription('Inquiries arrive from the website contact form, and later from the quiz and gated downloads. Staff can also add one from a phone call.');
     }
 
-    // Working an inquiry ----------------------------------------------------------------
+    // Handling one ----------------------------------------------------------------------
 
     /**
      * Take ownership in one click.
@@ -183,7 +193,7 @@ class InquiriesTable
             ->action(function (Inquiry $record): void {
                 $record->forceFill([
                     'assigned_to' => auth()->id(),
-                    // Claiming it is the start of working it. Leaving it "New"
+                    // Claiming it is the start of handling it. Leaving it "New"
                     // would keep it in the queue somebody just took it out of.
                     'status' => InquiryStatus::Working,
                 ])->save();
@@ -202,7 +212,7 @@ class InquiriesTable
             ->visible(fn (Inquiry $record): bool => $record->isOpen() && self::canWork())
             ->requiresConfirmation()
             ->modalHeading('Mark as answered?')
-            ->modalDescription('Stamps today against them and takes them out of the queue.')
+            ->modalDescription('Stamps today against them and takes them out of the queue. Use Log a reply on the record to keep a note of what was said.')
             ->action(function (Inquiry $record): void {
                 $record->forceFill([
                     'contacted_at' => now(),
@@ -273,20 +283,6 @@ class InquiriesTable
 
                 Notification::make()->success()->title('Updated')->send();
             });
-    }
-
-    // Filters --------------------------------------------------------------------------------
-
-    /**
-     * Named rather than inline: a filter is handed an untyped builder, where a
-     * plain where on a cast column is fine but static analysis cannot see the
-     * model behind it.
-     *
-     * @param  Builder<Inquiry>  $query
-     */
-    private static function onlyOptedIn(Builder $query): void
-    {
-        $query->where('marketing_opt_in', true);
     }
 
     private static function canWork(): bool

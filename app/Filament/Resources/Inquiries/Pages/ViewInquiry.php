@@ -31,7 +31,7 @@ class ViewInquiry extends ViewRecord
         /** @var Inquiry $record */
         $record = $this->getRecord();
 
-        return $record->describeRole() ?? $record->email;
+        return $record->describeSubject() ?? $record->email;
     }
 
     protected function getHeaderActions(): array

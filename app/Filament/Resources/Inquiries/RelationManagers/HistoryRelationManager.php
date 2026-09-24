@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Inquiries\RelationManagers;
 
+use App\Enums\InquiryStatus;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
@@ -75,27 +76,60 @@ class HistoryRelationManager extends RelationManager
      * The change in a sentence.
      *
      * The raw property bag is a JSON diff, which is exactly what somebody
-     * picking up an inquiry should not have to read to find out what happened to
-     * it last.
+     * picking up an inquiry should not have to read to find out what happened
+     * to it last.
+     *
+     * Creation is handled separately and first. On a create, every logged
+     * attribute is present in the bag — so running them through the list below
+     * produced "Status set to new. Owner cleared. Marked as answered. Notes
+     * updated." against a brand-new, unanswered inquiry: four statements, three
+     * of them false. A row that has just appeared has not changed; it arrived.
      */
     private static function describeChange(Activity $record): string
     {
+        if ($record->event === 'created') {
+            return 'Arrived.';
+        }
+
+        if ($record->event === 'deleted') {
+            return 'Deleted.';
+        }
+
         /** @var array<string, mixed> $changed */
         $changed = (array) data_get($record->properties, 'attributes', []);
+
+        /** @var array<string, mixed> $before */
+        $before = (array) data_get($record->properties, 'old', []);
 
         $parts = [];
 
         foreach ($changed as $key => $value) {
+            // logOnlyDirty already filters these, but an activity written by a
+            // forceFill that set a column to what it already held would
+            // otherwise read as a change nobody made.
+            if (array_key_exists($key, $before) && $before[$key] === $value) {
+                continue;
+            }
+
             $parts[] = match ($key) {
-                'status' => 'Status set to '.(is_string($value) ? $value : '—'),
-                'assigned_to' => $value === null ? 'Owner cleared' : 'Handed to somebody',
-                'contacted_at' => 'Marked as answered',
+                'status' => 'Status set to '.self::statusLabel($value),
+                'assigned_to' => $value === null ? 'Owner cleared' : 'Given an owner',
+                'contacted_at' => $value === null ? 'Contact date cleared' : 'Recorded as contacted',
                 'note' => 'Notes updated',
-                'marketing_opt_in' => $value ? 'Agreed to email' : 'Withdrew email consent',
-                default => 'Changed '.$key,
+                default => 'Changed '.str_replace('_', ' ', $key),
             };
         }
 
-        return $parts === [] ? 'Created.' : implode('. ', $parts).'.';
+        return $parts === [] ? 'No visible change.' : implode('. ', $parts).'.';
+    }
+
+    /** The enum's own wording, so History and the badge cannot disagree. */
+    private static function statusLabel(mixed $value): string
+    {
+        if (! is_string($value)) {
+            return '—';
+        }
+
+        return InquiryStatus::tryFrom($value)?->label() ?? $value;
     }
 }

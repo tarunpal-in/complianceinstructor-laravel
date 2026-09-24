@@ -31,20 +31,19 @@ final class InquiryCsv
     /**
      * The column headings, in order.
      *
-     * The derived Outcome is included deliberately: the whole point of working
-     * it out from the orders table is that it is right, and an export that left
-     * it out would send somebody away with a list that cannot say which of
-     * these people already bought.
+     * The message is included, because an export of an inbox that leaves out
+     * what people wrote is a contact list, not a record of what was asked. The
+     * derived Customer column is included for the same reason the screen shows
+     * it: it is worked out from the orders table and is therefore right.
      *
      * @return array<int, string>
      */
     public static function headers(): array
     {
         return [
-            'Name', 'Email', 'Company', 'Job title', 'Phone', 'Industry',
-            'Source', 'Which one', 'Status', 'Owner', 'Agreed to email',
-            'Campaign source', 'Campaign medium', 'Campaign name',
-            'Came in', 'Last contacted', 'Outcome',
+            'Name', 'Email', 'Company', 'Phone',
+            'Arrived by', 'Subject', 'Message',
+            'Status', 'Owner', 'Came in', 'Last contacted', 'Customer',
         ];
     }
 
@@ -55,17 +54,12 @@ final class InquiryCsv
             $inquiry->name,
             $inquiry->email,
             $inquiry->company,
-            $inquiry->job_title,
             $inquiry->phone,
-            $inquiry->industry?->name,
             $inquiry->source->label(),
-            $inquiry->source_detail,
+            $inquiry->subject,
+            $inquiry->message,
             $inquiry->status->label(),
             $inquiry->assignedTo?->name,
-            $inquiry->marketing_opt_in ? 'Yes' : 'No',
-            $inquiry->utm_source,
-            $inquiry->utm_medium,
-            $inquiry->utm_campaign,
             $inquiry->created_at?->format('Y-m-d H:i'),
             $inquiry->contacted_at?->format('Y-m-d H:i'),
             $inquiry->describeOutcome(),
@@ -86,7 +80,7 @@ final class InquiryCsv
     {
         fputcsv($handle, self::headers());
 
-        $query->with(['industry', 'assignedTo', 'customer'])
+        $query->with(['assignedTo', 'customer'])
             ->chunk(self::CHUNK, function ($inquiries) use ($handle): void {
                 /** @var Inquiry $inquiry */
                 foreach ($inquiries as $inquiry) {

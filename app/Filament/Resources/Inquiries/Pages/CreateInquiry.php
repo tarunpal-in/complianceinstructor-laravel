@@ -34,20 +34,17 @@ class CreateInquiry extends CreateRecord
             name: (string) $data['name'],
             email: (string) $data['email'],
             source: $source,
-            company: self::optional($data, 'company'),
-            jobTitle: self::optional($data, 'job_title'),
-            phone: self::optional($data, 'phone'),
-            industryId: isset($data['industry_id']) ? (int) $data['industry_id'] : null,
-            sourceDetail: self::optional($data, 'source_detail'),
+            subject: self::optional($data, 'subject'),
             message: self::optional($data, 'message'),
-            marketingOptIn: (bool) ($data['marketing_opt_in'] ?? false),
+            company: self::optional($data, 'company'),
+            phone: self::optional($data, 'phone'),
         );
 
         /*
-         * The follow-up fields are not the action's business — it records an
-         * arrival, and an arrival has no owner or call history yet. Somebody
-         * adding an inquiry from a call they have just taken can fill them in on
-         * the same screen, so they are applied after.
+         * The handling fields are not the action's business — it records an
+         * arrival, and an arrival has no owner or reply yet. Somebody adding an
+         * inquiry from a call they have just taken can fill them in on the same
+         * screen, so they are applied after.
          */
         $inquiry->fill(array_filter([
             'status' => $data['status'] ?? null,

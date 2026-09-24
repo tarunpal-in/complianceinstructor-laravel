@@ -14,15 +14,12 @@ use RuntimeException;
 /**
  * One door in for an inquiry — §4 rule 2.
  *
- * There is only one intake today (staff typing one in), but there are four
- * coming: the quiz result form, a gated download, a webinar inquiry and the
- * contact form. The predecessor's lesson is not about how many call sites exist
- * now but about what happens when the fourth one is written by somebody who
- * copies the third: §14 #9 is one access rule duplicated four times with an
- * inconsistent filter, and this is the same shape in a different corner.
- *
- * So the rules live here: the status an inquiry starts at, the campaign it carries,
- * and what it is never allowed to arrive already claiming.
+ * Only one intake exists today (staff typing one in), but the website contact
+ * form is next and the quiz is P7. The predecessor's lesson is not about how
+ * many call sites exist now: §14 #9 is one rule duplicated four times with an
+ * inconsistent filter, written by somebody copying the third call site. So the
+ * rules live here — what an inquiry starts as, and what it is never allowed to
+ * arrive already claiming.
  */
 class RecordInquiry
 {
@@ -30,13 +27,10 @@ class RecordInquiry
         string $name,
         string $email,
         InquirySource $source,
-        ?string $company = null,
-        ?string $jobTitle = null,
-        ?string $phone = null,
-        ?int $industryId = null,
-        ?string $sourceDetail = null,
+        ?string $subject = null,
         ?string $message = null,
-        bool $marketingOptIn = false,
+        ?string $company = null,
+        ?string $phone = null,
         ?Request $request = null,
     ): Inquiry {
         $name = trim($name);
@@ -50,52 +44,23 @@ class RecordInquiry
             'name' => $name,
             'email' => $email,
             'company' => $this->clean($company),
-            'job_title' => $this->clean($jobTitle),
             'phone' => $this->clean($phone),
-            'industry_id' => $industryId,
             'source' => $source,
-            'source_detail' => $this->clean($sourceDetail),
+            'subject' => $this->clean($subject),
+            // A TEXT column, so a far longer limit than the string fields — but
+            // still a limit, because "whatever they typed" is not a size.
+            'message' => $this->clean($message, 5000),
             /*
              * Always New, never taken from the caller. A form that could post
              * its own status is §14 #2 with the stakes lowered — and an inquiry
-             * arriving pre-marked "qualified" is one nobody rings.
+             * arriving pre-marked "answered" is one nobody replies to.
              */
             'status' => InquiryStatus::New,
-            // A TEXT column, so a far longer limit than the string fields —
-            // but still a limit, because "whatever they typed" is not a size.
-            'message' => $this->clean($message, 5000),
-            /*
-             * Consent is only ever true because somebody said so. An imported
-             * list did not agree to anything, whatever the spreadsheet claimed.
-             */
-            'marketing_opt_in' => $marketingOptIn && $source->isSelfSubmitted(),
-            ...$this->attribution($request),
+            'ip_address' => $request?->ip(),
+            // Truncated to the column: a crafted user agent must not be able to
+            // fail the insert and take the contact form down with it.
+            'user_agent' => $this->clean($request?->userAgent(), 250),
         ]);
-    }
-
-    /**
-     * The campaign that produced them — §8's inquiry source attribution.
-     *
-     * Read from the request rather than passed in, so a new form does not have
-     * to remember to forward five query parameters. Truncated because these are
-     * query-string values and a crafted one must not be able to fail the insert
-     * and take the form down with it.
-     *
-     * @return array<string, string|null>
-     */
-    private function attribution(?Request $request): array
-    {
-        if ($request === null) {
-            return [];
-        }
-
-        return [
-            'utm_source' => $this->clean($request->query('utm_source')),
-            'utm_medium' => $this->clean($request->query('utm_medium')),
-            'utm_campaign' => $this->clean($request->query('utm_campaign')),
-            'ip_address' => $request->ip(),
-            'user_agent' => $this->clean($request->userAgent(), 250),
-        ];
     }
 
     private function clean(mixed $value, int $limit = 255): ?string
