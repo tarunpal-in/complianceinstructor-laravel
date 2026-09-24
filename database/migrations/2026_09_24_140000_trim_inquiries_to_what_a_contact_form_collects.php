@@ -39,14 +39,22 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('inquiries', function (Blueprint $table): void {
-            // Its own statement: dropping a constrained column needs the
-            // foreign key gone first, and SQLite will not infer that.
-            $table->dropConstrainedForeignId('industry_id');
-        });
+        $droppedByName = $this->dropIndustryForeignKey();
 
-        Schema::table('inquiries', function (Blueprint $table): void {
+        Schema::table('inquiries', function (Blueprint $table) use ($droppedByName): void {
+            if (! $droppedByName) {
+                /*
+                 * SQLite names no constraints and drops a column by rebuilding
+                 * the table, so the foreign key has to be declared inside this
+                 * same alteration — the rebuild reads the blueprint to know
+                 * which keys to leave out. Without it: "unknown column
+                 * industry_id in foreign key definition".
+                 */
+                $table->dropForeign(['industry_id']);
+            }
+
             $table->dropColumn([
+                'industry_id',
                 'job_title',
                 'utm_source',
                 'utm_medium',
@@ -74,5 +82,39 @@ return new class extends Migration
             $table->string('utm_campaign')->nullable();
             $table->boolean('marketing_opt_in')->default(false);
         });
+    }
+
+    /**
+     * Drop the constraint on `industry_id`, by whatever it is actually called.
+     *
+     * Not `dropConstrainedForeignId('industry_id')`, which derives the name
+     * from the *current* table and would look for `inquiries_industry_id_
+     * foreign`. MySQL and MariaDB keep a constraint's original name through a
+     * `RENAME TABLE`, so on any database that has run the previous migration —
+     * including one built from scratch, since that migration creates `leads`
+     * and then renames it — this constraint is still `leads_industry_id_
+     * foreign`. Guessing gets "Can't DROP FOREIGN KEY; check that it exists".
+     *
+     * Asking the schema is the only version that is right on both a renamed
+     * database and a fresh one. SQLite reports a null name, which is the signal
+     * that this has to happen inside the alteration instead — see up().
+     *
+     * @return bool whether the constraint was dropped here, by name
+     */
+    private function dropIndustryForeignKey(): bool
+    {
+        foreach (Schema::getForeignKeys('inquiries') as $key) {
+            if (! in_array('industry_id', $key['columns'], true) || blank($key['name'])) {
+                continue;
+            }
+
+            Schema::table('inquiries', function (Blueprint $table) use ($key): void {
+                $table->dropForeign($key['name']);
+            });
+
+            return true;
+        }
+
+        return false;
     }
 };
