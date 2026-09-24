@@ -98,6 +98,24 @@ it('renders the agreed navigation items', function (string $item): void {
     'Settings', 'Activity Log', 'Backups',
 ]);
 
+/*
+ * The stub for a resource that has since been built shows as two identical
+ * items in the same group, one of which links to '#'. The presence test above
+ * cannot see it — "does the sidebar contain Leads" is true either way — so this
+ * compares the two lists directly.
+ */
+it('drops a placeholder once its resource lands', function (): void {
+    $panel = Filament\Facades\Filament::getPanel('admin');
+
+    $stubs = collect($panel->getNavigationItems())
+        ->map(fn (Filament\Navigation\NavigationItem $item): string => (string) $item->getLabel());
+
+    $resources = collect($panel->getResources())
+        ->map(fn (string $resource): string => (string) $resource::getNavigationLabel());
+
+    expect($stubs->intersect($resources)->values()->all())->toBe([]);
+});
+
 it('does not offer Forum or Quizzes, which were cut', function (string $gone): void {
     $this->actingAs(userWithRole(UserRole::SuperAdmin))
         ->get('/admin')
