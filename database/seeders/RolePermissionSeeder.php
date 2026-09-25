@@ -108,6 +108,11 @@ class RolePermissionSeeder extends Seeder
                     'page', 'post', 'comment', 'navigation', 'redirect', 'seo_meta', 'media',
                 ]),
                 'moderate_comment',
+                // The mailing list is a marketing surface, so it belongs to
+                // whoever writes the marketing. Deliberately without
+                // `export_data` — running the list is not the same as being
+                // able to walk away with it.
+                ...$this->crudFor(['subscriber']),
                 'view_any_inquiry', 'view_inquiry',
             ],
 
@@ -118,7 +123,7 @@ class RolePermissionSeeder extends Seeder
                 // Read-only on inquiries, because §8's funnel report runs
                 // from them. Finance holds `export_data`, so it is also the
                 // role that can pull the list.
-                ...$this->readFor(['inquiry']),
+                ...$this->readFor(['inquiry', 'subscriber']),
                 // Deliberately not `refund_payment`. Refunding is the one admin
                 // action that moves money out irreversibly, and the client has
                 // reserved it for the Super Admin. Finance still reads every
@@ -140,6 +145,10 @@ class RolePermissionSeeder extends Seeder
                 // Deliberately without `export_data` — answering an inquiry and
                 // taking the whole list off the system are different things.
                 ...$this->crudFor(['inquiry']),
+                // Read and update, not create or delete: "take me off your
+                // list" arrives at the support desk, and they should be able
+                // to act on it without being able to add addresses.
+                ...$this->readFor(['subscriber']), 'update_subscriber',
                 'grant_entitlement', 'revoke_entitlement', 'impersonate_user',
             ],
         };

@@ -27,9 +27,15 @@ class SubscribersRelationManager extends RelationManager
 {
     protected static string $relationship = 'subscriptions';
 
-    protected static ?string $title = 'Subscribers';
+    /*
+     * "Members", not "Subscribers". §5.5 and §5.7 both use the word — these
+     * are people paying for this plan, while Inbox > Subscribers is the
+     * mailing list — and this tab is the one place somebody could read one
+     * and mean the other.
+     */
+    protected static ?string $title = 'Members';
 
-    protected static ?string $modelLabel = 'subscriber';
+    protected static ?string $modelLabel = 'member';
 
     public function form(Schema $schema): Schema
     {

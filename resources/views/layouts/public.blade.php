@@ -7,6 +7,11 @@
     <title>@yield('title', config('app.name'))</title>
     <meta name="description" content="@yield('meta_description', 'Live and recorded compliance webinars led by certified industry experts. Earn HRCI, SHRM and NASBA/CPE recertification credits.')">
 
+    {{-- Indexable unless a page says otherwise. The mailing-list pages say
+         otherwise: they are reached from a signed link and have nothing on them
+         a search engine should hold. --}}
+    <meta name="robots" content="@yield('meta_robots', 'index, follow')">
+
     {{-- Placeholder Open Graph — CLAUDE.md §5.6 replaces this with the
          polymorphic seo_meta record, editable in Filament, at P6. --}}
     <meta property="og:site_name" content="{{ config('app.name') }}">

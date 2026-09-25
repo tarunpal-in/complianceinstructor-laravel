@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\BlogController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\MailingListController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\PagePreviewController;
 use App\Http\Controllers\PostController;
@@ -69,6 +70,38 @@ Route::post('/'.Post::PATH_PREFIX.'/{slug}/comments', CommentController::class)
 Route::get('/preview/{page}', PagePreviewController::class)
     ->middleware('signed')
     ->name('pages.preview');
+
+/*
+ * The mailing list — §5.7.
+ *
+ * Above the page catch-all, and under their own prefix, so a marketing page can
+ * never take a slug that shadows an unsubscribe link.
+ *
+ * The signup box is throttled for the same reason the comment form is: an
+ * unauthenticated endpoint that writes a row. The two links are `signed`, which
+ * §9 makes the rule for anything that must not be reachable by guessing — and
+ * here it is doing real work, because a guessable unsubscribe URL would let
+ * anybody take anybody else off the list.
+ *
+ * Unsubscribing is a GET that shows a page and a POST that acts. Mail scanners
+ * and link-preview services fetch every URL in an email, and a GET that acted
+ * would silently unsubscribe people who never clicked.
+ */
+Route::post('/newsletter', [MailingListController::class, 'store'])
+    ->middleware('throttle:comments')
+    ->name('newsletter.store');
+
+Route::get('/mailing-list/confirm/{subscriber}', [MailingListController::class, 'confirm'])
+    ->middleware('signed')
+    ->name('mailing-list.confirm');
+
+Route::get('/mailing-list/unsubscribe/{subscriber}', [MailingListController::class, 'confirmUnsubscribe'])
+    ->middleware('signed')
+    ->name('mailing-list.unsubscribe');
+
+Route::post('/mailing-list/unsubscribe/{subscriber}', [MailingListController::class, 'unsubscribe'])
+    ->middleware('signed')
+    ->name('mailing-list.unsubscribe.confirm');
 
 /*
  * Client-built marketing pages — §5.6 and §2's second leverage decision.

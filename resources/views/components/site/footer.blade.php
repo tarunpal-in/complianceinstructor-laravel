@@ -16,12 +16,31 @@
 
             <strong>Stay informed — subscribe to our newsletter</strong>
 
-            {{-- Inert until P7 wires the subscribers table. --}}
-            <form @submit.prevent="showNotice($refs.email.value ? 'You are subscribed' : 'Enter your email address'); $refs.email.value = ''">
+            @if (session('mailing_list_status'))
+                <p class="footer-newsletter-notice" role="status">{{ session('mailing_list_status') }}</p>
+            @endif
+
+            <form method="POST" action="{{ route('newsletter.store') }}">
+                @csrf
+
+                {{-- The honeypot. Hidden from people, filled in by scripts
+                     walking the DOM — same trap as the comment form. --}}
+                <div class="comment-trap" aria-hidden="true">
+                    <label for="footer-company-website">Leave this empty</label>
+                    <input id="footer-company-website" type="text"
+                           name="{{ \App\Http\Requests\StoreSubscriberRequest::TRAP_FIELD }}"
+                           tabindex="-1" autocomplete="off">
+                </div>
+
                 <label for="newsletter-email" class="sr-only">Email address</label>
-                <input id="newsletter-email" x-ref="email" type="email" autocomplete="email" placeholder="your@email.com">
+                <input id="newsletter-email" type="email" name="email" required
+                       autocomplete="email" placeholder="your@email.com" value="{{ old('email') }}">
                 <button type="submit">Subscribe</button>
             </form>
+
+            @error('email')
+                <p class="footer-newsletter-error" role="alert">{{ $message }}</p>
+            @enderror
 
             <div class="socials">
                 <a href="#top" aria-label="LinkedIn"><x-ui.icon name="linkedin" :size="18" /></a>

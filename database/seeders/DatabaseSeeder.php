@@ -42,6 +42,9 @@ class DatabaseSeeder extends Seeder
             // same email as a customer who bought — which is how the derived
             // Outcome column gets something to find.
             InquirySeeder::class,
+            // After the orders too, so one seeded address is deliberately a
+            // customer and the Customer column has something to find.
+            SubscriberSeeder::class,
         ]);
 
         $admin = User::firstOrCreate(

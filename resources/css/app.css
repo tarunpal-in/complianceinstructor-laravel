@@ -824,3 +824,15 @@ h1 span { color: #0c5484; }
     .comment-form-fields { grid-template-columns: 1fr; }
     .comment-replies { margin-left: 8px; padding-left: 14px; }
 }
+
+/* Mailing list — the signup feedback in the footer, and the pages a signed
+   link lands on. */
+.footer-newsletter-notice { background: rgba(255,255,255,0.12); border-radius: 8px; padding: 9px 13px; font-size: 13.5px; margin-bottom: 12px; }
+.footer-newsletter-error { color: #ffb4b4; font-size: 13px; margin-top: 8px; }
+
+.mailing-notice { max-width: 560px; text-align: center; padding-top: 72px; padding-bottom: 72px; }
+.mailing-notice h1 { color: #1a1a2e; font-size: 32px; line-height: 40px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 14px; }
+.mailing-notice p { color: #4b5563; font-size: 16px; line-height: 1.65; margin-bottom: 18px; }
+.mailing-notice-small { color: #6b7280; font-size: 14px; }
+.mailing-notice-button { display: inline-block; border: none; border-radius: 9px; background: #0b5889; color: #fff; padding: 11px 22px; font: inherit; font-size: 15px; font-weight: 600; text-decoration: none; cursor: pointer; }
+.mailing-notice-button:hover { background: #094a74; }

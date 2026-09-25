@@ -116,9 +116,9 @@ class AdminPanelProvider extends PanelProvider
      *
      * Absent because a real resource or page already occupies the slot:
      * Customers, Settings, Speakers, Industries, Plans, Subscriptions,
-     * Entitlements, Certificates, Pages, Blog, Inquiries — and Accreditations,
-     * which the resource adds to Catalogue. The whole Learners group is now
-     * real, and Inbox is down to Subscribers.
+     * Entitlements, Certificates, Pages, Blog, Inquiries, Subscribers — and
+     * Accreditations, which the resource adds to Catalogue. Learners and Inbox
+     * are now entirely real.
      *
      * Leads is gone rather than built: the register that would have sat there
      * is the same screen as Inquiries, and the client's intake is the website
@@ -141,8 +141,6 @@ class AdminPanelProvider extends PanelProvider
         /** @var array<int, array{0: string, 1: int, 2: string, 3: Heroicon}> $items */
         $items = [
             ['Catalogue', 20, 'Packages', Heroicon::OutlinedCube],
-
-            ['Inbox', 20, 'Subscribers', Heroicon::OutlinedEnvelope],
 
             ['Reports', 10, 'Reports', Heroicon::OutlinedChartBar],
 
