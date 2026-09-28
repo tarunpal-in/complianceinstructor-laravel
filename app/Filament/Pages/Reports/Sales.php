@@ -4,19 +4,16 @@ declare(strict_types=1);
 
 namespace App\Filament\Pages\Reports;
 
+use App\Filament\Pages\Reports\Concerns\PicksAPeriod;
 use App\Reports\ReportRow;
 use App\Reports\SalesReport;
 use App\Support\Csv;
-use App\Support\Money;
 use App\Support\Period;
 use BackedEnum;
 use Filament\Actions\Action;
-use Filament\Forms\Components\DatePicker;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Pages\Page;
-use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Collection;
@@ -38,6 +35,7 @@ use UnitEnum;
 class Sales extends Page implements HasForms
 {
     use InteractsWithForms;
+    use PicksAPeriod;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBanknotes;
 
@@ -58,45 +56,14 @@ class Sales extends Page implements HasForms
 
     protected string $view = 'filament.pages.reports.sales';
 
-    /** @var array<string, mixed> */
-    public array $data = [];
+    public function form(Schema $schema): Schema
+    {
+        return $this->periodForm($schema);
+    }
 
     public static function canAccess(): bool
     {
         return auth()->user()?->can('view_reports') ?? false;
-    }
-
-    public function mount(): void
-    {
-        // getForm() rather than $this->form: the property is magic on
-        // InteractsWithForms and invisible to static analysis.
-        $this->getForm('form')?->fill(['preset' => 'mtd', 'from' => null, 'to' => null]);
-    }
-
-    public function form(Schema $schema): Schema
-    {
-        return $schema
-            ->statePath('data')
-            ->components([
-                Grid::make(3)->schema([
-                    Select::make('preset')
-                        ->label('Period')
-                        ->options([...Period::options(), 'custom' => 'Custom range'])
-                        ->default('mtd')
-                        ->selectablePlaceholder(false)
-                        ->live(),
-
-                    DatePicker::make('from')
-                        ->label('From')
-                        ->visible(fn (callable $get): bool => $get('preset') === 'custom')
-                        ->live(),
-
-                    DatePicker::make('to')
-                        ->label('To')
-                        ->visible(fn (callable $get): bool => $get('preset') === 'custom')
-                        ->live(),
-                ]),
-            ]);
     }
 
     protected function getHeaderActions(): array
@@ -112,27 +79,6 @@ class Sales extends Page implements HasForms
     }
 
     // What the view reads ------------------------------------------------------------
-
-    public function getPeriod(): Period
-    {
-        $preset = $this->data['preset'] ?? 'mtd';
-
-        if ($preset !== 'custom') {
-            return Period::preset(is_string($preset) ? $preset : 'mtd');
-        }
-
-        $from = $this->data['from'] ?? null;
-        $to = $this->data['to'] ?? null;
-
-        // An incomplete custom range falls back rather than erroring: both
-        // fields are empty the moment "Custom" is chosen, and a red page
-        // between choosing it and filling it in would be the screen's fault.
-        if (! is_string($from) || ! is_string($to) || $from === '' || $to === '') {
-            return Period::preset('mtd');
-        }
-
-        return Period::between($from, $to);
-    }
 
     public function getReport(): SalesReport
     {
@@ -172,11 +118,6 @@ class Sales extends Page implements HasForms
             'By gateway' => $report->byGateway(),
             'By coupon' => $report->byCoupon(),
         ];
-    }
-
-    public function money(int $cents): string
-    {
-        return Money::format($cents);
     }
 
     /** How a figure moved against the period before, as a signed percentage. */
