@@ -82,6 +82,21 @@ class Order extends Model
         return $this->hasManyThrough(OrderAttendee::class, OrderItem::class);
     }
 
+    /**
+     * Coupons used on this order.
+     *
+     * §5.4 puts the link on `coupon_redemptions` rather than a `coupon_id`
+     * column, because one order can carry more than one code and because the
+     * redemption row is what the cap is counted from. The relation exists so
+     * reports and exports can read that without knowing the pivot.
+     *
+     * @return HasMany<CouponRedemption, $this>
+     */
+    public function redemptions(): HasMany
+    {
+        return $this->hasMany(CouponRedemption::class);
+    }
+
     // Scopes ----------------------------------------------------------------
 
     /** @param  Builder<Order>  $query */
