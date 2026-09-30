@@ -47,7 +47,16 @@ class AdminPanelProvider extends PanelProvider
             ->brandName('Compliance Instructor')
             ->login()
             ->passwordReset()
-            ->profile()
+            /*
+             * isSimple: false puts the profile inside the panel shell.
+             *
+             * Filament defaults it to true, which renders a bare centred card
+             * with no sidebar and no topbar — sensible for a panel whose
+             * profile page is a detour, and wrong here: it is where somebody
+             * sets up two-factor, and landing on a page with no way back
+             * reads as having been logged out.
+             */
+            ->profile(isSimple: false)
             /*
              * Two-factor, optional for now (§3 promises it for admins).
              *

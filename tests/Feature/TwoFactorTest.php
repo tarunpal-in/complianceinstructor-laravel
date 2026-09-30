@@ -275,3 +275,25 @@ it('encodes the details an authenticator app needs', function (): void {
         ->and($url)->toContain($secret)
         ->and($url)->toContain(rawurlencode($admin->email));
 });
+
+// The profile page -----------------------------------------------------------------------------------
+
+/*
+ * Filament renders the profile as a "simple" page by default — a bare centred
+ * card with no sidebar and no topbar. That is a reasonable default for a panel
+ * where the profile is a detour, and wrong here: it is where somebody sets up
+ * two-factor, and a page with no way back reads as having been logged out.
+ */
+it('renders the profile inside the panel, with its navigation', function (): void {
+    $response = $this->actingAs(userWithRole(UserRole::SuperAdmin))
+        ->get('/admin/profile')
+        ->assertSuccessful();
+
+    $html = (string) $response->getContent();
+
+    expect($html)
+        ->toContain('fi-sidebar')
+        ->toContain('fi-topbar')
+        // ...and still offers the thing people come here for.
+        ->toContain('Authenticator app');
+});

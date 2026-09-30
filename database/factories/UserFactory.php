@@ -49,6 +49,19 @@ class UserFactory extends Factory
             'deactivated_at' => null,
             'deactivated_by' => null,
             'deactivation_reason' => null,
+            /*
+             * Same again. Filament's multi-factor provider reads the secret to
+             * decide whether the profile page shows "Set up" or "Disable", so
+             * a factory-made account without these columns takes the whole
+             * profile page down.
+             *
+             * Also left strict rather than made tolerant: a reader that
+             * shrugged at a missing secret would report two-factor as off for
+             * somebody who has it on.
+             */
+            'two_factor_secret' => null,
+            'two_factor_recovery_codes' => null,
+            'two_factor_confirmed_at' => null,
         ];
     }
 
