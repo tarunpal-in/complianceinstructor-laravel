@@ -175,6 +175,32 @@ it('lets nobody change anything when signed out', function (): void {
 
 // The screen -------------------------------------------------------------------------------
 
+/*
+ * A fresh install has no `settings` rows at all, so every field starts at
+ * whatever default it is given. The promo bar's message is required, and its
+ * copy lived in the Blade with no default behind the form — so the very first
+ * save on a new site failed validation on a tab the person may never have
+ * opened, and nothing else on the screen could be saved either.
+ *
+ * Named separately because the two tests that first caught this are about
+ * permissions. Whoever breaks it next should read the failure and know what
+ * broke.
+ */
+it('can be saved on a fresh install with nothing stored', function (): void {
+    expect(Setting::query()->count())->toBe(0);
+
+    $this->actingAs(userWithRole(UserRole::SuperAdmin));
+
+    Livewire\Livewire::test(SettingsPage::class)
+        ->call('save')
+        ->assertHasNoErrors();
+});
+
+/** Every required field therefore needs a default that satisfies it. */
+it('gives the promo bar message a default it can actually be saved with', function (): void {
+    expect(SettingRegistry::find('promo_bar.text')?->value())->not->toBeEmpty();
+});
+
 it('saves a group the person owns', function (): void {
     $this->actingAs(userWithRole(UserRole::SuperAdmin));
 
