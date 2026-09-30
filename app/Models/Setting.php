@@ -104,6 +104,12 @@ class Setting extends Model implements ReferencesMedia
      */
     public static function declared(string $key): mixed
     {
+        // The same guard get() applies, and for the same reason. Without it
+        // this helper — the one recommended precisely because it stops a
+        // default drifting — would answer a typo'd key with null and look like
+        // a setting nobody had filled in.
+        self::assertRegistered($key);
+
         return SettingRegistry::find($key)?->value();
     }
 

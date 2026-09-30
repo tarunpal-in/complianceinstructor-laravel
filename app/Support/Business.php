@@ -96,12 +96,40 @@ final class Business
     public static function socials(): array
     {
         $accounts = [
-            'linkedin' => self::text('business.linkedin_url'),
-            'instagram' => self::text('business.instagram_url'),
-            'youtube' => self::text('business.youtube_url'),
+            'linkedin' => self::link('business.linkedin_url'),
+            'instagram' => self::link('business.instagram_url'),
+            'youtube' => self::link('business.youtube_url'),
         ];
 
         return array_filter($accounts, fn (?string $url): bool => $url !== null);
+    }
+
+    /**
+     * A URL that is safe to put in an href.
+     *
+     * The whole attribute is taken from a setting here — scheme included —
+     * which makes this the one field on the settings screen that can execute.
+     * `javascript:alert(1)` in a social link is a stored XSS on every page of
+     * the site.
+     *
+     * The form already rejects it, and that is not enough: §9's standing rule
+     * is that admin-authored values stay untrusted at the point they reach
+     * markup, and a row can arrive from an import, a migration, or SQL access
+     * without passing a form at all. Anything that is not plainly http or
+     * https is treated as unset, so the icon disappears rather than becoming a
+     * trap.
+     */
+    private static function link(string $key): ?string
+    {
+        $url = self::text($key);
+
+        if ($url === null) {
+            return null;
+        }
+
+        $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
+
+        return in_array($scheme, ['http', 'https'], true) ? $url : null;
     }
 
     /** Whether there is enough to render a contact block at all. */
