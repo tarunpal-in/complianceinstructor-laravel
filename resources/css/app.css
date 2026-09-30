@@ -836,3 +836,9 @@ h1 span { color: #0c5484; }
 .mailing-notice-small { color: #6b7280; font-size: 14px; }
 .mailing-notice-button { display: inline-block; border: none; border-radius: 9px; background: #0b5889; color: #fff; padding: 11px 22px; font: inherit; font-size: 15px; font-weight: 600; text-decoration: none; cursor: pointer; }
 .mailing-notice-button:hover { background: #094a74; }
+
+/* Business contact details in the footer — only rendered when the client has
+   filled them in, so the strip is absent rather than empty. */
+.footer-contact { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 18px; padding: 18px 0 0; font-size: 13.5px; color: rgba(255,255,255,0.62); }
+.footer-contact a { color: rgba(255,255,255,0.82); text-decoration: none; }
+.footer-contact a:hover { color: #fff; text-decoration: underline; }

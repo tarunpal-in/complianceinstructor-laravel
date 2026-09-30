@@ -1,4 +1,10 @@
 @php
+    $business = \App\Support\Business::class;
+    $socials = $business::socials();
+
+    // Still hardcoded, and deliberately not a setting: these are menu entries,
+    // which §5.6 gives to `navigation_items` and the navigation manager.
+    // Putting them in Settings would be the junk-drawer move.
     $columns = [
         'Company' => ['About Us', 'Speakers', 'Blog', 'Careers', 'Press'],
         'Training' => ['Live Webinars', 'Recorded Webinars', 'Packages', 'Memberships'],
@@ -12,7 +18,9 @@
         <div class="footer-intro">
             <x-site.brand />
 
-            <p>Professional compliance training for HR, payroll, and operations teams across the United States.</p>
+            @if ($tagline = $business::tagline())
+                <p>{{ $tagline }}</p>
+            @endif
 
             <strong>Stay informed — subscribe to our newsletter</strong>
 
@@ -42,11 +50,17 @@
                 <p class="footer-newsletter-error" role="alert">{{ $message }}</p>
             @enderror
 
-            <div class="socials">
-                <a href="#top" aria-label="LinkedIn"><x-ui.icon name="linkedin" :size="18" /></a>
-                <a href="#top" aria-label="Instagram"><x-ui.icon name="instagram" :size="18" /></a>
-                <a href="#top" aria-label="YouTube"><x-ui.icon name="youtube" :size="18" /></a>
-            </div>
+            {{-- Only the accounts that have a URL. All three used to link to
+                 `#top`, which is worse than not showing them — a visitor
+                 clicks and nothing happens. --}}
+            @if ($socials !== [])
+                <div class="socials">
+                    @foreach ($socials as $network => $url)
+                        <a href="{{ $url }}" target="_blank" rel="noopener noreferrer"
+                           aria-label="{{ ucfirst($network) }}"><x-ui.icon :name="$network" :size="18" /></a>
+                    @endforeach
+                </div>
+            @endif
         </div>
 
         <div class="footer-links">
@@ -61,10 +75,26 @@
         </div>
     </div>
 
+    @if ($business::hasContactDetails())
+        <div class="footer-contact">
+            @foreach ($business::addressLines() as $line)
+                <span>{{ $line }}</span>
+            @endforeach
+
+            @if ($email = $business::email())
+                <a href="mailto:{{ $email }}">{{ $email }}</a>
+            @endif
+
+            @if ($phone = $business::phone())
+                <a href="tel:{{ preg_replace('/[^0-9+]/', '', $phone) }}">{{ $phone }}</a>
+            @endif
+        </div>
+    @endif
+
     <div class="payments">
         <strong>PAYMENTS OPTIONS</strong>
         <div><b>VISA</b><b>AMEX</b><b>●●</b><b>PayPal</b></div>
     </div>
 
-    <div class="copyright">&copy; {{ now()->year }} {{ config('app.name') }}. All rights reserved.</div>
+    <div class="copyright">&copy; {{ now()->year }} {{ $business::legalName() }}. All rights reserved.</div>
 </footer>

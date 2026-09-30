@@ -89,6 +89,91 @@ it('declares every setting key written as a literal in the codebase', function (
     expect($undeclared)->toBe([]);
 });
 
+/**
+ * The mirror of the guard above: a setting nothing reads.
+ *
+ * Tier 1 stopped code reading a setting nobody could change. Nothing stopped
+ * the opposite — a field on the screen that does nothing — and nine were
+ * created in the same commit that fixed the first problem. It is the worse of
+ * the two failures: a client changes the value, sees no effect, and concludes
+ * the software is broken rather than that the field was never wired up.
+ *
+ * Exceptions are listed by name with a reason, the same shape as
+ * UniqueNameReleaseTest::namesHeldOnPurpose(). The list is the point — debt
+ * that is named stays visible, and removing an entry is what reminds somebody
+ * to wire it up.
+ */
+it('is read somewhere for every setting it declares', function (): void {
+    $unread = [];
+
+    foreach (SettingRegistry::keys() as $key) {
+        if (array_key_exists($key, declaredAheadOfTheirReaders())) {
+            continue;
+        }
+
+        if (! settingIsReadSomewhere($key)) {
+            $unread[] = $key;
+        }
+    }
+
+    expect($unread)->toBe([]);
+});
+
+it('has no stale entries in the list of settings waiting for a reader', function (): void {
+    // An exception that has since been wired up should be deleted, or the list
+    // stops meaning anything.
+    $stillUnread = array_filter(
+        array_keys(declaredAheadOfTheirReaders()),
+        fn (string $key): bool => ! settingIsReadSomewhere($key),
+    );
+
+    expect(array_values($stillUnread))->toBe(array_keys(declaredAheadOfTheirReaders()));
+});
+
+/**
+ * Settings that exist before the thing that will read them.
+ *
+ * @return array<string, string>
+ */
+function declaredAheadOfTheirReaders(): array
+{
+    return [
+        // Built from Format::descriptionSettingKey(), so the literal string
+        // never appears in the source. Offering::describeFormats reads them.
+        'formats.live.description' => 'Key is built at runtime from the Format enum.',
+        'formats.recorded.description' => 'Key is built at runtime from the Format enum.',
+        'formats.transcript.description' => 'Key is built at runtime from the Format enum.',
+        'formats.download.description' => 'Key is built at runtime from the Format enum.',
+    ];
+}
+
+/** Whether the key appears anywhere outside the registry that declares it. */
+function settingIsReadSomewhere(string $key): bool
+{
+    foreach ([base_path('app'), base_path('resources/views')] as $root) {
+        $files = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS)
+        );
+
+        /** @var SplFileInfo $file */
+        foreach ($files as $file) {
+            if (! in_array($file->getExtension(), ['php'], true)) {
+                continue;
+            }
+
+            if ($file->getFilename() === 'SettingRegistry.php') {
+                continue;
+            }
+
+            if (str_contains((string) file_get_contents($file->getPathname()), "'{$key}'")) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 /** The eleven that were live and unreachable, named so they cannot go missing again. */
 it('exposes the settings that used to have no screen', function (string $key): void {
     expect(SettingRegistry::has($key))->toBeTrue();

@@ -102,11 +102,20 @@ final class SettingRegistry
                 help: 'The entity name for invoices, if it differs from the trading name.',
             ),
             new SettingDefinition(
+                key: 'business.tagline',
+                group: SettingGroup::Business,
+                label: 'Tagline',
+                type: 'string',
+                default: 'Professional compliance training for HR, payroll, and operations teams across the United States.',
+                help: 'The line under the logo in the footer, on every page.',
+                input: 'textarea',
+            ),
+            new SettingDefinition(
                 key: 'business.address',
                 group: SettingGroup::Business,
                 label: 'Address',
                 type: 'string',
-                help: 'Appears on invoices. One per line.',
+                help: 'Shown in the footer and on invoices. One line per line.',
                 input: 'textarea',
             ),
             new SettingDefinition(
