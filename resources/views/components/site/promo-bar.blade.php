@@ -1,7 +1,7 @@
 @php
     use App\Models\Setting;
 
-    $enabled = (bool) Setting::get('promo_bar.enabled', true);
+    $enabled = (bool) Setting::declared('promo_bar.enabled');
 
     // Colours and the size go through validating accessors before reaching a
     // style attribute. Settings are admin-authored, but an admin is still an
@@ -10,8 +10,8 @@
     $color = Setting::color('promo_bar.text_color', '#ffffff');
     $fontSize = Setting::pixels('promo_bar.font_size', 14);
 
-    $text = (string) Setting::get('promo_bar.text', 'Purchase any webinar and use code :code at checkout to save $10.');
-    $code = trim((string) Setting::get('promo_bar.code', ''));
+    $text = (string) Setting::declared('promo_bar.text');
+    $code = trim((string) Setting::declared('promo_bar.code'));
 @endphp
 
 @if ($enabled)

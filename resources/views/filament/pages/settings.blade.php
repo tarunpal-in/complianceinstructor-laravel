@@ -1,8 +1,11 @@
 @php
-    $items = $this->checklistItems();
-    $completed = $this->checklistCompleted();
-    $total = $this->checklistTotal();
-    $hidden = $this->checklistIsHidden();
+    // Launch readiness is Super Admin's. Content Editor and Finance reach this
+    // page for their own tabs and cannot act on any of it.
+    $showChecklist = $this->canSeeChecklist();
+    $items = $showChecklist ? $this->checklistItems() : [];
+    $completed = $showChecklist ? $this->checklistCompleted() : 0;
+    $total = $showChecklist ? $this->checklistTotal() : 0;
+    $hidden = $showChecklist && $this->checklistIsHidden();
 @endphp
 
 <x-filament-panels::page>
@@ -14,6 +17,7 @@
         </div>
     </form>
 
+    @if ($showChecklist)
     <section class="rounded-xl bg-white shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
         <header class="flex flex-wrap items-center justify-between gap-4 border-b border-gray-100 px-6 py-4 dark:border-white/10">
             <div>
@@ -62,10 +66,5 @@
             @endforeach
         </ul>
     </section>
-
-    {{-- CLAUDE.md §5.6 — brand, contact, social, promo bar, trust figures and
-         SEO defaults become tabs here once the `settings` table lands. --}}
-    <p class="text-sm text-gray-500 dark:text-gray-400">
-        Brand, contact details, social links and the promo bar arrive on this page with the settings module.
-    </p>
+    @endif
 </x-filament-panels::page>

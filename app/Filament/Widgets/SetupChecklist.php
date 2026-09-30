@@ -50,15 +50,21 @@ class SetupChecklist extends Widget
     public const DISMISSED = 'dashboard.setup_checklist_dismissed';
 
     /**
-     * Super Admin only — `view_any_setting` is held by no other role. Hidden
-     * once dismissed, and once nothing is outstanding, so a finished panel is
-     * not carrying a row of ticks forever.
+     * Whoever is accountable for getting the site live.
+     *
+     * Its own permission, not `view_any_setting`. That one used to be Super
+     * Admin's alone and so gated this by accident; Content Editor and Finance
+     * now hold it to reach their own settings tabs, and neither can act on
+     * "payment gateway connected" or "roles configured".
+     *
+     * Hidden once dismissed, and once nothing is outstanding, so a finished
+     * panel is not carrying a row of ticks forever.
      */
     public static function canView(): bool
     {
         $user = auth()->user();
 
-        if (! $user?->can('view_any_setting')) {
+        if (! $user?->can('view_setup_checklist')) {
             return false;
         }
 

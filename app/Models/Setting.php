@@ -6,9 +6,11 @@ namespace App\Models;
 
 use App\Contracts\ReferencesMedia;
 use App\Models\Concerns\RecordsMediaUsage;
+use App\Settings\SettingRegistry;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
+use RuntimeException;
 
 /**
  * Site-wide configuration (CLAUDE.md §5.6).
@@ -56,7 +58,53 @@ class Setting extends Model implements ReferencesMedia
      */
     public static function get(string $key, mixed $default = null): mixed
     {
+        self::assertRegistered($key);
+
         return self::cached()[$key] ?? $default;
+    }
+
+    /**
+     * Refuse a key no screen exposes — outside production only.
+     *
+     * Eleven settings had reached live configuration with nowhere to change
+     * them, including the window an agreed refund waits before the money
+     * leaves. Each was introduced the same way: somebody added a
+     * `Setting::get()` with a sensible default and the admin screen was a
+     * separate job that never happened. Two of them were added in the week
+     * this guard was written.
+     *
+     * A static scan cannot catch them all, because keys are built from
+     * constants and from enum methods. Failing at the call site does: any code
+     * path a test exercises will name the key it forgot to register.
+     *
+     * Production never throws. A missing registration is a development
+     * mistake, and turning it into a 500 for a customer would be the wrong
+     * trade — the declared default is a perfectly good answer.
+     */
+    private static function assertRegistered(string $key): void
+    {
+        if (app()->isProduction() || SettingRegistry::has($key)) {
+            return;
+        }
+
+        throw new RuntimeException(
+            "Setting [{$key}] is read in code but not declared in SettingRegistry, so nobody can change it. "
+            .'Add it to the group it belongs to and give it a field on the settings screen.'
+        );
+    }
+
+    /**
+     * A setting, falling back to the default the registry declares for it.
+     *
+     * Use this over `get($key, 'some default')` wherever the default is real
+     * rather than incidental. A default written at the call site is a default
+     * written at every call site: the promo bar's copy existed in the Blade
+     * and not in the form, so a fresh install could not save the settings
+     * screen at all until somebody typed that field in by hand.
+     */
+    public static function declared(string $key): mixed
+    {
+        return SettingRegistry::find($key)?->value();
     }
 
     public static function set(string $key, mixed $value, string $type = 'string'): void

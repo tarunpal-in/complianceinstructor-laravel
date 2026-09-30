@@ -57,6 +57,22 @@ class RolePermissionSeeder extends Seeder
         // blog: moderation is a daily chore somebody may do who has no business
         // rewriting articles.
         'moderate_comment',
+        /*
+         * Settings, split by what a group can break. Marketing copy and the
+         * refund cooling-off window sat on one screen behind one permission,
+         * so granting somebody the first granted them the second. See
+         * App\Settings\SettingGroup.
+         */
+        'manage_commerce_setting',
+        'manage_certificate_setting',
+        'manage_business_setting',
+        /*
+         * Launch readiness. Its own permission rather than borrowing
+         * `view_any_setting`, which Content Editor and Finance now hold so
+         * they can reach their own tabs — and which used to be Super Admin's
+         * alone, quietly doing this job as a side effect.
+         */
+        'view_setup_checklist',
     ];
 
     public function run(): void
@@ -108,6 +124,10 @@ class RolePermissionSeeder extends Seeder
                     'page', 'post', 'comment', 'navigation', 'redirect', 'seo_meta', 'media',
                 ]),
                 'moderate_comment',
+                // Brand and Catalogue settings: logos, the promo bar and the
+                // wording beside what is sold. Deliberately not Commerce or
+                // Certificates — copy and money are different blast radii.
+                ...$this->readFor(['setting']), 'update_setting',
                 // The mailing list is a marketing surface, so it belongs to
                 // whoever writes the marketing. Deliberately without
                 // `export_data` — running the list is not the same as being
@@ -131,6 +151,9 @@ class RolePermissionSeeder extends Seeder
                 // it just cannot send money back.
                 'manage_manual_payment', 'view_reports',
                 'export_data', 'view_activity_log',
+                // Order numbering appears on every invoice and the refund
+                // window governs when money leaves. Read-only elsewhere.
+                ...$this->readFor(['setting']), 'manage_commerce_setting',
             ],
 
             // Read-mostly. Can resolve access problems, cannot move money.

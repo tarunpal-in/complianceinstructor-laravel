@@ -18,8 +18,9 @@ it('shows the checklist to Super Admin', function (): void {
 });
 
 /**
- * `view_any_setting` is held by Super Admin alone, so launch readiness does not
- * leak to staff who cannot act on any of it.
+ * `view_setup_checklist` is Super Admin's alone, so launch readiness does not
+ * leak to staff who cannot act on any of it — Content Editor and Finance can
+ * open Settings for their own tabs without seeing it.
  */
 it('hides the checklist from every other role', function (UserRole $role): void {
     $this->actingAs(userWithRole($role))
@@ -127,8 +128,20 @@ it('restores it to the dashboard from settings', function (): void {
     expect($admin->fresh()->preference(SetupChecklist::DISMISSED))->toBeFalse();
 });
 
-it('keeps settings away from roles without the permission', function (): void {
-    $this->actingAs(userWithRole(UserRole::ContentEditor))
+/*
+ * Content Editor and Finance reach Settings deliberately — each owns a tab —
+ * but neither may see launch readiness, which they cannot act on. Support has
+ * no business on the screen at all.
+ */
+it('lets the roles that own a settings tab open the screen', function (UserRole $role): void {
+    $this->actingAs(userWithRole($role))
+        ->get('/admin/settings')
+        ->assertSuccessful()
+        ->assertDontSee('Setup checklist');
+})->with([UserRole::ContentEditor, UserRole::Finance]);
+
+it('keeps settings away from a role that owns nothing on it', function (): void {
+    $this->actingAs(userWithRole(UserRole::Support))
         ->get('/admin/settings')
         ->assertForbidden();
 });
