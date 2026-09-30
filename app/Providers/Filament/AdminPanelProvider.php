@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Providers\Filament;
 
+use App\Auth\AppAuthentication;
 use App\Filament\AvatarProviders\InitialsAvatarProvider;
-use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -62,6 +62,8 @@ class AdminPanelProvider extends PanelProvider
              * one up is a lockout waiting for a lost phone.
              */
             ->multiFactorAuthentication([
+                // Ours, not Filament's — theirs renders a broken QR code wherever
+                // the imagick extension is absent. See App\Auth\AppAuthentication.
                 AppAuthentication::make()
                     ->recoverable()
                     // What the authenticator app calls it in its list.

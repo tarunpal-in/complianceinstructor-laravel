@@ -228,3 +228,50 @@ it('shows who is still unprotected', function (): void {
         ->assertCanSeeTableRecords([$unprotected])
         ->assertCanNotSeeTableRecords([$protected]);
 });
+
+// The QR code -------------------------------------------------------------------------------------
+
+/*
+ * Filament's own provider double-encodes this wherever the imagick extension
+ * is absent — which is most installs, including the §11 VPS this ships to. Its
+ * fallback wraps the library's output in a data URI, and the library has
+ * already done exactly that, so the browser decodes a data URI whose payload
+ * is the text of another data URI. The image breaks; the manual key beside it
+ * still works, which makes it read as a rendering quirk rather than a bug.
+ *
+ * Asserting "it returns a string" would not have caught it. This decodes the
+ * thing and checks an authenticator app would find a QR code there.
+ */
+it('produces a QR code a browser can actually render', function (): void {
+    $admin = userWithRole(UserRole::SuperAdmin);
+    $this->actingAs($admin);
+
+    $uri = appAuthentication()->generateQrCodeDataUri(appAuthentication()->generateSecret());
+
+    expect($uri)->toStartWith('data:image/svg+xml;base64,');
+
+    $decoded = base64_decode(substr($uri, strlen('data:image/svg+xml;base64,')), true);
+
+    expect($decoded)->toBeString()
+        // The payload is a document, not another data URI.
+        ->and($decoded)->not->toStartWith('data:')
+        ->and($decoded)->toContain('<svg');
+});
+
+it('encodes the details an authenticator app needs', function (): void {
+    $admin = userWithRole(UserRole::SuperAdmin);
+    $this->actingAs($admin);
+
+    // The QR is only a carrier for this URL — the account it belongs to, who
+    // issued it, and the shared secret. Nothing else is ever transmitted.
+    $secret = appAuthentication()->generateSecret();
+    $url = app(PragmaRX\Google2FA\Google2FA::class)->getQRCodeUrl(
+        'Compliance Instructor',
+        $admin->getAppAuthenticationHolderName(),
+        $secret,
+    );
+
+    expect($url)->toStartWith('otpauth://totp/')
+        ->and($url)->toContain($secret)
+        ->and($url)->toContain(rawurlencode($admin->email));
+});
