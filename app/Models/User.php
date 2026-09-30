@@ -11,10 +11,13 @@ use Filament\Panel;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Cashier\Billable;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Permission\Traits\HasRoles;
 
 /**
@@ -32,7 +35,29 @@ class User extends Authenticatable implements FilamentUser
      *
      * @use HasFactory<UserFactory>
      */
-    use Billable, HasFactory, HasRoles, Notifiable;
+    use Billable, HasFactory, HasRoles, LogsActivity, Notifiable;
+
+    /**
+     * §8 — "every mutation written to `activity_log` with the actor".
+     *
+     * Added when the staff screen was built, because until then nothing
+     * recorded who gave somebody access. "Who let Sarah refund payments" is a
+     * question with real consequences and the row alone only knows the answer
+     * it arrived at.
+     *
+     * Deliberately narrow. The password hash and the two-factor secret are
+     * never logged — an audit trail holding credentials is a second place to
+     * steal them from — and neither is anything a customer changes about their
+     * own profile, which would bury the staff changes in noise.
+     */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['name', 'email', 'deactivated_at', 'deactivated_by', 'deactivation_reason'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->useLogName('staff');
+    }
 
     // Relationships -------------------------------------------------------------
 
@@ -92,7 +117,10 @@ class User extends Authenticatable implements FilamentUser
      */
     public function canAccessPanel(Panel $panel): bool
     {
-        return $this->hasAnyRole(UserRole::values());
+        // Deactivated staff keep their roles, so "holds a role" is no longer
+        // the same question as "may get in". A leaver's history still points
+        // at a real person with a job title; their access stops here.
+        return ! $this->isDeactivated() && $this->hasAnyRole(UserRole::values());
     }
 
     /**
@@ -133,8 +161,66 @@ class User extends Authenticatable implements FilamentUser
     {
         return [
             'email_verified_at' => 'datetime',
+            'deactivated_at' => 'datetime',
             'password' => 'hashed',
             'preferences' => 'array',
         ];
+    }
+
+    // Staff lifecycle — §8 improvement #3 ------------------------------------------
+
+    /**
+     * Whether this account is a member of staff rather than a customer.
+     *
+     * Holding a role, deactivated or not. A leaver keeps theirs so the admin
+     * can still say what they had, and so reinstating is one click rather than
+     * a guess.
+     */
+    public function isStaff(): bool
+    {
+        return $this->roles->isNotEmpty();
+    }
+
+    public function isDeactivated(): bool
+    {
+        return $this->deactivated_at !== null;
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function deactivatedBy(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'deactivated_by');
+    }
+
+    /** How this account stands, for a badge. */
+    public function describeAccess(): string
+    {
+        return match (true) {
+            ! $this->isStaff() => 'No admin access',
+            $this->isDeactivated() => 'Deactivated',
+            default => 'Active',
+        };
+    }
+
+    public function accessColor(): string
+    {
+        return match (true) {
+            ! $this->isStaff() => 'gray',
+            $this->isDeactivated() => 'danger',
+            default => 'success',
+        };
+    }
+
+    /**
+     * Whether two-factor authentication is actually in force on this account.
+     *
+     * Confirmed, not merely started. Fortify writes the secret when somebody
+     * begins setting it up and stamps `two_factor_confirmed_at` only once they
+     * have entered a working code — so the secret alone means an abandoned
+     * attempt, which is no protection at all.
+     */
+    public function hasTwoFactorEnabled(): bool
+    {
+        return $this->two_factor_confirmed_at !== null;
     }
 }

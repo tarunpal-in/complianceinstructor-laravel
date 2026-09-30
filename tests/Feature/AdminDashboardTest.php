@@ -95,7 +95,7 @@ it('renders the agreed navigation items', function (string $item): void {
     'Customers', 'Entitlements', 'Certificates',
     'Pages', 'Blog',
     'Inquiries', 'Subscribers',
-    'Settings', 'Activity Log', 'Backups',
+    'Staff', 'Roles', 'Settings', 'Activity Log', 'Backups',
 ]);
 
 /*

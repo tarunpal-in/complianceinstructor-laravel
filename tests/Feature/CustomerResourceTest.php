@@ -39,16 +39,24 @@ it('keeps staff out of the customers tab', function (): void {
         ->assertCanNotSeeTableRecords([$admin]);
 });
 
-/** Staff stay reachable — Staff & Roles is a placeholder until P5. */
-it('lists staff on their own tab', function (): void {
+/*
+ * Staff had a tab here while Staff & Roles was a placeholder. It has its own
+ * screen now, and two screens listing the same people would be two places to
+ * change them — so this one keeps only "Everyone", where an account holding a
+ * role it should not is still visible.
+ */
+it('no longer carries a staff tab of its own', function (): void {
+    $tabs = array_keys((new ListUsers)->getTabs());
+
+    expect($tabs)->not->toContain('staff');
+});
+
+it('still shows staff under everyone', function (): void {
     $customer = User::factory()->create();
     $finance = userWithRole(UserRole::Finance);
 
     Livewire\Livewire::actingAs(userWithRole(UserRole::SuperAdmin))
         ->test(ListUsers::class)
-        ->set('activeTab', 'staff')
-        ->assertCanSeeTableRecords([$finance])
-        ->assertCanNotSeeTableRecords([$customer])
         ->set('activeTab', 'all')
         ->assertCanSeeTableRecords([$customer, $finance]);
 });

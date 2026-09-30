@@ -5,81 +5,36 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use App\Enums\UserRole;
+use App\Models\Role;
+use App\Support\PermissionCatalogue;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\App;
 use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
 /**
- * CLAUDE.md §8 improvement #3 — four admin roles over ~40 named permissions,
+ * CLAUDE.md §8 improvement #3 — four admin roles over the named permissions,
  * with Filament navigation, resource pages and individual actions all gating on
  * permissions rather than on a role check.
  *
- * Permissions follow `{action}_{subject}`. Resource subjects gain the standard
- * five actions; privileged operations are named individually so they can be
- * withheld from a role that otherwise has full access to the resource — Support
- * can read an order without being able to refund it.
+ * The permissions themselves live in PermissionCatalogue, which is also what
+ * the roles screen renders. They were declared here as well until the staff
+ * screen was built, which meant a new permission had to be added in two places
+ * or it would exist without appearing on any role — the same shape as the
+ * settings that lived in code with no screen.
+ *
+ * **These four roles are marked `is_system`.** Their permissions are owned
+ * here, because syncPermissions() below would silently revert anything edited
+ * in the admin on the next deploy. The client can create as many roles of their
+ * own as they like, and this seeder never touches them.
  */
 class RolePermissionSeeder extends Seeder
 {
-    /** Subjects getting the standard five CRUD actions, grouped as in §6. */
-    private const CRUD_SUBJECTS = [
-        // Catalogue
-        'webinar', 'package', 'speaker', 'industry', 'accreditation', 'offering',
-        // Commerce
-        'order', 'payment', 'coupon',
-        // Memberships
-        'membership_plan', 'subscription',
-        // Learners
-        'user', 'entitlement', 'certificate',
-        // Content
-        'page', 'post', 'comment', 'navigation', 'redirect', 'seo_meta', 'media',
-        // Engagement
-        'subscriber', 'inquiry',
-        // System
-        'role', 'setting',
-    ];
-
-    /** Operations that must be grantable independently of CRUD. */
-    private const PRIVILEGED = [
-        'refund_payment',
-        'grant_entitlement',
-        'revoke_entitlement',
-        'issue_certificate',
-        'revoke_certificate',
-        'impersonate_user',
-        'view_activity_log',
-        'view_reports',
-        'export_data',
-        'manage_manual_payment',
-        // Approving and binning comments, grantable without the rest of the
-        // blog: moderation is a daily chore somebody may do who has no business
-        // rewriting articles.
-        'moderate_comment',
-        /*
-         * Settings, split by what a group can break. Marketing copy and the
-         * refund cooling-off window sat on one screen behind one permission,
-         * so granting somebody the first granted them the second. See
-         * App\Settings\SettingGroup.
-         */
-        'manage_commerce_setting',
-        'manage_certificate_setting',
-        'manage_business_setting',
-        /*
-         * Launch readiness. Its own permission rather than borrowing
-         * `view_any_setting`, which Content Editor and Finance now hold so
-         * they can reach their own tabs — and which used to be Super Admin's
-         * alone, quietly doing this job as a side effect.
-         */
-        'view_setup_checklist',
-    ];
-
     public function run(): void
     {
         App::make(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        foreach ($this->allPermissions() as $name) {
+        foreach (PermissionCatalogue::all() as $name) {
             Permission::findOrCreate($name, 'web');
         }
 
@@ -90,22 +45,16 @@ class RolePermissionSeeder extends Seeder
 
         foreach (UserRole::cases() as $case) {
             $role = Role::findOrCreate($case->value, 'web');
+
+            $role->forceFill([
+                // What makes it read-only in the admin. A role the client made
+                // is theirs; these four are the ones this file owns.
+                'is_system' => true,
+                'description' => $case->description(),
+            ])->save();
+
             $role->syncPermissions($this->permissionsFor($case));
         }
-    }
-
-    /** @return array<int, string> */
-    private function allPermissions(): array
-    {
-        $permissions = [];
-
-        foreach (self::CRUD_SUBJECTS as $subject) {
-            foreach (['view_any', 'view', 'create', 'update', 'delete'] as $action) {
-                $permissions[] = "{$action}_{$subject}";
-            }
-        }
-
-        return [...$permissions, ...self::PRIVILEGED];
     }
 
     /** @return array<int, string> */
@@ -115,11 +64,11 @@ class RolePermissionSeeder extends Seeder
             // Super Admin also gets a Gate::before bypass in AppServiceProvider,
             // so new permissions apply without reseeding. Syncing them anyway
             // keeps the admin UI showing the truth.
-            UserRole::SuperAdmin => $this->allPermissions(),
+            UserRole::SuperAdmin => PermissionCatalogue::all(),
 
             // Catalogue and content, full CRUD. Deliberately no access to money.
             UserRole::ContentEditor => [
-                ...$this->crudFor([
+                ...PermissionCatalogue::crudFor([
                     'webinar', 'package', 'speaker', 'industry', 'accreditation',
                     'page', 'post', 'comment', 'navigation', 'redirect', 'seo_meta', 'media',
                 ]),
@@ -127,23 +76,23 @@ class RolePermissionSeeder extends Seeder
                 // Brand and Catalogue settings: logos, the promo bar and the
                 // wording beside what is sold. Deliberately not Commerce or
                 // Certificates — copy and money are different blast radii.
-                ...$this->readFor(['setting']), 'update_setting',
+                ...PermissionCatalogue::readFor(['setting']), 'update_setting',
                 // The mailing list is a marketing surface, so it belongs to
                 // whoever writes the marketing. Deliberately without
                 // `export_data` — running the list is not the same as being
                 // able to walk away with it.
-                ...$this->crudFor(['subscriber']),
+                ...PermissionCatalogue::crudFor(['subscriber']),
                 'view_any_inquiry', 'view_inquiry',
             ],
 
             // Everything that touches money, plus reporting and exports.
             UserRole::Finance => [
-                ...$this->crudFor(['order', 'payment', 'coupon', 'subscription', 'offering']),
-                ...$this->readFor(['webinar', 'package', 'membership_plan', 'user', 'entitlement', 'media']),
+                ...PermissionCatalogue::crudFor(['order', 'payment', 'coupon', 'subscription', 'offering']),
+                ...PermissionCatalogue::readFor(['webinar', 'package', 'membership_plan', 'user', 'entitlement', 'media']),
                 // Read-only on inquiries, because §8's funnel report runs
                 // from them. Finance holds `export_data`, so it is also the
                 // role that can pull the list.
-                ...$this->readFor(['inquiry', 'subscriber']),
+                ...PermissionCatalogue::readFor(['inquiry', 'subscriber']),
                 // Deliberately not `refund_payment`. Refunding is the one admin
                 // action that moves money out irreversibly, and the client has
                 // reserved it for the Super Admin. Finance still reads every
@@ -153,12 +102,12 @@ class RolePermissionSeeder extends Seeder
                 'export_data', 'view_activity_log',
                 // Order numbering appears on every invoice and the refund
                 // window governs when money leaves. Read-only elsewhere.
-                ...$this->readFor(['setting']), 'manage_commerce_setting',
+                ...PermissionCatalogue::readFor(['setting']), 'manage_commerce_setting',
             ],
 
             // Read-mostly. Can resolve access problems, cannot move money.
             UserRole::Support => [
-                ...$this->readFor([
+                ...PermissionCatalogue::readFor([
                     'order', 'payment', 'user', 'entitlement', 'certificate',
                     'subscription', 'webinar', 'package', 'media',
                 ]),
@@ -167,46 +116,22 @@ class RolePermissionSeeder extends Seeder
                 // where the reply gets recorded somewhere else.
                 // Deliberately without `export_data` — answering an inquiry and
                 // taking the whole list off the system are different things.
-                ...$this->crudFor(['inquiry']),
+                ...PermissionCatalogue::crudFor(['inquiry']),
                 // Read and update, not create or delete: "take me off your
                 // list" arrives at the support desk, and they should be able
                 // to act on it without being able to add addresses.
-                ...$this->readFor(['subscriber']), 'update_subscriber',
-                'grant_entitlement', 'revoke_entitlement', 'impersonate_user',
+                ...PermissionCatalogue::readFor(['subscriber']), 'update_subscriber',
+                /*
+                 * `impersonate_user` used to be granted here. It was seeded and
+                 * implemented nowhere, so it read as a capability Support had.
+                 * There is also nothing to impersonate into yet — the learner
+                 * dashboard is P5 and the application has no authenticated
+                 * customer route at all. It returns when it is built, with the
+                 * rules that make it safe, rather than sitting here meaning
+                 * nothing.
+                 */
+                'grant_entitlement', 'revoke_entitlement',
             ],
         };
-    }
-
-    /**
-     * @param  array<int, string>  $subjects
-     * @return array<int, string>
-     */
-    private function crudFor(array $subjects): array
-    {
-        $permissions = [];
-
-        foreach ($subjects as $subject) {
-            foreach (['view_any', 'view', 'create', 'update', 'delete'] as $action) {
-                $permissions[] = "{$action}_{$subject}";
-            }
-        }
-
-        return $permissions;
-    }
-
-    /**
-     * @param  array<int, string>  $subjects
-     * @return array<int, string>
-     */
-    private function readFor(array $subjects): array
-    {
-        $permissions = [];
-
-        foreach ($subjects as $subject) {
-            $permissions[] = "view_any_{$subject}";
-            $permissions[] = "view_{$subject}";
-        }
-
-        return $permissions;
     }
 }

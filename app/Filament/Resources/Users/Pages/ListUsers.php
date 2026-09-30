@@ -44,13 +44,13 @@ class ListUsers extends ListRecords
                 ->modifyQueryUsing(fn (Builder $query): Builder => $query->whereDoesntHave('roles'))
                 ->badge(fn (): int => User::query()->whereDoesntHave('roles')->count()),
 
-            'staff' => Tab::make('Staff')
-                ->modifyQueryUsing(fn (Builder $query): Builder => $query->whereHas('roles'))
-                ->badge(fn (): int => User::query()->whereHas('roles')->count())
-                ->badgeColor('warning'),
-
-            // Worth having on its own: an account holding a role it should not
-            // is invisible from either of the tabs above.
+            /*
+             * The Staff tab used to sit here. It moved to its own screen under
+             * System when staff became something with a lifecycle rather than
+             * a filter — two screens listing the same people is two places to
+             * change them, and the actions that belong on one (deactivate,
+             * reset two-factor) would be alarming on the other.
+             */
             'unverified' => Tab::make('Unverified')
                 ->modifyQueryUsing(fn (Builder $query): Builder => $query->whereNull('email_verified_at'))
                 ->badge(fn (): int => User::query()->whereNull('email_verified_at')->count())

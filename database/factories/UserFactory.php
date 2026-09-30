@@ -35,6 +35,20 @@ class UserFactory extends Factory
             // Hydrated explicitly so Model::shouldBeStrict() does not throw when
             // a factory-built instance is read for a preference.
             'preferences' => null,
+            /*
+             * Same reason, and it matters more: canAccessPanel() reads this on
+             * every admin request, and create() does not refresh from the
+             * database — so a factory-made instance would be missing the one
+             * column that decides whether somebody may get in.
+             *
+             * Deliberately not handled by making the accessor tolerant. An
+             * absent column there would have to be read as "not deactivated",
+             * which fails open on an access control. Better that a genuinely
+             * unrun migration is loud.
+             */
+            'deactivated_at' => null,
+            'deactivated_by' => null,
+            'deactivation_reason' => null,
         ];
     }
 
