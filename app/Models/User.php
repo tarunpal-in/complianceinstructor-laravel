@@ -6,8 +6,11 @@ namespace App\Models;
 
 use App\Enums\UserRole;
 use Database\Factories\UserFactory;
+use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthentication;
+use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthenticationRecovery;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -16,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Cashier\Billable;
+use SensitiveParameter;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Permission\Traits\HasRoles;
@@ -26,7 +30,7 @@ use Spatie\Permission\Traits\HasRoles;
  */
 #[Fillable(['name', 'email', 'password'])]
 #[Hidden(['password', 'remember_token'])]
-class User extends Authenticatable implements FilamentUser
+class User extends Authenticatable implements FilamentUser, HasAppAuthentication, HasAppAuthenticationRecovery
 {
     /**
      * Billable is what gives a user `subscriptions()` and the Stripe customer
@@ -209,6 +213,92 @@ class User extends Authenticatable implements FilamentUser
             $this->isDeactivated() => 'danger',
             default => 'success',
         };
+    }
+
+    // Two-factor authentication ------------------------------------------------------
+
+    /**
+     * The shared secret an authenticator app was set up with.
+     *
+     * Encrypted at rest. Filament hashes recovery codes itself but hands the
+     * secret over raw — reasonably, since it has to be readable to compute the
+     * expected code — so encrypting it is this model's job. A secret in plain
+     * text is a database dump away from every administrator's second factor.
+     *
+     * Backed onto the column Fortify's migration already added, so the staff
+     * screen's 2FA badge and its Reset action keep reading the same place.
+     */
+    public function getAppAuthenticationSecret(): ?string
+    {
+        $secret = $this->two_factor_secret;
+
+        if (blank($secret)) {
+            return null;
+        }
+
+        try {
+            return decrypt($secret);
+        } catch (DecryptException) {
+            // A secret written under a different APP_KEY cannot be recovered.
+            // Returning null makes it read as "not set up", which is the only
+            // honest answer and leaves the account reachable by password.
+            return null;
+        }
+    }
+
+    public function saveAppAuthenticationSecret(#[SensitiveParameter] ?string $secret): void
+    {
+        $this->forceFill([
+            'two_factor_secret' => $secret === null ? null : encrypt($secret),
+            /*
+             * Filament has no notion of this column; Fortify's migration added
+             * it and the staff screen reads it. Stamped here so "2FA: On"
+             * means a secret actually exists, and cleared with it so removing
+             * two-factor does not leave the screen claiming otherwise.
+             */
+            'two_factor_confirmed_at' => $secret === null ? null : now(),
+        ])->save();
+    }
+
+    public function getAppAuthenticationHolderName(): string
+    {
+        // What the authenticator app lists the account under. The email rather
+        // than the name, because somebody with two accounts needs to tell them
+        // apart in a list of six-digit codes.
+        return $this->email;
+    }
+
+    /**
+     * @return array<string>|null
+     */
+    public function getAppAuthenticationRecoveryCodes(): ?array
+    {
+        $codes = $this->two_factor_recovery_codes;
+
+        if (blank($codes)) {
+            return null;
+        }
+
+        try {
+            $decoded = json_decode(decrypt($codes), true);
+        } catch (DecryptException) {
+            return null;
+        }
+
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    /**
+     * @param  array<string>|null  $codes
+     */
+    public function saveAppAuthenticationRecoveryCodes(#[SensitiveParameter] ?array $codes): void
+    {
+        // Already hashed by Filament before they reach here — these are
+        // verified, never displayed again. Encrypted as well because the
+        // column holds them as one blob and the secret beside it is encrypted.
+        $this->forceFill([
+            'two_factor_recovery_codes' => $codes === null ? null : encrypt(json_encode($codes)),
+        ])->save();
     }
 
     /**

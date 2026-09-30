@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers\Filament;
 
 use App\Filament\AvatarProviders\InitialsAvatarProvider;
+use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -47,6 +48,32 @@ class AdminPanelProvider extends PanelProvider
             ->login()
             ->passwordReset()
             ->profile()
+            /*
+             * Two-factor, optional for now (§3 promises it for admins).
+             *
+             * Filament's own rather than Fortify's: staff sign in at
+             * /admin/login, which is Filament's page and never enters
+             * Fortify's pipeline — so Fortify's challenge would never fire
+             * however well it was configured.
+             *
+             * Passing isRequired: true to the second argument is the whole of
+             * turning enforcement on later. It is off deliberately: with one
+             * Super Admin, requiring a second factor before anybody has set
+             * one up is a lockout waiting for a lost phone.
+             */
+            ->multiFactorAuthentication([
+                AppAuthentication::make()
+                    ->recoverable()
+                    // What the authenticator app calls it in its list.
+                    ->brandName('Compliance Instructor')
+                    /*
+                     * Filament defaults to 8, which accepts a code for four
+                     * minutes either side. One window is the usual figure and
+                     * still covers ordinary clock drift; four minutes is a
+                     * long time for a code somebody read over a shoulder.
+                     */
+                    ->codeWindow(1),
+            ])
             ->databaseNotifications()
             ->spa()
             ->sidebarCollapsibleOnDesktop()
