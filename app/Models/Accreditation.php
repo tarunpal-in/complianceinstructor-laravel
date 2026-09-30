@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Support\CompletionRules;
 use Database\Factories\AccreditationFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -25,6 +26,7 @@ class Accreditation extends Model
 
     protected $fillable = [
         'code', 'name', 'description', 'is_active', 'sort_order',
+        'live_delay_hours', 'watch_tolerance_minutes',
     ];
 
     protected function casts(): array
@@ -32,6 +34,8 @@ class Accreditation extends Model
         return [
             'is_active' => 'boolean',
             'sort_order' => 'integer',
+            'live_delay_hours' => 'integer',
+            'watch_tolerance_minutes' => 'integer',
         ];
     }
 
@@ -63,5 +67,66 @@ class Accreditation extends Model
         return $this->belongsToMany(Webinar::class, 'webinar_accreditation')
             ->withPivot('credits')
             ->withTimestamps();
+    }
+    // Completion rules — §12 ----------------------------------------------------
+
+    /**
+     * How long after a live session this body's certificates are issued.
+     *
+     * Its own figure where it has one, the global default otherwise. Most
+     * bodies will never set this, and leaving it blank is what keeps one number
+     * in one place rather than the same number copied onto four records.
+     */
+    public function liveDelayHours(): int
+    {
+        return $this->live_delay_hours ?? CompletionRules::liveDelayHours();
+    }
+
+    /** How much of a recording this body allows to be left unwatched. */
+    public function watchToleranceMinutes(): int
+    {
+        return $this->watch_tolerance_minutes ?? CompletionRules::watchToleranceMinutes();
+    }
+
+    public function overridesLiveDelay(): bool
+    {
+        return $this->live_delay_hours !== null;
+    }
+
+    public function overridesWatchTolerance(): bool
+    {
+        return $this->watch_tolerance_minutes !== null;
+    }
+
+    /**
+     * The shortest live delay any body could be using.
+     *
+     * The sweep looks for webinars whose delay has elapsed, and with per-body
+     * delays "elapsed" is no longer one number — a session can be due for SHRM
+     * at 24 hours and not due for HRCI until 48. Taking the smallest means the
+     * sweep looks early and the per-body check inside decides; taking the
+     * largest would silently hold back every body waiting for the slowest.
+     */
+    public static function shortestLiveDelayHours(): int
+    {
+        $overrides = self::query()
+            ->whereNotNull('live_delay_hours')
+            ->pluck('live_delay_hours')
+            ->map(fn (mixed $hours): int => (int) $hours)
+            ->all();
+
+        // An array, not a spread: with no overrides the spread collapses to
+        // min(int), which is a TypeError rather than the answer.
+        return (int) min([CompletionRules::liveDelayHours(), ...$overrides]);
+    }
+
+    /** What this body's rules are, in a sentence, for the admin screen. */
+    public function describeRules(): string
+    {
+        return sprintf(
+            'Live certificates %s hours after the session; %s minutes of a recording may be skipped.',
+            $this->liveDelayHours().($this->overridesLiveDelay() ? '' : ' (inherited)'),
+            $this->watchToleranceMinutes().($this->overridesWatchTolerance() ? '' : ' (inherited)'),
+        );
     }
 }

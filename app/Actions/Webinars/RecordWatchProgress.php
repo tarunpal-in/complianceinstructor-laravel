@@ -58,7 +58,9 @@ class RecordWatchProgress
              * reports position every few seconds would otherwise walk the
              * number backwards the moment somebody dragged the scrubber.
              */
-            $view->furthest_seconds = max($view->furthest_seconds ?? 0, max(0, $positionSeconds));
+            $previousFurthest = $view->furthest_seconds ?? 0;
+            $view->furthest_seconds = max($previousFurthest, max(0, $positionSeconds));
+            $movedForward = $view->furthest_seconds > $previousFurthest;
 
             // Accumulated across sittings. Not what the rule reads — somebody
             // who watches the last ten minutes six times has not watched the
@@ -78,7 +80,15 @@ class RecordWatchProgress
 
             $view->save();
 
-            if ($earnedNow) {
+            /*
+             * Issued on every report that moved them forward, not only on the
+             * report that finished the video. `completed_at` uses the global
+             * rule, and an accrediting body may be stricter — so somebody who
+             * finishes at the global tolerance earns the lenient body's credit
+             * now and the strict one only once they have watched further. The
+             * action skips bodies already decided, so the repeat is cheap.
+             */
+            if ($earnedNow || ($view->completed_at !== null && $movedForward)) {
                 ($this->issue)($learner, $webinar);
             }
 

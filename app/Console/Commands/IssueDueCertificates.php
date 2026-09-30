@@ -6,9 +6,9 @@ namespace App\Console\Commands;
 
 use App\Actions\Certificates\IssueEarnedCertificates;
 use App\Enums\Format;
+use App\Models\Accreditation;
 use App\Models\Entitlement;
 use App\Models\Webinar;
-use App\Support\CompletionRules;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Log;
@@ -92,7 +92,11 @@ class IssueDueCertificates extends Command
     {
         return Webinar::query()
             ->whereNotNull('scheduled_at')
-            ->where('scheduled_at', '<=', now()->subHours(CompletionRules::liveDelayHours()))
+            // The shortest delay any body could be using, not the global one:
+            // a session can be due for SHRM at 24 hours and not due for HRCI
+            // until 48, and the per-body check inside decides which. Looking
+            // early costs a query; looking late withholds a certificate.
+            ->where('scheduled_at', '<=', now()->subHours(Accreditation::shortestLiveDelayHours()))
             // Only accredited ones: a webinar awarding nothing has no
             // certificate to issue, and asking for its learners would be work
             // done to discover that.
