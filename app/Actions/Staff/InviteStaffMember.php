@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Actions\Staff;
 
+use App\Email\Dispatcher;
+use App\Mail\StaffInvitation;
 use App\Models\User;
 use App\Support\RoleAssignment;
 use App\Support\StaffLockout;
@@ -66,7 +68,7 @@ class InviteStaffMember
         ]);
 
         RoleAssignment::sync($user, $roles, $actor);
-        $this->sendInvitation($user);
+        $this->sendInvitation($user, $actor);
 
         return $user;
     }
@@ -102,15 +104,28 @@ class InviteStaffMember
     }
 
     /**
-     * Fortify's own reset flow, not a link this application builds.
+     * The invitation, with Fortify's token inside it.
      *
-     * Swallowed rather than thrown: a mail failure must not roll back an
-     * account that was created successfully, and the admin can resend.
+     * `createToken` rather than `sendResetLink`, which is the whole change here.
+     * `sendResetLink` mails Fortify's **password-reset** template — so somebody
+     * being given admin access received a bare "reset your password" link, with
+     * no mention of who sent it or what it was for. That reads as phishing, and
+     * deleting it is the sensible reaction.
+     *
+     * The token is still Fortify's: signed, single-use, expiring, throttled. §9
+     * keeps it the only owner of password setting. Only the envelope changed.
+     *
+     * Swallowed rather than thrown: a mail failure must not roll back an account
+     * that was created successfully, and the admin can resend.
      */
-    private function sendInvitation(User $user): void
+    public function sendInvitation(User $user, ?User $invitedBy = null): void
     {
         try {
-            Password::broker()->sendResetLink(['email' => $user->email]);
+            $token = Password::broker()->createToken($user);
+
+            app(Dispatcher::class)->send(
+                StaffInvitation::forToken($user->refresh(), $token, $invitedBy),
+            );
         } catch (Throwable $exception) {
             report($exception);
         }

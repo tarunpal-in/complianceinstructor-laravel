@@ -100,6 +100,11 @@ class RolePermissionSeeder extends Seeder
                 // it just cannot send money back.
                 'manage_manual_payment', 'view_reports',
                 'export_data', 'view_activity_log',
+                // The email log, because "did the customer get their receipt?"
+                // is a finance question. Deliberately without
+                // `manage_email_sending`: reading what went out and deciding
+                // what goes out at all are different jobs.
+                'view_email_log', 'resend_email',
                 // Order numbering appears on every invoice and the refund
                 // window governs when money leaves. Read-only elsewhere.
                 ...PermissionCatalogue::readFor(['setting']), 'manage_commerce_setting',
@@ -121,6 +126,14 @@ class RolePermissionSeeder extends Seeder
                 // list" arrives at the support desk, and they should be able
                 // to act on it without being able to add addresses.
                 ...PermissionCatalogue::readFor(['subscriber']), 'update_subscriber',
+                /*
+                 * The email log and the resend button, because this is the desk
+                 * that hears "I never got my certificate" — and answering it
+                 * without being able to look is how a support reply becomes a
+                 * guess. Not `manage_email_sending`: they fix one send, they do
+                 * not decide what the business emails anybody.
+                 */
+                'view_email_log', 'resend_email',
                 /*
                  * `impersonate_user` used to be granted here. It was seeded and
                  * implemented nowhere, so it read as a capability Support had.

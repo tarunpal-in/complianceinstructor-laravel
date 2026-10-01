@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Actions\Payments;
 
 use App\Enums\RefundStatus;
+use App\Mail\RefundScheduled;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\Refund;
 use App\Models\Setting;
-use App\Notifications\RefundScheduled;
 use App\Payments\PaymentGatewayManager;
 use App\Support\Money;
 use Illuminate\Support\Facades\DB;

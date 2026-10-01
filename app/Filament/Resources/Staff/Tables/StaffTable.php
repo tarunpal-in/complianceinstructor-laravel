@@ -181,7 +181,7 @@ class StaffTable
             ->modalHeading('Send another link?')
             ->modalDescription('They get a fresh link to set their own password. Nobody else can see or set it.')
             ->action(function (User $record): void {
-                app(SetStaffAccess::class)->resendInvitation($record);
+                app(SetStaffAccess::class)->resendInvitation($record, auth()->user());
 
                 Notification::make()->success()->title('Link sent')->send();
             });

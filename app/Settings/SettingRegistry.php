@@ -315,9 +315,169 @@ final class SettingRegistry
                 label: 'Make people confirm their address',
                 type: 'boolean',
                 default: false,
-                help: 'Sends a confirmation link before anybody joins the list. Turn this on once transactional mail is wired up — until then a signup would wait forever for an email nothing can send.',
+                help: 'Sends a confirmation link before anybody joins the list. Safe to turn on now that the confirmation email exists — though if Mailchimp runs its own opt-in, leaving this off avoids asking people to confirm twice.',
                 input: 'toggle',
             ),
+
+            // Who it comes from -------------------------------------------------
+
+            new SettingDefinition(
+                key: 'email.from_name',
+                group: SettingGroup::Email,
+                label: 'Sender name',
+                type: 'string',
+                default: config('app.name'),
+                help: 'What recipients see as the sender. Worth keeping as the business name: the address itself is a gmail.com one, and the name is the part that reads as legitimate.',
+            ),
+            new SettingDefinition(
+                key: 'email.from_address',
+                group: SettingGroup::Email,
+                label: 'Sender address',
+                type: 'string',
+                default: config('mail.from.address'),
+                help: 'Must be the Gmail account that sends. Keep it a mailbox somebody reads — bounces come back here as ordinary emails, and that is the only bounce signal this setup has.',
+                input: 'email',
+            ),
+            new SettingDefinition(
+                key: 'email.reply_to',
+                group: SettingGroup::Email,
+                label: 'Reply-to address',
+                type: 'string',
+                default: '',
+                help: 'Where replies go, if different from the sender. B2B buyers reply to reminders with questions, so this should reach a person.',
+                input: 'email',
+            ),
+            new SettingDefinition(
+                key: 'email.monitoring_bcc',
+                group: SettingGroup::Email,
+                label: 'Blind-copy everything to',
+                type: 'string',
+                default: '',
+                help: 'Optional. A copy of every email sent, for monitoring. Leave empty unless somebody will actually read it — it counts against the daily sending allowance twice over.',
+                input: 'email',
+            ),
+
+            // How much can go out ------------------------------------------------
+
+            new SettingDefinition(
+                key: 'email.daily_cap',
+                group: SettingGroup::Email,
+                label: 'Messages per 24 hours',
+                type: 'integer',
+                default: 450,
+                help: 'A consumer Gmail account allows around 500 a day, and going over blocks the whole account for about 24 hours — password resets included. Below 500 on purpose.',
+                input: 'number',
+                range: [1, 2000],
+            ),
+            new SettingDefinition(
+                key: 'email.bulk_cap',
+                group: SettingGroup::Email,
+                label: 'Of which, bulk messages',
+                type: 'integer',
+                default: 300,
+                help: 'The ceiling for reminders and marketing. The gap between this and the daily figure is reserved, so a reminder blast can never use up the allowance a password reset needs.',
+                input: 'number',
+                range: [1, 2000],
+            ),
+            new SettingDefinition(
+                key: 'email.per_minute_cap',
+                group: SettingGroup::Email,
+                label: 'Messages per minute',
+                type: 'integer',
+                default: 15,
+                help: 'Gmail answers a burst with a temporary block. Anything over this waits rather than failing.',
+                input: 'number',
+                range: [1, 120],
+            ),
+
+            // Emergencies and environments ----------------------------------------
+
+            new SettingDefinition(
+                key: 'email.sending_halted',
+                group: SettingGroup::Email,
+                label: 'Stop all sending',
+                type: 'boolean',
+                default: false,
+                help: 'For the day a template goes out wrong. Everything is recorded as not sent, nothing is lost, and switching it back on lets the queue drain. The alternative is a deploy under pressure.',
+                input: 'toggle',
+            ),
+            new SettingDefinition(
+                key: 'email.allow_list',
+                group: SettingGroup::Email,
+                label: 'Only send to these addresses (outside production)',
+                type: 'string',
+                default: '',
+                help: 'Addresses or domains, separated by commas. Ignored in production. The seeded database holds realistic customer addresses, and without this a mistake on staging emails strangers.',
+            ),
+
+            // How long the log keeps bodies ---------------------------------------
+
+            new SettingDefinition(
+                key: 'email.retain_financial_days',
+                group: SettingGroup::Email,
+                label: 'Keep receipts and certificates for (days)',
+                type: 'integer',
+                default: 730,
+                help: 'How long the full content of money and certificate emails is kept. A finance or accreditation query can arrive a year later. The record of the send itself is kept permanently either way.',
+                input: 'number',
+                range: [30, 3650],
+            ),
+            new SettingDefinition(
+                key: 'email.retain_operational_days',
+                group: SettingGroup::Email,
+                label: 'Keep reminders and notices for (days)',
+                type: 'integer',
+                default: 90,
+                help: 'Reminders, recordings, membership notices and password emails. Reproducible, and uncontested after a quarter.',
+                input: 'number',
+                range: [7, 3650],
+            ),
+            new SettingDefinition(
+                key: 'email.retain_marketing_days',
+                group: SettingGroup::Email,
+                label: 'Keep marketing content for (days)',
+                type: 'integer',
+                default: 30,
+                help: 'Nobody disputes a newsletter.',
+                input: 'number',
+                range: [7, 3650],
+            ),
+
+            ...self::emailToggles(),
         ];
+    }
+
+    /**
+     * One on/off key per switchable email, generated from the catalogue.
+     *
+     * Generated rather than typed out, so a toggle cannot exist without an email
+     * or an email without a toggle — the same drift that left eleven settings
+     * readable in code with no screen to change them.
+     *
+     * Required emails are absent by design. Not a key defaulting to true: a key
+     * that exists can be set to false, and EmailTier::Required exists precisely
+     * so order confirmations and password resets cannot be switched off from an
+     * admin screen (§14 #6).
+     *
+     * `togglable()` rather than `switchable()`, so an email with no trigger
+     * behind it gets no key either — a setting wired to nothing is the mistake
+     * SettingRegistryTest's second guard was written for.
+     *
+     * @return array<int, SettingDefinition>
+     */
+    private static function emailToggles(): array
+    {
+        return array_map(
+            static fn (\App\Email\EmailDefinition $email): SettingDefinition => new SettingDefinition(
+                key: $email->settingKey(),
+                group: SettingGroup::Email,
+                label: $email->name,
+                type: 'boolean',
+                default: $email->tier->defaultEnabled(),
+                help: $email->trigger,
+                input: 'toggle',
+            ),
+            \App\Email\EmailCatalogue::togglable(),
+        );
     }
 }

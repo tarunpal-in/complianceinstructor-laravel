@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 use App\Actions\Staff\InviteStaffMember;
 use App\Actions\Staff\SetStaffAccess;
+use App\Enums\EmailStatus;
 use App\Enums\UserRole;
 use App\Filament\Resources\Roles\Pages\CreateRole;
 use App\Filament\Resources\Roles\Pages\EditRole;
 use App\Filament\Resources\Staff\Pages\EditStaff;
 use App\Filament\Resources\Staff\Pages\InviteStaff;
 use App\Filament\Resources\Staff\Pages\ListStaff;
+use App\Models\EmailSend;
 use App\Models\Role;
 use App\Models\User;
 use App\Support\PermissionCatalogue;
 use App\Support\StaffLockout;
 use Database\Seeders\RolePermissionSeeder;
-use Illuminate\Auth\Notifications\ResetPassword;
-use Illuminate\Support\Facades\Notification;
 
 beforeEach(function (): void {
     $this->seed(RolePermissionSeeder::class);
@@ -177,14 +177,68 @@ it('leaves a customer alone', function (): void {
  * §9's first critical finding was an unauthenticated password-change endpoint.
  * Fortify owns password setting; nothing on this screen may write one.
  */
-it('never sets a password, and sends a reset link instead', function (): void {
-    Notification::fake();
-
+it('never sets a password, and sends an invitation instead', function (): void {
     $invited = app(InviteStaffMember::class)('Dana Whitfield', 'dana@example.com', [UserRole::Support->value]);
 
     expect($invited->hasRole(UserRole::Support->value))->toBeTrue();
 
-    Notification::assertSentTo($invited, ResetPassword::class);
+    /*
+     * `internal.staff_invitation`, not a password reset. It used to be
+     * `Password::broker()->sendResetLink()`, which mails Fortify's reset
+     * template — so somebody being given admin access received a bare "reset
+     * your password" link with no mention of who sent it or why. That reads as
+     * phishing, and deleting it is the sensible reaction.
+     */
+    $send = EmailSend::query()->where('to_email', 'dana@example.com')->sole();
+
+    expect($send->email_key)->toBe('internal.staff_invitation')
+        ->and($send->status)->toBe(EmailStatus::Sent)
+        // The token still has to be in there — it is the only way in.
+        ->and($send->body_html)->toContain('password-reset');
+});
+
+/*
+ * A brand-new account must not be told its password was changed. The invitation
+ * creates it with a random throwaway one, and "your password was changed" is a
+ * confusing first thing to hear from a system you have not joined yet.
+ */
+it('does not tell a newly invited account that its password changed', function (): void {
+    app(InviteStaffMember::class)('Dana Whitfield', 'dana@example.com', [UserRole::Support->value]);
+
+    expect(EmailSend::query()->where('email_key', 'account.password_changed')->count())->toBe(0);
+});
+
+it('tells somebody when their password is changed', function (): void {
+    $user = User::factory()->create(['email' => 'dana@example.com']);
+
+    $user->forceFill(['password' => 'a-brand-new-password'])->save();
+
+    $send = EmailSend::query()->where('email_key', 'account.password_changed')->sole();
+
+    expect($send->to_email)->toBe('dana@example.com')
+        ->and($send->status)->toBe(EmailStatus::Sent);
+});
+
+/*
+ * The email half of the pair added with the audit row. The activity log is for
+ * whoever audits this later; this is for the person whose account is now on a
+ * password alone, who may not be the one who asked.
+ */
+it('tells somebody when an admin clears their two-factor', function (): void {
+    $admin = userWithRole(UserRole::SuperAdmin);
+    $target = userWithRole(UserRole::Support);
+
+    $target->forceFill([
+        'two_factor_secret' => encrypt('SECRET'),
+        'two_factor_confirmed_at' => now(),
+    ])->save();
+
+    app(SetStaffAccess::class)->clearTwoFactor($target, $admin);
+
+    $send = EmailSend::query()->where('email_key', 'account.two_factor_cleared')->sole();
+
+    expect($send->to_email)->toBe($target->email)
+        ->and($send->body_html)->toContain($admin->name);
 });
 
 it('refuses to invite somebody to no role at all', function (): void {
@@ -221,8 +275,6 @@ it('brings a deactivated account back when it is invited again', function (): vo
 });
 
 it('invites from the admin screen', function (): void {
-    Notification::fake();
-
     $this->actingAs(staff(UserRole::SuperAdmin));
 
     $support = Role::query()->where('name', UserRole::Support->value)->sole();

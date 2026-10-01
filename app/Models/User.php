@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Email\Dispatcher;
+use App\Enums\EmailCategory;
 use App\Enums\UserRole;
+use App\Mail\ResetPassword;
 use Database\Factories\UserFactory;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthentication;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthenticationRecovery;
@@ -19,6 +22,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Cashier\Billable;
+use RuntimeException;
 use SensitiveParameter;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -154,6 +158,71 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
         data_set($preferences, $key, $value);
 
         $this->forceFill(['preferences' => $preferences])->save();
+    }
+
+    // Email preferences ------------------------------------------------------------
+
+    /** Where the per-category email preferences live in the bag. */
+    private const EMAIL_PREFERENCE = 'email.declined';
+
+    /**
+     * Whether this person still wants email of this kind.
+     *
+     * **Only consulted for a category they are allowed to decline.** The
+     * Dispatcher gates this, and EmailCategory decides: how to get into their
+     * account, what they were charged, and the credits they bought are not
+     * preferences. A preference that could suppress a receipt would be the
+     * polite version of §14 #6.
+     *
+     * Opt-out, so a new category starts switched on and an account created
+     * before a category existed is not silently excluded from it.
+     */
+    public function acceptsEmailCategory(EmailCategory $category): bool
+    {
+        if (! $category->mayBeDeclinedByRecipient()) {
+            return true;
+        }
+
+        $declined = $this->preference(self::EMAIL_PREFERENCE, []);
+
+        return ! (is_array($declined) && in_array($category->value, $declined, true));
+    }
+
+    public function setEmailCategoryAccepted(EmailCategory $category, bool $accepted): void
+    {
+        if (! $category->mayBeDeclinedByRecipient()) {
+            // Refused rather than ignored. A caller that thinks it switched off
+            // receipts and silently did not is worse than one that is told.
+            throw new RuntimeException(
+                "\"{$category->label()}\" cannot be declined — see EmailCategory::mayBeDeclinedByRecipient()."
+            );
+        }
+
+        $declined = $this->preference(self::EMAIL_PREFERENCE, []);
+        $declined = is_array($declined) ? array_values(array_filter(
+            $declined,
+            fn (mixed $value): bool => $value !== $category->value,
+        )) : [];
+
+        if (! $accepted) {
+            $declined[] = $category->value;
+        }
+
+        $this->setPreference(self::EMAIL_PREFERENCE, $declined);
+    }
+
+    /**
+     * Password resets go through the log like everything else.
+     *
+     * Laravel's own notification would bypass the Dispatcher entirely, and a
+     * password reset is the email support is asked about most — "I never got the
+     * link" is unanswerable without a row to look at. §9 keeps Fortify as the
+     * only owner of reset *tokens*; this changes how the mail is carried, not
+     * who issues them.
+     */
+    public function sendPasswordResetNotification($token): void
+    {
+        app(Dispatcher::class)->send(ResetPassword::forToken($this, (string) $token));
     }
 
     /**

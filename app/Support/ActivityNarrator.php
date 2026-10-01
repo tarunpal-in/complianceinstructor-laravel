@@ -55,10 +55,19 @@ final class ActivityNarrator
 
         'inquiry' => ['label' => 'Inquiry', 'group' => 'Inbox', 'resource' => \App\Filament\Resources\Inquiries\InquiryResource::class],
         'subscriber' => ['label' => 'Mailing list', 'group' => 'Inbox', 'resource' => \App\Filament\Resources\Subscribers\SubscriberResource::class, 'identity' => 'email'],
+
+        /*
+         * Settings get their own group rather than being filed under Money or
+         * Content, because one table holds both: the refund cooling-off window
+         * and the promo-bar copy are the same kind of row and nothing like the
+         * same kind of change. No resource — settings live on a Page, so there is
+         * no per-record screen to link to.
+         */
+        'setting' => ['label' => 'Setting', 'group' => 'Settings', 'resource' => null, 'identity' => 'key'],
     ];
 
     /** The groups, in the order the screen offers them. */
-    public const GROUPS = ['Money', 'Access', 'Content', 'Inbox'];
+    public const GROUPS = ['Money', 'Access', 'Content', 'Inbox', 'Settings'];
 
     /** What kind of thing was touched. */
     public static function kind(Activity $activity): string

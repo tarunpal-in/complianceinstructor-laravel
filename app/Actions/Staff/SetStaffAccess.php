@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Actions\Staff;
 
+use App\Email\Dispatcher;
+use App\Mail\TwoFactorCleared;
 use App\Models\User;
 use App\Support\RoleAssignment;
 use App\Support\StaffLockout;
-use Illuminate\Support\Facades\Password;
 use RuntimeException;
 
 /**
@@ -78,14 +79,15 @@ class SetStaffAccess
     }
 
     /**
-     * Send the reset link again.
+     * Send the invitation again.
      *
-     * The same Fortify flow as the invitation — there is no second mechanism
-     * and no way for an administrator to see or set the password.
+     * Through the same action that sent the first one, so the two cannot drift
+     * into saying different things — and still Fortify's token, with no
+     * mechanism anywhere for an administrator to see or set a password.
      */
-    public function resendInvitation(User $target): void
+    public function resendInvitation(User $target, ?User $actor = null): void
     {
-        Password::broker()->sendResetLink(['email' => $target->email]);
+        app(InviteStaffMember::class)->sendInvitation($target, $actor);
     }
 
     /**
@@ -130,5 +132,10 @@ class SetStaffAccess
                 'old' => ['two_factor' => 'set up'],
             ])
             ->log('updated');
+
+        // And tell them. The activity row is for whoever audits this later; this
+        // is for the person whose account is now on a password alone, who may
+        // not be the one who asked for it.
+        app(Dispatcher::class)->send(new TwoFactorCleared($target, $actor));
     }
 }

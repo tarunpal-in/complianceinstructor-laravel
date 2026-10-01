@@ -11,6 +11,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use RuntimeException;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * Site-wide configuration (CLAUDE.md §5.6).
@@ -22,7 +24,7 @@ use RuntimeException;
  */
 class Setting extends Model implements ReferencesMedia
 {
-    use RecordsMediaUsage;
+    use LogsActivity, RecordsMediaUsage;
 
     private const CACHE_KEY = 'settings.all';
 
@@ -51,6 +53,33 @@ class Setting extends Model implements ReferencesMedia
     {
         static::saved(static fn () => static::flush());
         static::deleted(static fn () => static::flush());
+    }
+
+    /**
+     * §8 — "every mutation written to `activity_log` with the actor".
+     *
+     * This table was the gap. Nothing recorded who changed the refund
+     * cooling-off window, the completion thresholds or the company's legal
+     * details — all editable, none audited. Switching an email off is the change
+     * that made it urgent: customers stop being told things, and until now
+     * nothing said who decided that.
+     *
+     * The key is logged alongside the value because `value` on its own reads as
+     * "something became false", which is not an answer to anything.
+     */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['group', 'key', 'value'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->useLogName('setting');
+    }
+
+    /** The row, named rather than numbered, for the activity log. */
+    public function getDescriptionForEvent(string $eventName): string
+    {
+        return "{$this->group}.{$this->key}";
     }
 
     /**

@@ -45,3 +45,32 @@ Schedule::command('certificates:issue-due')
     ->hourly()
     ->withoutOverlapping()
     ->runInBackground();
+
+/*
+ * Sends the emails that waited for allowance.
+ *
+ * A consumer Gmail account allows roughly 500 messages in a rolling 24 hours, so
+ * the tail of a busy day's reminders lands tomorrow. Every fifteen minutes
+ * rather than hourly: the allowance frees up continuously as the window rolls,
+ * and an hour of unnecessary delay on a password reset is an hour of somebody
+ * locked out.
+ *
+ * **This needs cron**, the same `* * * * * php artisan schedule:run` the refunds
+ * sweep depends on. Without it, deferred emails simply never go.
+ */
+Schedule::command('emails:release-deferred')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping()
+    ->runInBackground();
+
+/*
+ * Drops the stored content of old emails, keeping every send record.
+ *
+ * Scheduled, unlike `activitylog:clean` — see the command for why those are not
+ * the same question. Nightly and off-peak, because it is a bulk update over the
+ * largest table in the application.
+ */
+Schedule::command('emails:prune-bodies')
+    ->dailyAt('03:30')
+    ->withoutOverlapping()
+    ->runInBackground();

@@ -45,11 +45,32 @@ parameters:
           message: 'throw or return a response instead'
 
 
-    # A role change must go through App\Support\RoleAssignment, which records
-    # who made it. Roles live in a pivot table, and a pivot write fires no
-    # Eloquent event — so LogsActivity on User never sees one and "who made
-    # Marcus a Super Admin" has no answer. §8 requires every mutation in the
-    # activity log with the actor; this is the one that needed help to get there.
+    # Every email goes through App\Email\Dispatcher, which writes its row in
+    # `email_sends` before anything reaches a mail server. §14 #6 is a customer
+    # charged who "received nothing, with no record written" — and the half people
+    # skip is the second half. Without this ban the Dispatcher is a convention,
+    # and the first person in a hurry sends straight from an action and puts a
+    # hole in the log that nobody notices until a customer says they never got it.
+    disallowedStaticCalls:
+        - method: 'Illuminate\Support\Facades\Mail::to()'
+          message: 'send it through App\Email\Dispatcher, so it is recorded in the email log'
+          allowIn:
+              - app/Jobs/SendEmail.php
+        - method: 'Illuminate\Support\Facades\Mail::send()'
+          message: 'send it through App\Email\Dispatcher, so it is recorded in the email log'
+          allowIn:
+              - app/Jobs/SendEmail.php
+        - method: 'Illuminate\Support\Facades\Mail::queue()'
+          message: 'send it through App\Email\Dispatcher, so it is recorded in the email log'
+        - method: 'Illuminate\Support\Facades\Mail::raw()'
+          message: 'send it through App\Email\Dispatcher, so it is recorded in the email log'
+        - method: 'Illuminate\Support\Facades\Mail::html()'
+          message: 'send it through App\Email\Dispatcher, so it is recorded in the email log'
+        - method: 'Illuminate\Support\Facades\Notification::send()'
+          message: 'send it through App\Email\Dispatcher as a LoggedMail, so it is recorded in the email log'
+        - method: 'Illuminate\Support\Facades\Notification::route()'
+          message: 'send it through App\Email\Dispatcher as a LoggedMail, so it is recorded in the email log'
+
     disallowedMethodCalls:
         - method: 'Spatie\Permission\Traits\HasRoles::syncRoles()'
           message: 'use App\Support\RoleAssignment::sync(), which records who changed it (CLAUDE.md §8)'
@@ -63,3 +84,10 @@ parameters:
           message: 'use App\Support\RoleAssignment::sync(), which records who changed it (CLAUDE.md §8)'
           allowIn:
               - app/Support/RoleAssignment.php
+        # Mail sent as a notification bypasses the log the same way. Laravel's own
+        # password-reset notification is the one exception the application cannot
+        # avoid, and AppServiceProvider intercepts it rather than letting it send.
+        - method: 'Illuminate\Notifications\Notifiable::notify()'
+          message: 'send it through App\Email\Dispatcher as a LoggedMail, so it is recorded in the email log'
+        - method: 'Illuminate\Notifications\Notifiable::notifyNow()'
+          message: 'send it through App\Email\Dispatcher as a LoggedMail, so it is recorded in the email log'

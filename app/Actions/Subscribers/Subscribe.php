@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Actions\Subscribers;
 
+use App\Email\Dispatcher;
 use App\Enums\SubscriberSource;
 use App\Enums\SubscriberStatus;
+use App\Mail\ConfirmMailingList;
 use App\Models\Subscriber;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -48,16 +50,37 @@ class Subscribe
         $existing = Subscriber::query()->where('email', $email)->first();
 
         if ($existing !== null) {
-            return $this->resubscribe($existing, $name, $request, $asStaff);
+            return $this->askToConfirm($this->resubscribe($existing, $name, $request, $asStaff));
         }
 
-        return Subscriber::create([
+        return $this->askToConfirm(Subscriber::create([
             'email' => $email,
             'name' => $this->clean($name),
             'source' => $source,
             ...$this->consent($request),
             ...$this->startingState(),
-        ]);
+        ]));
+    }
+
+    /**
+     * Send the confirmation link, where one is being waited for.
+     *
+     * Driven by the resulting status rather than by the setting, which is the
+     * distinction that matters: somebody already on the list who signs up again
+     * comes back `Subscribed` and must not be asked to confirm something they
+     * confirmed last year.
+     *
+     * Until this existed, `mailing_list.double_opt_in` could be switched on and
+     * every signup would sit at `Pending` forever waiting for an email nothing
+     * could send. The setting's own help text said so.
+     */
+    private function askToConfirm(Subscriber $subscriber): Subscriber
+    {
+        if ($subscriber->status === SubscriberStatus::Pending) {
+            app(Dispatcher::class)->send(new ConfirmMailingList($subscriber));
+        }
+
+        return $subscriber;
     }
 
     /**

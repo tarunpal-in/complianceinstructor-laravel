@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Actions\Payments\CancelScheduledRefund;
 use App\Actions\Payments\RequestRefund;
+use App\Actions\Payments\SendRefundToGateway;
+use App\Enums\EmailStatus;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentGateway;
 use App\Enums\PaymentStatus;
@@ -11,12 +13,12 @@ use App\Enums\RefundStatus;
 use App\Enums\UserRole;
 use App\Filament\Resources\Payments\Pages\ViewPayment;
 use App\Filament\Resources\Payments\RelationManagers\RefundsRelationManager;
+use App\Models\EmailSend;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\Refund;
 use App\Models\Setting;
 use App\Models\User;
-use App\Notifications\RefundScheduled;
 use App\Payments\Drivers\ManualDriver;
 use App\Payments\Drivers\PayPalDriver;
 use App\Payments\Drivers\StripeDriver;
@@ -236,8 +238,13 @@ it('schedules a refund rather than sending it', function (): void {
         ->and($payment->order->fresh()?->status)->toBe(OrderStatus::Paid);
 });
 
+/*
+ * Asserted against `email_sends` rather than Notification::fake, because the
+ * notification became a mailable through the Dispatcher — and the log row is now
+ * the thing that matters. A faked notification proves the code was called; a row
+ * proves somebody could find out afterwards whether it went.
+ */
 it('emails every administrator when a refund is scheduled', function (): void {
-    Notification::fake();
     fakeGateway();
 
     $admins = User::factory()->count(2)->create();
@@ -247,8 +254,47 @@ it('emails every administrator when a refund is scheduled', function (): void {
 
     app(RequestRefund::class)(gatewayPayment(), 5000, 'Released');
 
-    Notification::assertSentToTimes($admins[0], RefundScheduled::class, 1);
-    Notification::assertSentToTimes($admins[1], RefundScheduled::class, 1);
+    foreach ($admins as $admin) {
+        expect(EmailSend::query()
+            ->where('email_key', 'internal.refund_scheduled')
+            ->where('to_email', $admin->email)
+            ->where('status', EmailStatus::Sent)
+            ->count())->toBe(1);
+    }
+});
+
+/*
+ * Until now only staff heard about a refund. A credit landing on a card
+ * statement with a merchant descriptor and no explanation is a support ticket at
+ * best and a chargeback dispute at worst.
+ */
+it('tells the customer once the refund actually reaches the gateway', function (): void {
+    fakeGateway();
+
+    $payment = gatewayPayment();
+    $refund = app(RequestRefund::class)($payment, 5000, 'Duplicate booking');
+
+    app(SendRefundToGateway::class)($refund);
+
+    $send = EmailSend::query()->where('email_key', 'purchase.refund_issued')->sole();
+
+    expect($send->to_email)->toBe($payment->order->customerEmail())
+        ->and($send->status)->toBe(EmailStatus::Sent)
+        ->and($send->related_id)->toBe($payment->order->getKey());
+});
+
+/*
+ * A refund the gateway refused has not happened. Telling the customer money is
+ * on its way would be worse than saying nothing.
+ */
+it('tells the customer nothing when the gateway refuses the refund', function (): void {
+    fakeGateway(declineWith: 'Balance too low to refund from.');
+
+    $refund = app(RequestRefund::class)(gatewayPayment(), 5000, 'Duplicate booking');
+
+    app(SendRefundToGateway::class)($refund);
+
+    expect(EmailSend::query()->where('email_key', 'purchase.refund_issued')->count())->toBe(0);
 });
 
 /**

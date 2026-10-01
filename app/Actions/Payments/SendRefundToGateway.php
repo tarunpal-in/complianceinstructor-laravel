@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Actions\Payments;
 
+use App\Email\Dispatcher;
 use App\Enums\RefundStatus;
+use App\Mail\RefundIssued;
 use App\Models\Refund;
 use App\Payments\PaymentGatewayManager;
 use Illuminate\Support\Facades\DB;
@@ -19,7 +21,10 @@ use Illuminate\Support\Facades\DB;
  */
 class SendRefundToGateway
 {
-    public function __construct(private readonly PaymentGatewayManager $gateways) {}
+    public function __construct(
+        private readonly PaymentGatewayManager $gateways,
+        private readonly Dispatcher $dispatcher,
+    ) {}
 
     public function __invoke(Refund $refund): Refund
     {
@@ -66,6 +71,17 @@ class SendRefundToGateway
             $order = $payment->order;
             $order->load('payments.refunds');
             $order->update(['status' => $order->derivedStatus()]);
+
+            /*
+             * And tell the customer, which until now nothing did — only staff
+             * heard about a refund. A credit appearing on a card statement with
+             * a merchant descriptor and no explanation is a support ticket at
+             * best and a chargeback dispute at worst.
+             *
+             * After the status write, not before: an email saying money is on
+             * its way must not go out ahead of the record that says it went.
+             */
+            $this->dispatcher->send(new RefundIssued($refund->refresh()));
         }
 
         return $refund->refresh();
