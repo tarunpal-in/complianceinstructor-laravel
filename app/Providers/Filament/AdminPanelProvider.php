@@ -184,7 +184,6 @@ class AdminPanelProvider extends PanelProvider
         $items = [
             ['Catalogue', 20, 'Packages', Heroicon::OutlinedCube],
 
-            ['System', 30, 'Activity Log', Heroicon::OutlinedClipboardDocumentList],
             ['System', 40, 'Backups', Heroicon::OutlinedArchiveBox],
         ];
 
