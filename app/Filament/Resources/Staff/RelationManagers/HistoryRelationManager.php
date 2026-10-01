@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Staff\RelationManagers;
 
+use App\Support\ActivityNarrator;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
@@ -60,8 +61,15 @@ class HistoryRelationManager extends RelationManager
                     ->placeholder('The system')
                     ->width('12rem'),
 
+                /*
+                 * The narrator rather than the raw description, which is only
+                 * ever "created" or "updated" — so a role change and an email
+                 * correction read identically, and this is the screen where
+                 * the difference between them matters most.
+                 */
                 TextColumn::make('description')
                     ->label('What happened')
+                    ->state(fn (Activity $record): string => ActivityNarrator::summarise($record))
                     ->badge()
                     ->color('gray'),
             ])

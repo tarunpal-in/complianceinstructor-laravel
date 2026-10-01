@@ -107,6 +107,22 @@ final class ActivityNarrator
     }
 
     /**
+     * The same sentence without the kind, for a screen that already knows it.
+     *
+     * The History panel on a staff account does not need to be told that a
+     * staff account changed; it needs to be told that the roles did.
+     */
+    public static function summarise(Activity $activity): string
+    {
+        return match ($activity->event) {
+            'created' => 'Created',
+            'deleted' => 'Deleted',
+            'restored' => 'Restored',
+            default => self::summariseUpdate($activity),
+        };
+    }
+
+    /**
      * What actually changed, before and after.
      *
      * @return array<int, array{attribute: string, from: string, to: string}>
@@ -208,10 +224,19 @@ final class ActivityNarrator
 
     private static function describeUpdate(Activity $activity, string $kind): string
     {
+        if (self::changes($activity) === []) {
+            return "{$kind} saved with no visible change";
+        }
+
+        return $kind.' — '.Str::lcfirst(self::summariseUpdate($activity));
+    }
+
+    private static function summariseUpdate(Activity $activity): string
+    {
         $changes = self::changes($activity);
 
         if ($changes === []) {
-            return "{$kind} saved with no visible change";
+            return 'Saved with no visible change';
         }
 
         $attributes = array_map(
@@ -219,7 +244,7 @@ final class ActivityNarrator
             $changes,
         );
 
-        return $kind.' — changed '.self::list($attributes);
+        return 'Changed '.self::list($attributes);
     }
 
     /**

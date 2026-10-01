@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Actions\Staff\InviteStaffMember;
+use App\Actions\Staff\SetStaffAccess;
 use App\Enums\UserRole;
 use App\Filament\Resources\ActivityLog\ActivityResource;
 use App\Filament\Resources\ActivityLog\Pages\ListActivity;
@@ -11,7 +13,9 @@ use App\Models\Subscriber;
 use App\Models\User;
 use App\Support\ActivityNarrator;
 use Database\Seeders\RolePermissionSeeder;
+use Illuminate\Support\Facades\File;
 use Spatie\Activitylog\Models\Activity;
+use Symfony\Component\Finder\SplFileInfo;
 
 beforeEach(function (): void {
     $this->seed(RolePermissionSeeder::class);
@@ -277,13 +281,127 @@ it('records who gave somebody admin access', function (): void {
         ->and(ActivityNarrator::kind($entry))->toBe('Staff account');
 });
 
+/*
+ * Roles live in a pivot table and a pivot write fires no model event, so
+ * LogsActivity on User never sees one. Until RoleAssignment existed, making
+ * somebody a Super Admin left no trace at all — the one mutation §8 missed,
+ * and the exact question the Access tab is for.
+ */
+it('records who gave somebody a role', function (): void {
+    $admin = userWithRole(UserRole::SuperAdmin);
+    $this->actingAs($admin);
+
+    $joiner = User::factory()->create();
+
+    app(InviteStaffMember::class)(
+        name: 'Marcus Reed',
+        email: $joiner->email,
+        roles: [UserRole::Finance->value],
+        actor: $admin,
+    );
+
+    $entry = latestActivity();
+    $changes = ActivityNarrator::changes($entry);
+
+    expect(ActivityNarrator::causerName($entry))->toBe($admin->name)
+        ->and(ActivityNarrator::describe($entry))->toBe('Staff account — changed roles')
+        ->and($changes[0]['from'])->toBe('nothing')
+        ->and($changes[0]['to'])->toBe(UserRole::Finance->value);
+});
+
+it('records who took a role away, and what it was', function (): void {
+    $admin = userWithRole(UserRole::SuperAdmin);
+    $target = userWithRole(UserRole::Finance);
+
+    $this->actingAs($admin);
+
+    app(SetStaffAccess::class)->assign($target, [UserRole::Support->value], $admin);
+
+    $changes = ActivityNarrator::changes(latestActivity());
+
+    expect(ActivityNarrator::causerName(latestActivity()))->toBe($admin->name)
+        ->and($changes[0]['from'])->toBe(UserRole::Finance->value)
+        ->and($changes[0]['to'])->toBe(UserRole::Support->value);
+});
+
+/*
+ * Filament saves the whole form on every edit, so correcting an email would
+ * otherwise write "roles changed from Finance to Finance" every time.
+ */
+it('records nothing when a save leaves the roles alone', function (): void {
+    $admin = userWithRole(UserRole::SuperAdmin);
+    $target = userWithRole(UserRole::Finance);
+
+    $this->actingAs($admin);
+    $before = Activity::query()->count();
+
+    app(SetStaffAccess::class)->assign($target, [UserRole::Finance->value], $admin);
+
+    expect(Activity::query()->count())->toBe($before);
+});
+
+/*
+ * Nothing may write a role change without recording it. The three columns
+ * behind two-factor are the same shape of hole: none can be logged — a secret
+ * and a set of recovery codes must never reach the log — so the save writes
+ * nothing by itself.
+ */
+it('allows no role change outside RoleAssignment', function (): void {
+    /*
+     * phpstan.neon bans these three methods outright, with the one exemption,
+     * which is the better guard: it is type-aware and it tells whoever made the
+     * mistake why at the point they made it. This is here because that ban is
+     * three lines of config somebody could remove along with the rule it
+     * protects, and this failure names the file instead.
+     */
+    $offenders = collect(File::allFiles(app_path()))
+        ->filter(fn (SplFileInfo $file): bool => $file->getExtension() === 'php')
+        ->map(fn (SplFileInfo $file): string => str_replace('\\', '/', $file->getPathname()))
+        ->reject(fn (string $path): bool => str_ends_with($path, 'app/Support/RoleAssignment.php'))
+        ->filter(fn (string $path): bool => preg_match('/->(syncRoles|assignRole|removeRole)\(/', (string) file_get_contents($path)) === 1)
+        ->values()
+        ->all();
+
+    expect($offenders)->toBe([]);
+});
+
+it('records who cleared somebody two-factor setup', function (): void {
+    $admin = userWithRole(UserRole::SuperAdmin);
+    $this->actingAs($admin);
+
+    $target = userWithRole(UserRole::Support);
+    $target->forceFill([
+        'two_factor_secret' => encrypt('SECRET'),
+        'two_factor_confirmed_at' => now(),
+    ])->save();
+
+    app(SetStaffAccess::class)->clearTwoFactor($target, $admin);
+
+    $changes = ActivityNarrator::changes(latestActivity());
+
+    expect(ActivityNarrator::causerName(latestActivity()))->toBe($admin->name)
+        ->and($changes[0]['from'])->toBe('set up')
+        ->and($changes[0]['to'])->toBe('cleared');
+});
+
+it('records nothing when there was no two-factor setup to clear', function (): void {
+    $admin = userWithRole(UserRole::SuperAdmin);
+    $target = userWithRole(UserRole::Support);
+
+    $before = Activity::query()->count();
+
+    app(SetStaffAccess::class)->clearTwoFactor($target, $admin);
+
+    expect(Activity::query()->count())->toBe($before);
+});
+
 it('records who switched an account off, and why', function (): void {
     $admin = userWithRole(UserRole::SuperAdmin);
     $editor = userWithRole(UserRole::ContentEditor);
 
     $this->actingAs($admin);
 
-    app(App\Actions\Staff\SetStaffAccess::class)->deactivate($editor, 'Left on 30 September', $admin);
+    app(SetStaffAccess::class)->deactivate($editor, 'Left on 30 September', $admin);
 
     $changes = collect(ActivityNarrator::changes(latestActivity()))
         ->pluck('to')

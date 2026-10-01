@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Staff;
 
 use App\Models\User;
+use App\Support\RoleAssignment;
 use App\Support\StaffLockout;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
@@ -64,7 +65,7 @@ class InviteStaffMember
             'password' => Str::random(64),
         ]);
 
-        $user->syncRoles($roles);
+        RoleAssignment::sync($user, $roles, $actor);
         $this->sendInvitation($user);
 
         return $user;
@@ -87,7 +88,7 @@ class InviteStaffMember
             throw new RuntimeException($reason);
         }
 
-        $user->syncRoles($roles);
+        RoleAssignment::sync($user, $roles, $actor);
 
         if ($user->isDeactivated()) {
             $user->forceFill([

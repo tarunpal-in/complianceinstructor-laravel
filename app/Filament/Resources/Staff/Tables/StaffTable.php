@@ -205,7 +205,7 @@ class StaffTable
             ->modalHeading('Clear their two-factor setup?')
             ->modalDescription('Use this when somebody has lost their device. Until they set it up again, their account is protected by a password alone.')
             ->action(function (User $record): void {
-                app(SetStaffAccess::class)->clearTwoFactor($record);
+                app(SetStaffAccess::class)->clearTwoFactor($record, auth()->user());
 
                 Notification::make()->success()->title('Two-factor cleared')->send();
             });

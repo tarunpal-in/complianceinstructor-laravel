@@ -44,3 +44,22 @@ parameters:
         - function: 'die()'
           message: 'throw or return a response instead'
 
+
+    # A role change must go through App\Support\RoleAssignment, which records
+    # who made it. Roles live in a pivot table, and a pivot write fires no
+    # Eloquent event — so LogsActivity on User never sees one and "who made
+    # Marcus a Super Admin" has no answer. §8 requires every mutation in the
+    # activity log with the actor; this is the one that needed help to get there.
+    disallowedMethodCalls:
+        - method: 'Spatie\Permission\Traits\HasRoles::syncRoles()'
+          message: 'use App\Support\RoleAssignment::sync(), which records who changed it (CLAUDE.md §8)'
+          allowIn:
+              - app/Support/RoleAssignment.php
+        - method: 'Spatie\Permission\Traits\HasRoles::assignRole()'
+          message: 'use App\Support\RoleAssignment::sync(), which records who changed it (CLAUDE.md §8)'
+          allowIn:
+              - app/Support/RoleAssignment.php
+        - method: 'Spatie\Permission\Traits\HasRoles::removeRole()'
+          message: 'use App\Support\RoleAssignment::sync(), which records who changed it (CLAUDE.md §8)'
+          allowIn:
+              - app/Support/RoleAssignment.php

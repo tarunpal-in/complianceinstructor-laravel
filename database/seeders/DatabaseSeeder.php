@@ -6,6 +6,7 @@ namespace Database\Seeders;
 
 use App\Enums\UserRole;
 use App\Models\User;
+use App\Support\RoleAssignment;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -53,6 +54,14 @@ class DatabaseSeeder extends Seeder
         );
 
         $admin->forceFill(['email_verified_at' => now()])->save();
-        $admin->syncRoles(UserRole::SuperAdmin->value);
+
+        /*
+         * Through RoleAssignment rather than syncRoles, so the trail opens with
+         * the grant it started from: "The system — roles from nothing to Super
+         * Admin". Exempting the seeder would have been easier and would have
+         * left the first and most powerful grant in the system as the only one
+         * with no record of itself.
+         */
+        RoleAssignment::sync($admin, [UserRole::SuperAdmin->value]);
     }
 }
