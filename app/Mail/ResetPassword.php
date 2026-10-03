@@ -11,9 +11,14 @@ use App\Support\PasswordResetUrl;
  * The reset link.
  *
  * §9's first critical finding in the predecessor was an unauthenticated
- * `POST /admin/update/password`. Fortify still owns the token — signed,
- * single-use, expiring, throttled. This changes only how the mail is carried, so
- * that "I never got the link" has a row somebody can look at.
+ * `POST /admin/update/password`. Laravel's password broker still owns the token —
+ * hashed, single-use, expiring, throttled. This changes only how the mail is
+ * carried, so that "I never got the link" has a row somebody can look at.
+ *
+ * Reaches here two ways: `User::sendPasswordResetNotification` for anything that
+ * calls the broker directly, and an interception in AppServiceProvider for
+ * Filament's reset page, which passes the broker its own callback and would
+ * otherwise bypass the log entirely.
  */
 final class ResetPassword extends LoggedMail
 {

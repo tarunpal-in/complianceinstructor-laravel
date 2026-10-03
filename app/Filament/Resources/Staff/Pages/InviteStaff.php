@@ -19,8 +19,8 @@ class InviteStaff extends CreateRecord
     /**
      * Through the action, so no screen ever writes a password.
      *
-     * The account is created with an unusable random one and Fortify sends a
-     * reset link. §9's first critical finding was an endpoint that let somebody
+     * The account is created with an unusable random one and the invitation
+     * carries a reset link. §9's first critical finding was an endpoint that let somebody
      * set an administrator's password; a form field doing the same thing from
      * inside the panel is the same hole with a login in front of it.
      */

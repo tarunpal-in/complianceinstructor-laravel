@@ -11,14 +11,14 @@ use App\Support\PasswordResetUrl;
 /**
  * Somebody has been given admin access.
  *
- * Replaces what the invitation used to be: a bare Fortify password-reset link,
+ * Replaces what the invitation used to be: a bare password-reset link,
  * arriving at somebody who never asked to reset anything, with no mention of who
  * sent it or what it was for. That reads as a phishing attempt, and the sensible
  * reaction to it is to delete it.
  *
  * **There is still no password here and there must never be one.** §9's first
  * critical finding was an endpoint that let somebody set an administrator's
- * password. Fortify's token does the work; this only explains it.
+ * password. The broker's token does the work; this only explains it.
  */
 final class StaffInvitation extends LoggedMail
 {

@@ -82,7 +82,7 @@ class SetStaffAccess
      * Send the invitation again.
      *
      * Through the same action that sent the first one, so the two cannot drift
-     * into saying different things — and still Fortify's token, with no
+     * into saying different things — and still the broker's token, with no
      * mechanism anywhere for an administrator to see or set a password.
      */
     public function resendInvitation(User $target, ?User $actor = null): void

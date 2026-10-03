@@ -20,9 +20,9 @@ use Throwable;
  * **There is no password here, and there must never be one.** §9's first
  * critical finding in the predecessor was an unauthenticated
  * `POST /admin/update/password`: supply an admin's email and a new password and
- * take the account. Fortify owns password setting, with signed single-use
- * expiring tokens and throttling, and a "set their password" field on an admin
- * screen walks straight back into the same class of problem — an administrator
+ * take the account. Laravel's password broker owns password setting, with
+ * hashed single-use expiring tokens and throttling, and a "set their password"
+ * field on an admin screen walks straight back into the same class of problem — an administrator
  * who can set another administrator's password can become them, and nothing in
  * the log says so.
  *
@@ -104,16 +104,17 @@ class InviteStaffMember
     }
 
     /**
-     * The invitation, with Fortify's token inside it.
+     * The invitation, with a reset token inside it.
      *
      * `createToken` rather than `sendResetLink`, which is the whole change here.
-     * `sendResetLink` mails Fortify's **password-reset** template — so somebody
+     * `sendResetLink` mails the framework's **password-reset** notification — so somebody
      * being given admin access received a bare "reset your password" link, with
      * no mention of who sent it or what it was for. That reads as phishing, and
      * deleting it is the sensible reaction.
      *
-     * The token is still Fortify's: signed, single-use, expiring, throttled. §9
-     * keeps it the only owner of password setting. Only the envelope changed.
+     * The token is still the broker's: hashed in `password_reset_tokens`,
+     * single-use, expiring after an hour, throttled. §9 keeps that the only way a
+     * password is ever set. Only the envelope changed. See docs/auth.md.
      *
      * Swallowed rather than thrown: a mail failure must not roll back an account
      * that was created successfully, and the admin can resend.

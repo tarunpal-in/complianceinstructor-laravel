@@ -111,8 +111,8 @@ Route::post('/mailing-list/unsubscribe/{subscriber}', [MailingListController::cl
  * is the thing the page builder exists to stop.
  *
  * Being last is what keeps it safe — Laravel matches in order, so every route
- * above wins. Page::RESERVED_SLUGS covers the rest (the admin panel, Fortify's
- * auth routes, Horizon), refusing them at the point a slug is saved rather than
+ * above wins. Page::RESERVED_SLUGS covers the rest (the admin panel, the auth
+ * paths a public login would claim, Horizon), refusing them at the point a slug is saved rather than
  * leaving a page to be created that could never be reached.
  *
  * The {slug} pattern excludes slashes by default, so this claims one path

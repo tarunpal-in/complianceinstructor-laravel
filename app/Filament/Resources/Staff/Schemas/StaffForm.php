@@ -18,7 +18,7 @@ use Filament\Schemas\Schema;
  *
  * **No password field, and there must never be one.** §9's first critical
  * finding in the predecessor was an unauthenticated password-change endpoint
- * that let anybody take an admin account. Fortify owns password setting with
+ * that let anybody take an admin account. The password broker owns password setting with
  * signed single-use expiring tokens; an administrator who could set another
  * administrator's password could become them, and nothing in the log would say
  * so. Invited staff get a reset link and choose their own.

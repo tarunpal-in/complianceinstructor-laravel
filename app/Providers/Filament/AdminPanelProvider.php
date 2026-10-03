@@ -60,10 +60,10 @@ class AdminPanelProvider extends PanelProvider
             /*
              * Two-factor, optional for now (§3 promises it for admins).
              *
-             * Filament's own rather than Fortify's: staff sign in at
-             * /admin/login, which is Filament's page and never enters
-             * Fortify's pipeline — so Fortify's challenge would never fire
-             * however well it was configured.
+             * Filament's own. Fortify was removed on 2026-10-02 partly
+             * because of this: its unconditional POST /login would have
+             * authenticated on the same session without ever reaching this
+             * challenge. See docs/auth.md.
              *
              * Passing isRequired: true to the second argument is the whole of
              * turning enforcement on later. It is off deliberately: with one

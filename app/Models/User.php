@@ -216,9 +216,13 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
      *
      * Laravel's own notification would bypass the Dispatcher entirely, and a
      * password reset is the email support is asked about most — "I never got the
-     * link" is unanswerable without a row to look at. §9 keeps Fortify as the
-     * only owner of reset *tokens*; this changes how the mail is carried, not
-     * who issues them.
+     * link" is unanswerable without a row to look at. §9 keeps the framework's
+     * broker as the only issuer of reset *tokens*; this changes how the mail is
+     * carried, not who issues it. See docs/auth.md.
+     *
+     * Covers anything calling the broker directly — the staff invitation and its
+     * resend. Filament's reset page passes the broker its own callback and never
+     * reaches here at all, so AppServiceProvider intercepts that one.
      */
     public function sendPasswordResetNotification($token): void
     {
@@ -294,7 +298,7 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
      * expected code — so encrypting it is this model's job. A secret in plain
      * text is a database dump away from every administrator's second factor.
      *
-     * Backed onto the column Fortify's migration already added, so the staff
+     * Backed onto the column the two-factor migration already added, so the staff
      * screen's 2FA badge and its Reset action keep reading the same place.
      */
     public function getAppAuthenticationSecret(): ?string
@@ -320,7 +324,7 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
         $this->forceFill([
             'two_factor_secret' => $secret === null ? null : encrypt($secret),
             /*
-             * Filament has no notion of this column; Fortify's migration added
+             * Filament has no notion of this column; our two-factor migration added
              * it and the staff screen reads it. Stamped here so "2FA: On"
              * means a secret actually exists, and cleared with it so removing
              * two-factor does not leave the screen claiming otherwise.
@@ -373,7 +377,7 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     /**
      * Whether two-factor authentication is actually in force on this account.
      *
-     * Confirmed, not merely started. Fortify writes the secret when somebody
+     * Confirmed, not merely started. The secret is written when somebody
      * begins setting it up and stamps `two_factor_confirmed_at` only once they
      * have entered a working code — so the secret alone means an abandoned
      * attempt, which is no protection at all.

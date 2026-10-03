@@ -37,6 +37,12 @@ class Page extends Model
      * look broken to whoever took `admin`. Checked when a slug is saved rather
      * than left to be discovered.
      *
+     * The auth paths — `login`, `register`, `reset-password`,
+     * `two-factor-challenge`, `passkeys` — are held rather than answered. Nothing
+     * serves them today (see docs/auth.md), and P5's learner area will want
+     * exactly those. Releasing one now so the client could build a page on it,
+     * then taking it back, is the reshuffle §13's reserved list exists to avoid.
+     *
      * @var array<int, string>
      */
     public const RESERVED_SLUGS = [

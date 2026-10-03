@@ -141,15 +141,17 @@ final class EmailCatalogue
                 lockReason: 'Without it nobody can prove they own the address they signed up with.',
                 hasExpiringLinks: true,
                 /*
-                 * Not an oversight and not a template away. Fortify is installed
-                 * but its service provider is **not registered** — bootstrap/
-                 * providers.php lists two providers — so there is no
-                 * `verification.verify` route for a link to point at, and
-                 * `Features::emailVerification()` is commented out behind that.
-                 * Registering Fortify is a decision about the public auth
-                 * surface, which belongs with the learner area in P5.
+                 * Not an oversight and not a template away. There is no public
+                 * authentication surface at all — no registration, no customer
+                 * login, nothing to verify an address *for*. Fortify, which would
+                 * have supplied the route, was removed on 2026-10-02 rather than
+                 * registered: see docs/auth.md for why, including the unconditional
+                 * POST /login that would have bypassed two-factor.
+                 *
+                 * This arrives with the learner area in P5, alongside whatever
+                 * then owns public auth.
                  */
-                blockedBy: 'Fortify is not registered, so there is no verification route (P5).',
+                blockedBy: 'There is no public sign-up to verify an address for yet (P5).',
             ),
             new EmailDefinition(
                 key: 'account.password_reset',
@@ -158,7 +160,7 @@ final class EmailCatalogue
                 tier: EmailTier::Required,
                 trigger: 'Somebody uses "forgotten password", on the site or in the admin.',
                 mailable: \App\Mail\ResetPassword::class,
-                lockReason: 'The only way back into a locked-out account. §9 makes Fortify the single owner of password resets.',
+                lockReason: 'The only way back into a locked-out account.',
                 hasExpiringLinks: true,
                 notResendableReason: 'The token is single-use and expires. Use "Send reset link" on the Staff screen, which issues a fresh one.',
             ),
