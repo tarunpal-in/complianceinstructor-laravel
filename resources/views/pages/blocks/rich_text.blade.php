@@ -4,8 +4,13 @@
         <h2 class="pb-heading">{{ $heading }}</h2>
     @endif
 
-    {{-- The editor's own markup, which is why it is not escaped. The toolbar is
-         deliberately short (see PageBlocks) so what arrives here is a small,
-         known set of tags rather than whatever was pasted out of Word. --}}
-    <div class="pb-prose">{!! $block->value('body') !!}</div>
+    {{-- The editor's own markup, through the sanitiser.
+
+         This used to be echoed raw, on the reasoning that "the toolbar is
+         deliberately short, so what arrives here is a small, known set of tags".
+         That describes what the editor *offers*. The column holds whatever was
+         pasted into it, seeded into it, imported into it, or written to it by
+         hand — which is exactly how the speaker social-URL XSS in §9's table was
+         found: the form validated and the reader did not. --}}
+    <div class="pb-prose">{!! \App\Support\Html::sanitize($block->value('body')) !!}</div>
 </section>

@@ -46,7 +46,10 @@
 
         {{-- The editor's own markup, which is why it is not escaped. The
              toolbar is a known, short set of tags — see PostForm. --}}
-        <div class="pb-prose blog-article-body">{!! $post->body !!}</div>
+        {{-- Through the sanitiser, never raw. The editor toolbar constrains what the
+             toolbar offers; the column holds whatever was pasted, seeded or written
+             into it. §9 has the same hole once already, in the speaker social URLs. --}}
+        <div class="pb-prose blog-article-body">{!! \App\Support\Html::sanitize($post->body) !!}</div>
 
         @if ($post->tags->isNotEmpty())
             <ul class="blog-tags">

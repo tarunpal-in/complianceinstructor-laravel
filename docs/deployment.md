@@ -46,7 +46,14 @@ first push.
 
 ### 1.2 Confirm no secrets are staged
 
-Run this before pushing. It should print nothing:
+`composer ci` now runs this check for you — `app:production-check` fails if `.env`
+is tracked, which is §9's "CI fails on a committed secret". To check by hand:
+
+```bash
+php artisan app:production-check
+```
+
+Or look directly. It should print nothing:
 
 ```bash
 git ls-files | grep -E '^\.env$|\.pem$|\.key$'
@@ -635,3 +642,33 @@ Not needed for the first staging deploy; note them so they are not forgotten.
 | `spatie/laravel-backup` to off-site storage, with a rehearsed restore | P9 (§11) |
 | Atomic zero-downtime releases and rollback by symlink | before first production deploy (§11) |
 | S3-compatible object storage for uploads and generated PDFs | P5 |
+
+---
+
+## Before switching traffic on: the production check
+
+```bash
+php artisan app:production-check
+```
+
+Run it on the server **after** the `.env` is in place and **before** traffic is
+switched over. A non-zero exit means do not go live.
+
+It checks only things that are silent when wrong — a broken route announces
+itself on the first page load, whereas `MAIL_MAILER=log` looks exactly like a
+working site until a customer asks where their certificate went:
+
+| Check | Why it is in the list |
+|---|---|
+| `APP_DEBUG` is false | §9's named finding. A debug page prints the environment, which is the database password |
+| `APP_KEY` is set | Generating it later makes everything already encrypted unreadable, including the two-factor secrets |
+| `APP_URL` is `https://` | Every link in every email and every signed download URL is built from it |
+| `MAIL_MAILER` is not `log`/`array`/`null` | Those accept a message and discard it, and the email log would record it as sent |
+| SMTP has a username | Otherwise every send fails authentication |
+| `QUEUE_CONNECTION` is not `sync` | §4 rule 7 — PDFs, mail and certificates would run inside the web request |
+| `.env` is not tracked by git | §9: the predecessor committed live credentials |
+| Session and cache are not `array` | A warning, not a failure: the site works, but nobody stays logged in |
+
+`AppServiceProvider` also forces `app.debug` off at runtime if it is ever true in
+production, and logs that as critical. That covers a `.env` edited after the
+deploy; this command is what stops the deploy in the first place.

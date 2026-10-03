@@ -105,9 +105,13 @@
         "types": [
             "./vendor/bin/phpstan analyse --memory-limit=2G"
         ],
+        "env:check": [
+            "@php artisan app:production-check"
+        ],
         "ci": [
             "@lint:test",
             "@types",
+            "@env:check",
             "@test"
         ]
     },

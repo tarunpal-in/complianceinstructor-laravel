@@ -22,8 +22,10 @@ use Illuminate\Http\Request;
 use Illuminate\Notifications\Events\NotificationSending;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\Rules\Password as PasswordRule;
 use Laravel\Cashier\Cashier;
 
 class AppServiceProvider extends ServiceProvider
@@ -138,6 +140,53 @@ class AppServiceProvider extends ServiceProvider
 
             return false;
         });
+
+        /*
+         * One password policy, everywhere.
+         *
+         * Both password paths — Filament's reset page and its profile page — apply
+         * `Password::default()`, and nothing had ever called `Password::defaults()`
+         * to say what that meant. So the policy was the framework floor: eight
+         * characters, no complexity, no breach check, on accounts that can issue
+         * refunds and read every invoice in the email log.
+         *
+         * `uncompromised()` only in production: it asks haveibeenpwned over the
+         * network, which must not happen in a test run or on a developer machine
+         * with no connection — a password rule that fails closed when the internet
+         * is down locks people out of their own admin.
+         *
+         * This applies when a password is *set*, so existing weak ones survive
+         * until they are changed. Requiring two-factor is the lever for those.
+         */
+        PasswordRule::defaults(function (): PasswordRule {
+            $rule = PasswordRule::min(12)->mixedCase()->numbers();
+
+            return $this->app->isProduction() ? $rule->uncompromised() : $rule;
+        });
+
+        /*
+         * Never serve a debug page in production.
+         *
+         * §9's row for this reads "production config check asserts debug is off",
+         * and no such check existed — the protection was remembering to set
+         * `APP_DEBUG=false`, which is precisely what the predecessor got wrong
+         * while also committing its live credentials.
+         *
+         * Forced off rather than thrown, deliberately. Throwing would take a live
+         * site down over a config typo; failing open leaks stack traces,
+         * environment variables and database credentials to whoever triggers an
+         * error. Forcing it off keeps the site up and stops the leak, and the
+         * critical log entry is what gets somebody to fix the real cause.
+         *
+         * `app:production-check` is the primary guard and fails the deploy before
+         * any of this is reachable. This is the one that covers a `.env` edited
+         * after the deploy.
+         */
+        if ($this->app->isProduction() && config('app.debug') === true) {
+            config(['app.debug' => false]);
+
+            Log::critical('APP_DEBUG was true in production and has been forced off for this request. Fix the environment.');
+        }
 
         // CLAUDE.md §3 — money is integer cents and nothing silently coerces.
         // Unguarded attributes would reintroduce §14 #1 (mass assignment of a

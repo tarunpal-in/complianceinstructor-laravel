@@ -20,6 +20,10 @@
 /public/storage
 /storage/*.key
 /storage/pail
+# Scratch space medialibrary uses while building conversions. Two directories of
+# it had already been committed by a crashed test run; a worker that dies
+# mid-conversion leaves its temp files behind, and they are not source.
+/storage/media-library
 /vendor
 _ide_helper.php
 Homestead.json
