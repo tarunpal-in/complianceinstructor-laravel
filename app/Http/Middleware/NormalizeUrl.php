@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Seo\TrailingSlash;
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -25,29 +25,22 @@ use Symfony\Component\HttpFoundation\Response;
  * a form POST must reach its handler, not bounce to a slashed URL and lose its
  * body.
  *
+ * Now that the URL generator emits trailing-slash URLs for content
+ * (TrailingSlashUrlGenerator), internal links already point at the canonical
+ * form and rarely reach here. This stays as the safety net for a bare URL from
+ * outside — an old link, a typed address, a crawler following a legacy path.
+ *
  * Two framework quirks shape the implementation. `Request::getPathInfo()`
  * normalises away a trailing slash, so the raw request URI is parsed instead to
- * tell the two forms apart. And the URL generator trims trailing slashes off
- * everything it builds (see UrlGenerator::format), so the redirect target is
- * assembled by hand and sent with `away()`, which does not run it through the
- * generator.
+ * tell the two forms apart. And the URL generator — even the trailing-slash one
+ * — leaves a `redirect()` target to the generator, which would re-trim it, so
+ * the target is assembled by hand and sent with `away()`.
+ *
+ * The decision about which paths take a slash is shared with the generator
+ * through App\Seo\TrailingSlash, so the two can never disagree.
  */
 class NormalizeUrl
 {
-    /**
-     * First path segments that are machinery, not content. A trailing slash on
-     * any of these is wrong, so they pass through untouched. The signed and
-     * POST-target routes (mailing-list, newsletter, preview) are here too: their
-     * URLs are generated and validated bare, and must stay that way.
-     *
-     * @var array<int, string>
-     */
-    private const EXCLUDED_PREFIXES = [
-        'admin', 'livewire', 'api', 'horizon', 'storage', 'up',
-        'build', 'vendor', 'broadcasting',
-        'mailing-list', 'newsletter', 'preview',
-    ];
-
     public function handle(Request $request, Closure $next): Response
     {
         // Off in the test HTTP client — see config/seo.php for why. On
@@ -79,19 +72,12 @@ class NormalizeUrl
             return false;
         }
 
-        // The root is its own canonical, and anything already slashed is done.
-        if ($path === '/' || str_ends_with($path, '/')) {
+        // Anything already slashed is done; everything else defers to the shared
+        // decision (root, files, machinery and signed routes are all excluded).
+        if (str_ends_with($path, '/')) {
             return false;
         }
 
-        $firstSegment = Str::of($path)->trim('/')->before('/')->lower()->value();
-
-        if (in_array($firstSegment, self::EXCLUDED_PREFIXES, true)) {
-            return false;
-        }
-
-        // A dot in the last segment means a file — robots.txt, sitemap.xml,
-        // favicon.ico — which never takes a trailing slash.
-        return ! str_contains(basename($path), '.');
+        return TrailingSlash::wanted($path);
     }
 }

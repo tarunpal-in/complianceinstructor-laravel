@@ -270,6 +270,92 @@ it('renders what was saved in the panel', function (): void {
         ->toContain('content="noindex, follow"');
 });
 
+// URL generation — trailing slashes at the source, no redirect hop -------------------------------
+
+/*
+ * The point of the custom URL generator: internal links already point at the
+ * canonical trailing-slash form, so a visitor never bounces through a 301.
+ */
+it('emits trailing-slash URLs for content from route() and url()', function (): void {
+    $webinar = publishedWebinar();
+
+    expect(route('webinars.show', $webinar))->toEndWith('/'.$webinar->slug.'/')
+        ->and(route('blog.show', 'some-article'))->toEndWith('/blog/some-article/')
+        ->and(url('/about'))->toEndWith('/about/')
+        // The home route is the bare domain — there is no path segment to slash,
+        // and the framework trims the root slash. Its canonical still carries the
+        // root "/" (see the canonical tests); the link does not need it.
+        ->and(route('home'))->not->toContain('//localhost:8000/');
+});
+
+it('leaves machinery and signed URLs bare', function (): void {
+    $subscriber = App\Models\Subscriber::factory()->create();
+
+    // Admin and assets must not gain a slash.
+    expect(url('/admin/email-log'))->not->toEndWith('/')
+        ->and(url('/livewire/update'))->not->toEndWith('/');
+
+    // A signed URL's path must stay bare, or its signature — validated against an
+    // rtrimmed path — would never match. The slash sits nowhere on the path.
+    $signed = $subscriber->unsubscribeUrl();
+    $path = parse_url($signed, PHP_URL_PATH);
+
+    expect($path)->not->toEndWith('/')
+        ->and($signed)->toContain('signature=');
+});
+
+/*
+ * The whole reason this matters: the signed link still validates. The generator
+ * emits it bare and the framework validates it bare, so the two agree. (The
+ * mailing-list feature tests cover the round trip; this pins the URL shape.)
+ */
+it('keeps a signed URL verifiable after the generator swap', function (): void {
+    $subscriber = App\Models\Subscriber::factory()->create();
+
+    $request = Illuminate\Http\Request::create($subscriber->unsubscribeUrl());
+
+    expect($request->hasValidSignature())->toBeTrue();
+});
+
+/*
+ * The blog preview route is signed and sits under /blog/preview — its first
+ * segment ("blog") is content, so it relies on the deeper guards (the "preview"
+ * segment rule and the route's signed middleware) to stay bare. This proves it
+ * does, and still validates.
+ */
+it('keeps a deep signed route (blog preview) bare and verifiable', function (): void {
+    $post = Post::factory()->create();
+    $url = $post->previewUrl();
+
+    expect(parse_url($url, PHP_URL_PATH))->not->toEndWith('/')
+        ->and(Illuminate\Http\Request::create($url)->hasValidSignature())->toBeTrue();
+});
+
+/*
+ * The generator only removes the 301 hop if every internal link goes through it.
+ * A hardcoded bare content link — `href="/webinars/foo"` — would bounce through
+ * the redirect, so this fails the build on one.
+ */
+it('hardcodes no bare content link in a view', function (): void {
+    $offenders = collect(File::allFiles(resource_path('views')))
+        ->filter(fn (SplFileInfo $f): bool => str_ends_with($f->getFilename(), '.blade.php'))
+        ->flatMap(function (SplFileInfo $f): array {
+            $source = (string) file_get_contents($f->getPathname());
+
+            // A hardcoded href into /webinars/… or /blog/… that does not end in a
+            // slash and is not built from route()/url().
+            preg_match_all('~href="/(webinars|blog)/[^"]*[^/]"~', $source, $matches);
+
+            return array_map(
+                fn (string $m): string => $f->getRelativePathname().': '.$m,
+                $matches[0] ?? [],
+            );
+        })
+        ->all();
+
+    expect($offenders)->toBe([]);
+});
+
 // og:image — the relevant image, not the logo (brief §13/§15) ------------------------------------
 
 it('describes the webinar with a website og type and a share image chain', function (): void {

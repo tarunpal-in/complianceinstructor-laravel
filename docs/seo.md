@@ -39,17 +39,28 @@ public content URL to its trailing-slash form. Public content only — admin,
 Livewire, the API, signed/POST routes (mailing-list, newsletter, preview) and
 files are excluded.
 
-### Two framework limitations worth knowing
+### How trailing slashes reach every link
 
-1. **`route()` / `url()` emit bare URLs.** Laravel's `UrlGenerator::format()`
-   ends with `trim($root.$path, '/')`, stripping any trailing slash, and there
-   is no clean hook around it (`formatPathUsing` runs before the trim). So
-   internal links are bare and a visitor clicking one takes a single 301 hop to
-   the trailing form. The canonical tag is trailing regardless, so Google indexes
-   the right URL. Eliminating the hop would need a custom `UrlGenerator`
-   subclass — deferred as not worth the fragility.
+`route()` and `url()` emit trailing-slash URLs for public content, via a custom
+`App\Routing\TrailingSlashUrlGenerator` (bound in `UrlServiceProvider`). This is
+the only clean place to do it — Laravel's `UrlGenerator::format()` ends with
+`trim($root.$path, '/')`, stripping any trailing slash, with no hook that
+survives it. Generating the slash rather than redirecting to it means **internal
+links point straight at the canonical form, with no 301 hop**. A guard test fails
+the build if a view hardcodes a bare content link.
 
-2. **The test HTTP client strips trailing slashes** from requested URLs
+`NormalizeUrl` stays as the safety net: a bare URL from outside — an old link, a
+typed address — still 301s to the trailing form.
+
+Machinery (admin, Livewire, API, assets) and **signed routes** (preview,
+mailing-list) are left bare. Signed routes especially: `hasCorrectSignature`
+validates against an rtrimmed path, so a trailing slash on one would never match.
+The decision about which paths take a slash lives in one place,
+`App\Seo\TrailingSlash`, shared by the generator and the middleware.
+
+### One framework quirk worth knowing
+
+**The test HTTP client strips trailing slashes** from requested URLs
    (`MakesHttpRequests::prepareUrlForRequest`), which would make the redirect
    loop in tests. So the redirect is gated behind `config('seo.trailing_slash_redirect')`,
    set `false` in `phpunit.xml` and `true` everywhere else; the middleware's
