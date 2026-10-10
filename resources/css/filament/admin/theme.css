@@ -124,9 +124,17 @@
     background-image: linear-gradient(180deg, #0a2a45 0%, #071e33 100%);
 }
 
+/* Every rule below is scoped under `.fi-sidebar` on purpose. These classes are
+   not unique to the main navigation — cluster and resource sub-navigation reuse
+   `.fi-sidebar-item-*` and render on the light content background, outside the
+   navy panel. Unscoped, the navy-sidebar colours leaked onto them, and the hover
+   rule turned a sub-nav tab's text white on white (invisible). Scoping keeps the
+   navy treatment to the real sidebar and lets sub-navigation use Filament's own
+   light/dark-aware defaults. */
+
 /* Group headings read as dividers rather than as items, so the eye separates
    the eight groups without counting them. */
-.fi-sidebar-group-label {
+.fi-sidebar .fi-sidebar-group-label {
     font-size: 0.6875rem;
     font-weight: 700;
     letter-spacing: 0.09em;
@@ -134,29 +142,29 @@
     color: var(--ci-sidebar-heading);
 }
 
-.fi-sidebar-group-btn .fi-icon {
+.fi-sidebar .fi-sidebar-group-btn .fi-icon {
     color: var(--ci-sidebar-heading);
 }
 
 /* Items ------------------------------------------------------------------- */
-.fi-sidebar-item-label {
+.fi-sidebar .fi-sidebar-item-label {
     color: var(--ci-sidebar-ink);
 }
 
-.fi-sidebar-item-btn > .fi-icon {
+.fi-sidebar .fi-sidebar-item-btn > .fi-icon {
     color: var(--ci-sidebar-ink-muted);
 }
 
-.fi-sidebar-item-btn:hover {
+.fi-sidebar .fi-sidebar-item-btn:hover {
     background-color: rgb(255 255 255 / 0.07);
 }
 
-.fi-sidebar-item-btn:hover .fi-sidebar-item-label,
-.fi-sidebar-item-btn:hover > .fi-icon {
+.fi-sidebar .fi-sidebar-item-btn:hover .fi-sidebar-item-label,
+.fi-sidebar .fi-sidebar-item-btn:hover > .fi-icon {
     color: #ffffff;
 }
 
-.fi-sidebar-item-btn:focus-visible {
+.fi-sidebar .fi-sidebar-item-btn:focus-visible {
     outline: 2px solid var(--color-gold, #f8ad1b);
     outline-offset: -2px;
 }
@@ -164,18 +172,18 @@
 /* Active — brand gold, matching the primary action on the public site. The
    label carries its own colour (text-gray-700 by default), so setting it on the
    button alone leaves dark text on a bright ground; both are set explicitly. */
-.fi-sidebar-item.fi-active .fi-sidebar-item-btn {
+.fi-sidebar .fi-sidebar-item.fi-active .fi-sidebar-item-btn {
     background-color: #f8ad1b;
     box-shadow: 0 6px 16px rgb(248 173 27 / 0.25);
 }
 
-.fi-sidebar-item.fi-active .fi-sidebar-item-btn .fi-sidebar-item-label,
-.fi-sidebar-item.fi-active .fi-sidebar-item-btn > .fi-icon {
+.fi-sidebar .fi-sidebar-item.fi-active .fi-sidebar-item-btn .fi-sidebar-item-label,
+.fi-sidebar .fi-sidebar-item.fi-active .fi-sidebar-item-btn > .fi-icon {
     color: #0b2540;
     font-weight: 600;
 }
 
-.fi-sidebar-item.fi-active .fi-sidebar-item-btn:hover {
+.fi-sidebar .fi-sidebar-item.fi-active .fi-sidebar-item-btn:hover {
     background-color: #ffbb3d;
 }
 
