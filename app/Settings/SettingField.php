@@ -47,6 +47,14 @@ final class SettingField
         return match ($setting->input) {
             'toggle' => Toggle::make($setting->field()),
 
+            // A fixed list the definition carries. Required, because a select
+            // with no value selected would store null and read back as the
+            // registry default on the next load — which looks like the save
+            // silently failed.
+            'select' => Select::make($setting->field())
+                ->options($setting->options ?? [])
+                ->required(),
+
             'textarea' => Textarea::make($setting->field())
                 ->rows(3)
                 ->maxLength(2000)

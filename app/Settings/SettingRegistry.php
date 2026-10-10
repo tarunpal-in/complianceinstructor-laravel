@@ -360,6 +360,21 @@ final class SettingRegistry
             // How much can go out ------------------------------------------------
 
             new SettingDefinition(
+                key: 'email.sending_limit',
+                group: SettingGroup::Email,
+                label: 'Daily sending limit',
+                type: 'string',
+                default: 'auto',
+                help: 'A free Gmail account allows ~500 messages a day and blocks the account for a day if you go over. "Automatic" enforces the limits below only while sending through Gmail. Switch to "Always" if your provider has its own daily limit (e.g. Amazon SES in sandbox), or "Never" to lift it entirely.',
+                input: 'select',
+                options: [
+                    'auto' => 'Automatic — only when sending through Gmail',
+                    'always' => 'Always enforce the limits below',
+                    'never' => 'Never — my provider has no daily limit',
+                ],
+            ),
+
+            new SettingDefinition(
                 key: 'email.daily_cap',
                 group: SettingGroup::Email,
                 label: 'Messages per 24 hours',

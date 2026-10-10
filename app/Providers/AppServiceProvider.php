@@ -86,7 +86,12 @@ class AppServiceProvider extends ServiceProvider
          * reminder blast that caused it. A job over the limit is released back
          * to the queue, so nothing is lost; it simply goes out slower.
          */
-        RateLimiter::for('email', static fn (): Limit => Limit::perMinute(SendBudget::perMinuteCap()));
+        // Lifts with the daily allowance: the per-minute throttle exists for
+        // Gmail's burst limit, and a real SMTP provider wants its mail to go out
+        // as fast as the queue can hand it over.
+        RateLimiter::for('email', static fn (): Limit => SendBudget::throttlesPerMinute()
+            ? Limit::perMinute(SendBudget::perMinuteCap())
+            : Limit::none());
 
         /*
          * Tell somebody their password changed.

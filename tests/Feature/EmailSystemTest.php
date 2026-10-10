@@ -261,11 +261,19 @@ it('ignores a preference against an email somebody is owed', function (): void {
 // The sending allowance --------------------------------------------------------------------------
 
 /*
+ * These three force the allowance on with `email.sending_limit = always`,
+ * because the test mailer is 'array' — not Gmail — so under the default 'auto'
+ * nothing would be capped and nothing would defer. Forcing it on is exactly what
+ * a real provider with its own limit (SES in sandbox) does.
+ */
+
+/*
  * A consumer Gmail account blocks the whole mailbox for roughly 24 hours when the
  * daily limit is passed — password resets included. Deferring is how that is
  * avoided without losing anything.
  */
 it('defers rather than failing when the allowance is spent', function (): void {
+    Setting::set('email.sending_limit', 'always', 'string');
     Setting::set('email.daily_cap', 1, 'integer');
     Setting::set('email.bulk_cap', 1, 'integer');
 
@@ -281,6 +289,7 @@ it('defers rather than failing when the allowance is spent', function (): void {
  * newsletter went out at 3pm is the specific outcome the two caps buy off.
  */
 it('keeps allowance in reserve for transactional mail when bulk is spent', function (): void {
+    Setting::set('email.sending_limit', 'always', 'string');
     Setting::set('email.daily_cap', 10, 'integer');
     Setting::set('email.bulk_cap', 2, 'integer');
 
@@ -296,6 +305,7 @@ it('keeps allowance in reserve for transactional mail when bulk is spent', funct
 });
 
 it('sends a deferred email once the allowance frees up', function (): void {
+    Setting::set('email.sending_limit', 'always', 'string');
     Setting::set('email.daily_cap', 1, 'integer');
     Setting::set('email.bulk_cap', 1, 'integer');
 
@@ -310,6 +320,59 @@ it('sends a deferred email once the allowance frees up', function (): void {
     $this->artisan('emails:release-deferred')->assertSuccessful();
 
     expect($deferred->refresh()->status)->toBe(EmailStatus::Sent);
+});
+
+// Whether the allowance applies at all -----------------------------------------------------------
+
+/*
+ * The point of this change. A real SMTP provider has no per-account daily cliff,
+ * so nothing is deferred however low the numeric caps are set — the caps simply
+ * do not apply. The test mailer is 'array', which stands in for "not Gmail".
+ */
+it('does not defer on a non-Gmail provider, whatever the caps say', function (): void {
+    Setting::set('email.sending_limit', 'auto', 'string');
+    Setting::set('email.daily_cap', 1, 'integer');
+    Setting::set('email.bulk_cap', 1, 'integer');
+
+    app(Dispatcher::class)->send(new PasswordChanged(User::factory()->create()));
+    $second = app(Dispatcher::class)->send(new PasswordChanged(User::factory()->create()));
+
+    expect(SendBudget::capped())->toBeFalse()
+        ->and($second->status)->toBe(EmailStatus::Sent);
+});
+
+it('enforces the caps automatically when the host is Gmail', function (): void {
+    config(['mail.default' => 'smtp', 'mail.mailers.smtp.host' => 'smtp.gmail.com']);
+    Setting::set('email.sending_limit', 'auto', 'string');
+
+    expect(SendBudget::usesConsumerGmail())->toBeTrue()
+        ->and(SendBudget::capped())->toBeTrue()
+        ->and(SendBudget::throttlesPerMinute())->toBeTrue();
+});
+
+it('leaves a non-Gmail host uncapped under auto', function (): void {
+    config(['mail.default' => 'smtp', 'mail.mailers.smtp.host' => 'email-smtp.us-east-1.amazonaws.com']);
+    Setting::set('email.sending_limit', 'auto', 'string');
+
+    expect(SendBudget::usesConsumerGmail())->toBeFalse()
+        ->and(SendBudget::capped())->toBeFalse()
+        ->and(SendBudget::remainingForTransactional())->toBe(PHP_INT_MAX);
+});
+
+it('forces the caps on for a provider that has its own limit', function (): void {
+    // SES in sandbox is 200/day and not Gmail — "always" is how you protect it.
+    config(['mail.default' => 'smtp', 'mail.mailers.smtp.host' => 'email-smtp.us-east-1.amazonaws.com']);
+    Setting::set('email.sending_limit', 'always', 'string');
+
+    expect(SendBudget::capped())->toBeTrue();
+});
+
+it('lifts the caps on Gmail when told to never enforce them', function (): void {
+    config(['mail.default' => 'smtp', 'mail.mailers.smtp.host' => 'smtp.gmail.com']);
+    Setting::set('email.sending_limit', 'never', 'string');
+
+    expect(SendBudget::capped())->toBeFalse()
+        ->and(SendBudget::throttlesPerMinute())->toBeFalse();
 });
 
 // Resending ------------------------------------------------------------------------------------

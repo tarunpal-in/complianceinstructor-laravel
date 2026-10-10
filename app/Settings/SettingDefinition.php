@@ -44,6 +44,8 @@ final class SettingDefinition
         public readonly ?int $maxLength = 255,
         /** @var array{0: int, 1: int}|null Bounds for a number input. */
         public readonly ?array $range = null,
+        /** @var array<string, string>|null Choices for a `select` input, value => label. */
+        public readonly ?array $options = null,
     ) {}
 
     /**

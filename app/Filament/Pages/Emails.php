@@ -20,7 +20,6 @@ use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 use UnitEnum;
 
 /**
@@ -166,11 +165,15 @@ class Emails extends Page
      * blocking the whole mailbox for a day, password resets included. Nothing
      * else in the application would tell them.
      *
-     * @return array<string, int|bool>
+     * @return array<string, int|bool|string|null>
      */
     public function budget(): array
     {
         return [
+            // Whether the allowance applies at all. False on a real SMTP provider,
+            // where there is no per-account daily cliff to manage.
+            'capped' => SendBudget::capped(),
+            'host' => SendBudget::host(),
             'used' => SendBudget::used(),
             'dailyCap' => SendBudget::dailyCap(),
             'bulkCap' => SendBudget::bulkCap(),

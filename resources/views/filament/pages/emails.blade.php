@@ -28,7 +28,35 @@
          Here because this is where somebody stands before scheduling something,
          and because a consumer Gmail account answers an over-run by blocking the
          whole mailbox for about 24 hours — password resets with it. Nothing else
-         in the application would tell them how close they are. --}}
+         in the application would tell them how close they are.
+
+         Shown only when it is real. A proper SMTP provider has no per-account
+         daily cliff, so an allowance panel would be inventing a limit and then
+         asking somebody to watch it. See App\Email\SendBudget::capped(). --}}
+    @unless ($budget['capped'])
+        <x-filament::section>
+            <x-slot name="heading">Sending</x-slot>
+            <div class="flex items-start gap-3">
+                <x-filament::icon icon="heroicon-o-paper-airplane" class="mt-0.5 h-6 w-6 shrink-0 text-gray-400" />
+                <div class="text-sm text-gray-600 dark:text-gray-400">
+                    <p>
+                        Sending through <strong class="text-gray-950 dark:text-white">{{ $budget['host'] ?? 'the configured mailer' }}</strong>,
+                        which has no per-account daily limit — so nothing here is rate-limited or held back for allowance.
+                        {{ number_format($budget['used']) }} {{ Str::plural('message', $budget['used']) }} sent in the last 24 hours.
+                    </p>
+                    @if ($budget['failed'] > 0)
+                        <p class="mt-2">
+                            {{ $budget['failed'] }} {{ Str::plural('email', $budget['failed']) }} failed in the last 7 days.
+                            <a href="{{ \App\Filament\Resources\EmailLog\EmailSendResource::getUrl('index', panel: 'admin') }}" class="font-medium text-primary-600 underline dark:text-primary-400">Look at the log</a>.
+                        </p>
+                    @endif
+                    <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        If you move to a free Gmail account, set <em>Daily sending limit</em> in Settings to keep within its ~500/day cap.
+                    </p>
+                </div>
+            </div>
+        </x-filament::section>
+    @else
     <x-filament::section>
         <x-slot name="heading">Today's sending allowance</x-slot>
         <x-slot name="description">
@@ -93,6 +121,7 @@
             that email's page in the log.
         </p>
     </x-filament::section>
+    @endunless
 
     @foreach ($groups as $groupName => $rows)
         <x-filament::section collapsible>

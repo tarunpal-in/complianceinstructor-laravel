@@ -205,6 +205,24 @@ it('puts every group in the ordered list', function (): void {
     expect(SettingGroup::ordered())->toHaveCount(count(SettingGroup::cases()));
 });
 
+/*
+ * A select with no options is a field that renders empty and saves null, which
+ * reads back as the default and looks like the save failed. And a default that
+ * is not one of the options means the field opens on nothing.
+ */
+it('gives every select its options, with the default among them', function (): void {
+    foreach (SettingRegistry::all() as $setting) {
+        if ($setting->input !== 'select') {
+            continue;
+        }
+
+        // toContain is variadic, so no custom message — a failure names the key
+        // through the loop variable in the stack trace instead.
+        expect($setting->options)->not->toBeEmpty()
+            ->and(array_keys($setting->options ?? []))->toContain($setting->default);
+    }
+});
+
 // Defaults ------------------------------------------------------------------------------
 
 it('falls back to the declared default when nothing is stored', function (): void {
