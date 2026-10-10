@@ -214,6 +214,62 @@ it('does not redirect a POST, so a form keeps its body', function (): void {
     expect($response->getContent())->toBe('reached the page');
 });
 
+// The admin panel actually saves ----------------------------------------------------------------
+
+/*
+ * The SEO panel is a Section bound with ->relationship('seo'), which is the part
+ * most likely to silently not persist. This drives the real Filament edit form
+ * and asserts the seo_meta row is written.
+ */
+it('saves the SEO panel into a seo_meta row from the edit form', function (): void {
+    $this->seed(Database\Seeders\RolePermissionSeeder::class);
+    $author = userWithRole(App\Enums\UserRole::ContentEditor);
+    $this->actingAs($author);
+
+    // A staff author and a category, so the only thing under test is the SEO
+    // panel — the author select rejects a non-staff user.
+    $post = Post::factory()->create([
+        'user_id' => $author->getKey(),
+        'post_category_id' => App\Models\PostCategory::factory(),
+    ]);
+
+    Livewire\Livewire::test(App\Filament\Resources\Posts\Pages\EditPost::class, ['record' => $post->getKey()])
+        ->fillForm([
+            'seo' => [
+                'title' => 'A Saved SEO Title',
+                'description' => 'A saved meta description.',
+                'keywords' => 'internal tracking phrase',
+                'robots' => 'noindex, follow',
+            ],
+        ])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    $seo = $post->refresh()->seo;
+
+    expect($seo)->not->toBeNull()
+        ->and($seo->title)->toBe('A Saved SEO Title')
+        ->and($seo->description)->toBe('A saved meta description.')
+        ->and($seo->keywords)->toBe('internal tracking phrase')
+        ->and($seo->robots)->toBe('noindex, follow');
+});
+
+/*
+ * And the saved values reach the page — the full loop from editing a field to a
+ * search engine seeing it.
+ */
+it('renders what was saved in the panel', function (): void {
+    $post = Post::factory()->published()->create();
+    $post->seo()->create([
+        'title' => 'End To End SEO Title',
+        'robots' => 'noindex, follow',
+    ]);
+
+    expect(headOf('blog.show', $post->slug))
+        ->toContain('<title>End To End SEO Title</title>')
+        ->toContain('content="noindex, follow"');
+});
+
 // og:image — the relevant image, not the logo (brief §13/§15) ------------------------------------
 
 it('describes the webinar with a website og type and a share image chain', function (): void {
