@@ -95,7 +95,9 @@ it('renders the agreed navigation items', function (string $item): void {
     'Customers', 'Entitlements', 'Certificates',
     'Pages', 'Blog',
     'Inquiries', 'Subscribers',
-    'Staff', 'Roles', 'Settings', 'Emails', 'Email Log', 'Activity Log', 'Backups',
+    // 'Emails' is now a cluster; its overview and log are tabs inside it, not
+    // separate sidebar items.
+    'Staff', 'Roles', 'Settings', 'Emails', 'Activity Log', 'Backups',
 ]);
 
 /*

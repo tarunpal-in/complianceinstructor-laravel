@@ -520,13 +520,53 @@ it('says so rather than throwing when the record behind an email has gone', func
 // The screens -----------------------------------------------------------------------------------
 
 it('keeps the email log to roles holding view_email_log', function (): void {
-    $this->actingAs(userWithRole(UserRole::SuperAdmin))->get('/admin/email-log')->assertSuccessful();
-    $this->actingAs(userWithRole(UserRole::Finance))->get('/admin/email-log')->assertSuccessful();
-    $this->actingAs(userWithRole(UserRole::Support))->get('/admin/email-log')->assertSuccessful();
+    // getUrl so the cluster slug (/admin/emails/email-log) stays in one place.
+    $log = App\Filament\Resources\EmailLog\EmailSendResource::getUrl('index', panel: 'admin');
+
+    $this->actingAs(userWithRole(UserRole::SuperAdmin))->get($log)->assertSuccessful();
+    $this->actingAs(userWithRole(UserRole::Finance))->get($log)->assertSuccessful();
+    $this->actingAs(userWithRole(UserRole::Support))->get($log)->assertSuccessful();
 
     // Content Editor holds none of it: the full text of every invoice and reset
     // link is on this screen.
-    $this->actingAs(userWithRole(UserRole::ContentEditor))->get('/admin/email-log')->assertForbidden();
+    $this->actingAs(userWithRole(UserRole::ContentEditor))->get($log)->assertForbidden();
+});
+
+/*
+ * The overview and the log are one sidebar item now — a cluster with two tabs —
+ * rather than two entries competing in the System group.
+ */
+it('shows email as a single clustered nav item', function (): void {
+    $this->actingAs(userWithRole(UserRole::SuperAdmin))
+        ->get('/admin')
+        ->assertSuccessful()
+        ->assertSee('Emails', escape: false)
+        // "Email Log" was the old second item; it is a tab inside now, not a
+        // sidebar entry on the dashboard.
+        ->assertDontSee('Email Log', escape: false);
+
+    // Both members live under the one cluster slug.
+    expect(App\Filament\Pages\Emails::getUrl(panel: 'admin'))->toContain('/admin/emails/')
+        ->and(App\Filament\Resources\EmailLog\EmailSendResource::getUrl('index', panel: 'admin'))->toContain('/admin/emails/');
+});
+
+/*
+ * Opening the cluster lands on the overview rather than a dead page — the
+ * cluster root redirects to its first tab.
+ */
+it('lands the emails cluster on its overview', function (): void {
+    $this->actingAs(userWithRole(UserRole::SuperAdmin))
+        ->get(App\Filament\Clusters\Emails::getUrl(panel: 'admin'))
+        ->assertRedirect(App\Filament\Pages\Emails::getUrl(panel: 'admin'));
+});
+
+it('hides the emails cluster from a role without view_email_log', function (): void {
+    $this->actingAs(userWithRole(UserRole::ContentEditor));
+
+    // Gated the same as its contents, and refused on a direct URL too.
+    expect(App\Filament\Clusters\Emails::canAccess())->toBeFalse();
+
+    $this->get(App\Filament\Clusters\Emails::getUrl(panel: 'admin'))->assertForbidden();
 });
 
 it('allows nothing in the log to be created, changed or deleted', function (): void {
@@ -545,7 +585,8 @@ it('renders a stored email in a sandboxed frame', function (): void {
 
     $send = EmailSend::factory()->create(['body_html' => '<p>Hello from the log.</p>']);
 
-    $response = $this->get('/admin/email-log/'.$send->getKey())->assertSuccessful();
+    $response = $this->get(App\Filament\Resources\EmailLog\EmailSendResource::getUrl('view', ['record' => $send], panel: 'admin'))
+        ->assertSuccessful();
 
     // Stored HTML assembled partly from customer-supplied values. The settings
     // audit found a stored XSS through exactly this assumption.
@@ -557,7 +598,7 @@ it('says so when a body has been pruned rather than showing an empty frame', fun
 
     $send = EmailSend::factory()->pruned()->create();
 
-    $this->get('/admin/email-log/'.$send->getKey())
+    $this->get(App\Filament\Resources\EmailLog\EmailSendResource::getUrl('view', ['record' => $send], panel: 'admin'))
         ->assertSuccessful()
         ->assertSee('no longer stored');
 });
@@ -586,7 +627,8 @@ it('keeps the emails screen toggles to roles holding manage_email_sending', func
 it('shows every email on the emails screen, built or not', function (): void {
     $this->actingAs(userWithRole(UserRole::SuperAdmin));
 
-    $response = $this->get('/admin/emails')->assertSuccessful();
+    // The overview tab of the cluster — /admin/emails itself redirects here.
+    $response = $this->get(App\Filament\Pages\Emails::getUrl(panel: 'admin'))->assertSuccessful();
     $html = (string) $response->getContent();
 
     foreach (EmailCatalogue::all() as $email) {

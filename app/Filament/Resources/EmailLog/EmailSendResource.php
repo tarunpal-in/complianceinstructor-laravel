@@ -14,7 +14,6 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use UnitEnum;
 
 /**
  * Every email the application has tried to send.
@@ -39,12 +38,15 @@ class EmailSendResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedEnvelope;
 
-    protected static string|null|UnitEnum $navigationGroup = 'System';
+    /** The log tab of the Emails cluster. */
+    protected static ?string $cluster = \App\Filament\Clusters\Emails::class;
 
-    /** Beside the activity log, which answers the neighbouring question. */
-    protected static ?int $navigationSort = 32;
+    // Second tab, after the overview.
+    protected static ?int $navigationSort = 2;
 
-    protected static ?string $navigationLabel = 'Email Log';
+    // "Log" rather than "Email Log": the cluster is already called Emails, so the
+    // tab reading "Emails › Email Log" would stutter.
+    protected static ?string $navigationLabel = 'Log';
 
     protected static ?string $modelLabel = 'email';
 

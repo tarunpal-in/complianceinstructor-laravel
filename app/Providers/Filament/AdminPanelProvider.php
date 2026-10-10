@@ -120,6 +120,10 @@ class AdminPanelProvider extends PanelProvider
             ->navigationItems($this->placeholderNavigation())
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
+            // Clusters group related pages and resources under one sidebar item.
+            // The Emails cluster folds the overview and the log together; its
+            // members stay in their own directories and join it via $cluster.
+            ->discoverClusters(in: app_path('Filament/Clusters'), for: 'App\Filament\Clusters')
             ->pages([
                 Dashboard::class,
             ])

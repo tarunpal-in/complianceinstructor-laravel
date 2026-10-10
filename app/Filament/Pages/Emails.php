@@ -20,7 +20,6 @@ use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Carbon;
-use UnitEnum;
 
 /**
  * Every email this website can send, with a switch where there is one.
@@ -43,17 +42,21 @@ use UnitEnum;
  */
 class Emails extends Page
 {
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedInbox;
+    /** The first tab of the Emails cluster, and where the cluster lands. */
+    protected static ?string $cluster = \App\Filament\Clusters\Emails::class;
 
-    protected static string|null|UnitEnum $navigationGroup = 'System';
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedListBullet;
 
-    protected static ?int $navigationSort = 31;
+    // First in the cluster's sub-navigation, so it is the tab the cluster opens on.
+    protected static ?int $navigationSort = 1;
 
-    protected static ?string $navigationLabel = 'Emails';
+    protected static ?string $navigationLabel = 'Overview';
 
     protected static ?string $title = 'Emails';
 
-    protected static ?string $slug = 'emails';
+    // Under the cluster slug this is /admin/emails/overview. The cluster itself
+    // owns /admin/emails and redirects here.
+    protected static ?string $slug = 'overview';
 
     protected string $view = 'filament.pages.emails';
 
