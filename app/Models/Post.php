@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Contracts\Seoable;
 use App\Enums\PublishStatus;
+use App\Models\Concerns\HasSeo;
 use App\Models\Concerns\ReleasesUniqueNameOnDelete;
 use Carbon\CarbonInterface;
 use Database\Factories\PostFactory;
@@ -29,10 +31,10 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * @property PublishStatus $status
  * @property CarbonInterface|null $published_at
  */
-class Post extends Model implements HasMedia
+class Post extends Model implements HasMedia, Seoable
 {
     /** @use HasFactory<PostFactory> */
-    use HasFactory, InteractsWithMedia, LogsActivity, ReleasesUniqueNameOnDelete, SoftDeletes;
+    use HasFactory, HasSeo, InteractsWithMedia, LogsActivity, ReleasesUniqueNameOnDelete, SoftDeletes;
 
     /** The blog's own prefix, so `/blog/{slug}` cannot collide with a page. */
     public const PATH_PREFIX = 'blog';
@@ -292,6 +294,22 @@ class Post extends Model implements HasMedia
         }
 
         return Str::limit(trim(strip_tags((string) $this->body)), $length);
+    }
+
+    // SEO — CLAUDE.md §5.6 / client SEO brief -------------------------------
+
+    /** The summary feeds the meta description when none is set. */
+    public function defaultSeoDescription(): ?string
+    {
+        $summary = $this->summary(160);
+
+        return $summary === '' ? null : $summary;
+    }
+
+    /** The cover image is the article's social image, not the logo (brief §13). */
+    public function defaultSeoOgImageUrl(): ?string
+    {
+        return $this->coverUrl('banner');
     }
 
     /**

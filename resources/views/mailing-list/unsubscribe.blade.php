@@ -1,7 +1,5 @@
 @extends('layouts.public')
 
-@section('title', 'Unsubscribe — '.config('app.name'))
-@section('meta_robots', 'noindex')
 
 @section('content')
     <section class="section mailing-notice">

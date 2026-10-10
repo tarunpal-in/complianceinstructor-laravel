@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Post;
 use App\Models\PostCategory;
+use App\Seo\Seo;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -32,6 +33,14 @@ class BlogController extends Controller
             ->withQueryString();
 
         return view('blog.index', [
+            // A category here is a ?category= filter, not its own path, so it
+            // canonicalises to /blog/ (the query is stripped) — which is exactly
+            // the duplicate-URL prevention brief §7 asks for on a filtered list.
+            // The title still reflects the filter for a human; the editable
+            // per-category SEO fields attach when categories get their own URLs.
+            'seo' => $category !== null
+                ? Seo::site($category->name.' articles', $category->description)
+                : Seo::site('Blog'),
             'posts' => $posts,
             'categories' => PostCategory::query()->active()->get(),
             'activeCategory' => $category,

@@ -4,21 +4,11 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>@yield('title', config('app.name'))</title>
-    <meta name="description" content="@yield('meta_description', 'Live and recorded compliance webinars led by certified industry experts. Earn HRCI, SHRM and NASBA/CPE recertification credits.')">
-
-    {{-- Indexable unless a page says otherwise. The mailing-list pages say
-         otherwise: they are reached from a signed link and have nothing on them
-         a search engine should hold. --}}
-    <meta name="robots" content="@yield('meta_robots', 'index, follow')">
-
-    {{-- Placeholder Open Graph — CLAUDE.md §5.6 replaces this with the
-         polymorphic seo_meta record, editable in Filament, at P6. --}}
-    <meta property="og:site_name" content="{{ config('app.name') }}">
-    <meta property="og:title" content="@yield('title', config('app.name'))">
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="{{ url()->current() }}">
-    <link rel="canonical" href="{{ url()->current() }}">
+    {{-- SEO head, driven by the per-page seo_meta record with computed
+         fallbacks (CLAUDE.md §5.6). A view provides $seo via its controller;
+         a page that does not — a one-off static view — gets a sensible
+         site-level default here rather than nothing. --}}
+    @include('partials.seo-head', ['seo' => $seo ?? \App\Seo\Seo::site()])
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>

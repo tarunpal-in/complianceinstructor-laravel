@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Setting;
 use App\Models\Webinar;
+use App\Seo\Seo;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\View\View;
@@ -43,6 +44,7 @@ class WebinarController extends Controller
         ]);
 
         return view('webinars.show', [
+            'seo' => Seo::for($webinar),
             'webinar' => $webinar,
             'similar' => $this->similar($webinar),
             'instructions' => $webinar->resolvedInstructions(),

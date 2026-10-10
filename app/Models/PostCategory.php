@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Contracts\Seoable;
+use App\Models\Concerns\HasSeo;
 use App\Models\Concerns\ReleasesUniqueNameOnDelete;
 use Database\Factories\PostCategoryFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -15,10 +17,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 /**
  * A blog category — CLAUDE.md §5.7.
  */
-class PostCategory extends Model
+class PostCategory extends Model implements Seoable
 {
     /** @use HasFactory<PostCategoryFactory> */
-    use HasFactory, ReleasesUniqueNameOnDelete, SoftDeletes;
+    use HasFactory, HasSeo, ReleasesUniqueNameOnDelete, SoftDeletes;
 
     protected $fillable = ['name', 'slug', 'description', 'sort_order', 'is_active'];
 

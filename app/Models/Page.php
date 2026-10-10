@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Contracts\Seoable;
 use App\Enums\PublishStatus;
+use App\Models\Concerns\HasSeo;
 use App\Models\Concerns\ReleasesUniqueNameOnDelete;
 use Carbon\CarbonInterface;
 use Database\Factories\PageFactory;
@@ -24,10 +26,10 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property CarbonInterface|null $published_at
  * @property \Illuminate\Database\Eloquent\Collection<int, PageSection> $sections
  */
-class Page extends Model
+class Page extends Model implements Seoable
 {
     /** @use HasFactory<PageFactory> */
-    use HasFactory, LogsActivity, ReleasesUniqueNameOnDelete, SoftDeletes;
+    use HasFactory, HasSeo, LogsActivity, ReleasesUniqueNameOnDelete, SoftDeletes;
 
     /**
      * Paths the application already answers on.

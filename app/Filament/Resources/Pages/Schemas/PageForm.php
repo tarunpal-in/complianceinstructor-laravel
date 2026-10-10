@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Pages\Schemas;
 
 use App\Enums\PublishStatus;
+use App\Filament\Forms\Components\SeoFields;
 use App\Models\Page;
 use App\Models\PageSection;
 use Closure;
@@ -110,6 +111,8 @@ class PageForm
                         // standard frame.
                         ->helperText('Only one frame so far.'),
                 ]),
+            SeoFields::make(),
+
         ]);
     }
 

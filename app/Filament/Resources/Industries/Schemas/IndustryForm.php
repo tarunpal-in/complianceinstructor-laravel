@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Industries\Schemas;
 
+use App\Filament\Forms\Components\SeoFields;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -65,6 +66,8 @@ class IndustryForm
                         ->helperText('Used on the homepage category cards. White text sits over it, so choose something with a dark or busy lower third.')
                         ->hiddenLabel(),
                 ]),
+            SeoFields::make(),
+
         ]);
     }
 }

@@ -1,7 +1,5 @@
 @extends('layouts.public')
 
-@section('title', $post->title.' — '.config('app.name'))
-@section('meta_description', $post->summary(155))
 
 @section('content')
     @if ($preview ?? false)

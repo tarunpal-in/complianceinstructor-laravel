@@ -1,6 +1,5 @@
 @extends('layouts.public')
 
-@section('title', $page->title.' — '.config('app.name'))
 
 @section('content')
     @if ($preview ?? false)

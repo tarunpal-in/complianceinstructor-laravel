@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Contracts\Seoable;
+use App\Models\Concerns\HasSeo;
 use App\Models\Concerns\ReleasesUniqueNameOnDelete;
 use Database\Factories\IndustryFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -19,10 +21,10 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * CLAUDE.md §5.3 — industries. Also the second segment of a webinar's
  * breadcrumb, so the slug is part of the public URL.
  */
-class Industry extends Model implements HasMedia
+class Industry extends Model implements HasMedia, Seoable
 {
     /** @use HasFactory<IndustryFactory> */
-    use HasFactory, InteractsWithMedia, ReleasesUniqueNameOnDelete, SoftDeletes;
+    use HasFactory, HasSeo, InteractsWithMedia, ReleasesUniqueNameOnDelete, SoftDeletes;
 
     protected $fillable = [
         'name', 'slug', 'description', 'is_active', 'sort_order',

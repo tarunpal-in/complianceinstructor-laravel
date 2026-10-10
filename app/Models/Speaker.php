@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Contracts\Seoable;
+use App\Models\Concerns\HasSeo;
 use App\Models\Concerns\ReleasesUniqueNameOnDelete;
 use Database\Factories\SpeakerFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -19,10 +21,10 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * CLAUDE.md §5.3 — speakers. Their credentials are most of what a CEU buyer is
  * actually paying for, so the portrait and title carry weight on the public page.
  */
-class Speaker extends Model implements HasMedia
+class Speaker extends Model implements HasMedia, Seoable
 {
     /** @use HasFactory<SpeakerFactory> */
-    use HasFactory, InteractsWithMedia, ReleasesUniqueNameOnDelete, SoftDeletes;
+    use HasFactory, HasSeo, InteractsWithMedia, ReleasesUniqueNameOnDelete, SoftDeletes;
 
     protected $fillable = [
         'name', 'slug', 'title', 'credentials', 'bio', 'linkedin_url', 'is_active',

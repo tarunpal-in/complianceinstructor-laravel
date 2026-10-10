@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\MembershipPlan;
+use App\Seo\Seo;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
@@ -33,6 +34,7 @@ class HomeController extends Controller
     public function __invoke(): View
     {
         return view('home.index', [
+            'seo' => Seo::site('Professional Compliance Training'),
             'stats' => $this->stats(),
             'bodies' => ['HRCI', 'SHRM', 'CPE'],
             'steps' => $this->steps(),

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Posts\Schemas;
 
 use App\Enums\PublishStatus;
+use App\Filament\Forms\Components\SeoFields;
 use App\Models\PostCategory;
 use App\Models\Tag;
 use App\Models\User;
@@ -174,6 +175,8 @@ class PostForm
                         ->helperText('Nothing left here is published until it is approved on the Comments screen.')
                         ->columnSpanFull(),
                 ]),
+            SeoFields::make(),
+
         ]);
     }
 }

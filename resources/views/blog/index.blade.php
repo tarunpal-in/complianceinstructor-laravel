@@ -1,7 +1,5 @@
 @extends('layouts.public')
 
-@section('title', ($activeCategory?->name ?? 'Blog').' — '.config('app.name'))
-@section('meta_description', $activeCategory?->description ?: 'Compliance insight, regulatory updates and practical guidance for HR, payroll and safety professionals.')
 
 @section('content')
     <section class="section blog-index">

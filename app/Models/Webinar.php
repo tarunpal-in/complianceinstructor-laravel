@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Contracts\Seoable;
 use App\Enums\Format;
 use App\Enums\WebinarStatus;
 use App\Enums\WebinarType;
+use App\Models\Concerns\HasSeo;
 use App\Models\Concerns\ReleasesUniqueNameOnDelete;
 use App\Support\CreditHours;
 use Database\Factories\WebinarFactory;
@@ -36,10 +38,10 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * is ever read from", so a webinar never carries one — the detail page's
  * purchase panel reads offerings, and checkout recomputes from the same rows.
  */
-class Webinar extends Model implements HasMedia
+class Webinar extends Model implements HasMedia, Seoable
 {
     /** @use HasFactory<WebinarFactory> */
-    use HasFactory, InteractsWithMedia, ReleasesUniqueNameOnDelete, SoftDeletes;
+    use HasFactory, HasSeo, InteractsWithMedia, ReleasesUniqueNameOnDelete, SoftDeletes;
 
     protected $fillable = [
         'type', 'status', 'title', 'slug', 'summary',
@@ -327,5 +329,22 @@ class Webinar extends Model implements HasMedia
 
         $this->addMediaConversion('banner')
             ->fit(Fit::Crop, 1920, 640);
+    }
+
+    // SEO — CLAUDE.md §5.6 / client SEO brief -------------------------------
+
+    /**
+     * The webinar's own social image is its banner.
+     *
+     * This is the brief's §13/§15 rule made structural: "use the relevant image,
+     * the webinar banner, not the company logo." Because the rule lives on the
+     * model, the renderer never has to special-case webinars — it asks every
+     * record for its own image and the right thing happens.
+     */
+    public function defaultSeoOgImageUrl(): ?string
+    {
+        $url = $this->getFirstMediaUrl('banner');
+
+        return $url === '' ? null : $url;
     }
 }

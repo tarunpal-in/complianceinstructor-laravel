@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\Page;
+use App\Seo\Seo;
 use Illuminate\View\View;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -37,6 +38,6 @@ class PageController extends Controller
             throw new NotFoundHttpException;
         }
 
-        return view('pages.show', ['page' => $page]);
+        return view('pages.show', ['seo' => Seo::for($page), 'page' => $page]);
     }
 }

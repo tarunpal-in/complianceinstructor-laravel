@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Speakers\Schemas;
 
+use App\Filament\Forms\Components\SeoFields;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -83,6 +84,8 @@ class SpeakerForm
                         ->helperText('Square. Cropped to 254x254 for the faculty grid.')
                         ->hiddenLabel(),
                 ]),
+            SeoFields::make(),
+
         ]);
     }
 }

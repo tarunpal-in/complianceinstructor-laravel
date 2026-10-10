@@ -1,7 +1,5 @@
 @extends('layouts.public')
 
-@section('title', 'Compliance Instructor — Professional Compliance Training')
-@section('meta_description', 'Live and recorded compliance webinars led by certified industry experts. Earn HRCI, SHRM and NASBA/CPE recertification credits, with study materials, certificates and transcripts.')
 
 @section('content')
     {{-- Section order matches the comp. Each is an anonymous component rather

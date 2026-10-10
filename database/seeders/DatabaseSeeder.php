@@ -46,6 +46,8 @@ class DatabaseSeeder extends Seeder
             // After the orders too, so one seeded address is deliberately a
             // customer and the Customer column has something to find.
             SubscriberSeeder::class,
+            // Last, so every content type it decorates already exists.
+            SeoMetaSeeder::class,
         ]);
 
         $admin = User::firstOrCreate(

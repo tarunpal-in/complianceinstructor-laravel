@@ -10,6 +10,7 @@ use App\Actions\Subscribers\Unsubscribe;
 use App\Enums\SubscriberSource;
 use App\Http\Requests\StoreSubscriberRequest;
 use App\Models\Subscriber;
+use App\Seo\Seo;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
@@ -49,7 +50,7 @@ class MailingListController extends Controller
     {
         $confirm($subscriber);
 
-        return view('mailing-list.confirmed', ['subscriber' => $subscriber]);
+        return view('mailing-list.confirmed', ['seo' => Seo::site('Subscribed', robots: 'noindex, follow'), 'subscriber' => $subscriber]);
     }
 
     /**
@@ -62,13 +63,13 @@ class MailingListController extends Controller
      */
     public function confirmUnsubscribe(Subscriber $subscriber): View
     {
-        return view('mailing-list.unsubscribe', ['subscriber' => $subscriber]);
+        return view('mailing-list.unsubscribe', ['seo' => Seo::site('Unsubscribe', robots: 'noindex, follow'), 'subscriber' => $subscriber]);
     }
 
     public function unsubscribe(Subscriber $subscriber, Unsubscribe $unsubscribe): View
     {
         $unsubscribe($subscriber, 'Used the link in an email.');
 
-        return view('mailing-list.unsubscribed', ['subscriber' => $subscriber]);
+        return view('mailing-list.unsubscribed', ['seo' => Seo::site('Unsubscribed', robots: 'noindex, follow'), 'subscriber' => $subscriber]);
     }
 }

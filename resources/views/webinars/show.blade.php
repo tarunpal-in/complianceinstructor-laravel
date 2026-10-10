@@ -1,7 +1,5 @@
 @extends('layouts.public')
 
-@section('title', $webinar->title.' — '.config('app.name'))
-@section('meta_description', Str::limit(strip_tags((string) ($webinar->description ?: $webinar->summary)), 155))
 
 @section('content')
     <x-webinar.breadcrumb :webinar="$webinar" />

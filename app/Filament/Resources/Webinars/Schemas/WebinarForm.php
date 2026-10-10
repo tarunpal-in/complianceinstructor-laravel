@@ -6,6 +6,7 @@ namespace App\Filament\Resources\Webinars\Schemas;
 
 use App\Enums\WebinarStatus;
 use App\Enums\WebinarType;
+use App\Filament\Forms\Components\SeoFields;
 use App\Models\Setting;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
@@ -182,6 +183,8 @@ class WebinarForm
                         ->helperText('The full-width hero on the detail page. Title and badges sit over it, so avoid a busy left third.'),
                 ])->columns(2),
             ]),
+            SeoFields::make(),
+
         ]);
     }
 

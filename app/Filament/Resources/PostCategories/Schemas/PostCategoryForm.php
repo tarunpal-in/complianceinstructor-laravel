@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\PostCategories\Schemas;
 
+use App\Filament\Forms\Components\SeoFields;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -52,6 +53,8 @@ class PostCategoryForm
                     // articles in it — the same reasoning as a hidden block.
                     ->helperText('Turning this off hides the category. Its articles stay published.'),
             ]),
+            SeoFields::make(),
+
         ]);
     }
 }

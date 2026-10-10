@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\Post;
+use App\Seo\Seo;
 use Illuminate\View\View;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -40,6 +41,10 @@ class PostController extends Controller
             throw new NotFoundHttpException;
         }
 
-        return view('blog.show', ['post' => $post, 'related' => $post->related()]);
+        return view('blog.show', [
+            'seo' => Seo::for($post, 'article'),
+            'post' => $post,
+            'related' => $post->related(),
+        ]);
     }
 }
