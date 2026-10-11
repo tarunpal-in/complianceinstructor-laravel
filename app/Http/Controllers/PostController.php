@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\Post;
+use App\Seo\Schema;
 use App\Seo\Seo;
 use Illuminate\View\View;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -41,8 +42,16 @@ class PostController extends Controller
             throw new NotFoundHttpException;
         }
 
+        $crumbs = [
+            ['name' => 'Home', 'url' => url('/')],
+            ['name' => 'Blog', 'url' => route('blog.index')],
+            ['name' => $post->title, 'url' => url($post->path())],
+        ];
+
         return view('blog.show', [
             'seo' => Seo::for($post, 'article'),
+            'breadcrumbs' => $crumbs,
+            'schemas' => [Schema::article($post), Schema::breadcrumbs($crumbs)],
             'post' => $post,
             'related' => $post->related(),
         ]);

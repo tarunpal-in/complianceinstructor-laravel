@@ -10,6 +10,14 @@
          site-level default here rather than nothing. --}}
     @include('partials.seo-head', ['seo' => $seo ?? \App\Seo\Seo::site()])
 
+    {{-- Structured data for this page — Organization and WebSite on every page,
+         plus Article/Event/Product/Breadcrumb where a controller supplies them
+         (client SEO brief §11). --}}
+    @include('partials.schema', ['schemas' => $schemas ?? []])
+
+    {{-- Analytics, Search Console and chat, when the client has set them up. --}}
+    @include('partials.integrations-head')
+
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body>
@@ -29,5 +37,7 @@
              page is inert until P2/P3 wire real routes. --}}
         <div class="toast" x-show="notice" x-cloak x-text="notice"></div>
     </div>
+
+    @include('partials.integrations-body')
 </body>
 </html>

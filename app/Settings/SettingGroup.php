@@ -24,6 +24,7 @@ enum SettingGroup: string
     case Catalogue = 'catalogue';
     case Certificates = 'certificates';
     case Email = 'email';
+    case Integrations = 'integrations';
 
     public function label(): string
     {
@@ -34,6 +35,7 @@ enum SettingGroup: string
             self::Catalogue => 'Catalogue',
             self::Certificates => 'Certificates',
             self::Email => 'Email & list',
+            self::Integrations => 'Integrations',
         };
     }
 
@@ -46,6 +48,7 @@ enum SettingGroup: string
             self::Catalogue => 'The wording shown beside what you sell.',
             self::Certificates => 'When a certificate is issued automatically. Individual accrediting bodies can override these.',
             self::Email => 'What goes out, and who has agreed to receive it.',
+            self::Integrations => 'Analytics, search console and live chat.',
         };
     }
 
@@ -69,7 +72,7 @@ enum SettingGroup: string
             // should not exist — §12 has them as prescribed and not negotiable.
             self::Certificates => 'manage_certificate_setting',
             // Legal identity and anything that sends mail.
-            self::Business, self::Email => 'manage_business_setting',
+            self::Business, self::Email, self::Integrations => 'manage_business_setting',
         };
     }
 
@@ -81,6 +84,6 @@ enum SettingGroup: string
     /** @return array<int, self> */
     public static function ordered(): array
     {
-        return [self::Business, self::Brand, self::Commerce, self::Catalogue, self::Certificates, self::Email];
+        return [self::Business, self::Brand, self::Commerce, self::Catalogue, self::Certificates, self::Email, self::Integrations];
     }
 }

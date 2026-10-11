@@ -79,6 +79,56 @@ final class SettingRegistry
             ...self::catalogue(),
             ...self::certificates(),
             ...self::email(),
+            ...self::integrations(),
+        ];
+    }
+
+    /**
+     * Analytics, Search Console and live chat — client SEO brief §14.
+     *
+     * The client connects their own accounts here, no developer needed: paste an
+     * ID and it is live. Each ID is validated loosely on render (the exact format
+     * is Google's to change), and an empty value simply renders nothing.
+     *
+     * @return array<int, SettingDefinition>
+     */
+    private static function integrations(): array
+    {
+        return [
+            new SettingDefinition(
+                key: 'integrations.gtm_id',
+                group: SettingGroup::Integrations,
+                label: 'Google Tag Manager container ID',
+                type: 'string',
+                default: '',
+                help: 'Begins with GTM-. The most flexible option: once it is in, your marketing team adds and changes tags — including GA4 — without touching the site.',
+                maxLength: 20,
+            ),
+            new SettingDefinition(
+                key: 'integrations.google_analytics_id',
+                group: SettingGroup::Integrations,
+                label: 'Google Analytics 4 measurement ID',
+                type: 'string',
+                default: '',
+                help: 'Begins with G-. Only needed if you are not loading GA4 through Tag Manager above — set one or the other, not both, or page views are counted twice.',
+                maxLength: 20,
+            ),
+            new SettingDefinition(
+                key: 'integrations.gsc_verification',
+                group: SettingGroup::Integrations,
+                label: 'Search Console verification code',
+                type: 'string',
+                default: '',
+                help: 'The content value from the HTML-tag method in Google Search Console. Just the code, not the whole tag. Lets you verify the domain and submit the sitemap.',
+            ),
+            new SettingDefinition(
+                key: 'integrations.tawkto_id',
+                group: SettingGroup::Integrations,
+                label: 'Tawk.to widget code',
+                type: 'string',
+                default: '',
+                help: 'From Tawk.to → Administration → Channels → Chat Widget, the part of the embed URL after embed.tawk.to/ — e.g. 65f0…/1ab2…. The live-chat bubble appears once it is set.',
+            ),
         ];
     }
 

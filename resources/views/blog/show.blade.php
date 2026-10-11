@@ -2,6 +2,7 @@
 
 
 @section('content')
+    @include('partials.breadcrumbs')
     @if ($preview ?? false)
         {{-- Loud on purpose — see pages/show.blade.php for the reasoning. --}}
         <div class="page-preview-banner" role="status">

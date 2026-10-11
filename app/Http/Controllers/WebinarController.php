@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Setting;
 use App\Models\Webinar;
+use App\Seo\Schema;
 use App\Seo\Seo;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -43,8 +44,15 @@ class WebinarController extends Controller
             'media',
         ]);
 
+        $crumbs = [
+            ['name' => 'Home', 'url' => url('/')],
+            ['name' => $webinar->title, 'url' => route('webinars.show', $webinar)],
+        ];
+
         return view('webinars.show', [
             'seo' => Seo::for($webinar),
+            'breadcrumbs' => $crumbs,
+            'schemas' => [Schema::event($webinar), Schema::breadcrumbs($crumbs)],
             'webinar' => $webinar,
             'similar' => $this->similar($webinar),
             'instructions' => $webinar->resolvedInstructions(),

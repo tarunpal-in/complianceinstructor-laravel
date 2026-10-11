@@ -2,6 +2,7 @@
 
 
 @section('content')
+    @include('partials.breadcrumbs')
     <x-webinar.breadcrumb :webinar="$webinar" />
 
     <x-webinar.hero :webinar="$webinar" />

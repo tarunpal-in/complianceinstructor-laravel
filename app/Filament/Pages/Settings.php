@@ -116,6 +116,8 @@ class Settings extends Page implements HasForms
                     Tabs\Tab::make(SettingGroup::Certificates->label())->schema(self::generated(SettingGroup::Certificates)),
 
                     Tabs\Tab::make(SettingGroup::Email->label())->schema(self::generated(SettingGroup::Email)),
+
+                    Tabs\Tab::make(SettingGroup::Integrations->label())->schema(self::generated(SettingGroup::Integrations)),
                 ]),
             ]);
     }
@@ -378,7 +380,7 @@ class Settings extends Page implements HasForms
         }
 
         // Everything the registry draws, for the groups it owns.
-        foreach ([SettingGroup::Business, SettingGroup::Catalogue, SettingGroup::Certificates, SettingGroup::Email] as $group) {
+        foreach ([SettingGroup::Business, SettingGroup::Catalogue, SettingGroup::Certificates, SettingGroup::Email, SettingGroup::Integrations] as $group) {
             if (! $group->isEditableBy($user)) {
                 continue;
             }
