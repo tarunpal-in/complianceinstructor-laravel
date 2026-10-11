@@ -2,8 +2,8 @@
 
 > Source of requirements: `docs/seo-requirements.pdf` (client, 2026-10). This
 > implements CLAUDE.md §5.6 / §6's "Page builder & SEO" (P6). Built in three
-> phases; **this document covers Phase 1 (the editable core)** and notes what
-> Phases 2–3 add.
+> phases — the editable core (1), crawl/redirects/migration safety (2), and
+> structured data/analytics/health (3) — all now complete.
 
 ## Locked decisions
 
@@ -109,11 +109,43 @@ records — not a crawl — so drafts, noindex pages and redirected paths never
 appear. Cached, and the cache is dropped whenever a webinar, article or page is
 saved.
 
-## Not yet built (Phase 3)
+## Phase 3 — structured data, analytics & the health dashboard
 
-Schema.org JSON-LD (Organization, WebSite, Breadcrumb, Article, Event, Product),
-breadcrumbs, og:image refinements, WebP/responsive images, GA4/GTM/Tawk.to
-settings, FAQ block, and the SEO health dashboard.
+**Schema.org JSON-LD** (`App\Seo\Schema`, rendered by
+`resources/views/partials/schema.blade.php`). Every page carries `Organization`
+and `WebSite` (the latter with a `SearchAction`, which can earn a sitelinks
+search box). Record pages add their own: `Article` on a blog post, `Event` on a
+webinar (online attendance mode, virtual location, speaker as `performer`, and
+`Offer`s built from `offerings.price_cents` — the one source of price), and
+`FAQPage` on any page with a visible FAQ block. Every value comes from a real
+field; anything missing is **omitted, not guessed** (brief §15 — schema must
+state only what the page shows). JSON is encoded with `JSON_HEX_TAG`, so a value
+can never break out of the `<script>` block.
+
+**Breadcrumbs** (`partials/breadcrumbs`): a controller builds one `$crumbs`
+array and passes it both to the view and to `Schema::breadcrumbs()`, so the
+visible trail and its `BreadcrumbList` schema can never disagree.
+
+**Analytics & integrations** (Settings → Integrations, `App\Support\Integrations`):
+GA4 (`G-…`), GTM (`GTM-…`), Google Search Console verification, and Tawk.to live
+chat. Each ID is format-validated. **GA4 and GTM are mutually exclusive** — if
+GTM is set, the direct GA4 tag is suppressed so pageviews aren't counted twice.
+No secret ever lives here; these are all public client-side IDs.
+
+**FAQ block**: a page-builder section (`type: faq`) with question/answer rows.
+The schema is built from the same visible rows the page renders — a hidden block
+emits none, and empty rows are skipped.
+
+**SEO health dashboard** (Content → SEO health, `App\Filament\Pages\SeoHealth`
+over `App\Seo\SeoAudit`): audits every public webinar, article and page for
+missing/thin/over-long meta descriptions, over-long titles, duplicate titles,
+pages hidden from search, a missing focus keyword, and images with no ALT text.
+Each finding links straight to the record's edit screen.
+
+**Images**: faculty photos and the home webinar card carry explicit dimensions
+and `loading="lazy"`. WebP/responsive `srcset` is deferred to P9's performance
+pass (GD's WebP support is confirmed on the host); the site has few raw `<img>`
+tags, so the win there is small until then.
 
 Run `php artisan migrate` for the `redirects` table.
 

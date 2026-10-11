@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\Page;
+use App\Models\PageSection;
+use App\Seo\Schema;
 use App\Seo\Seo;
 use Illuminate\View\View;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -38,6 +40,19 @@ class PageController extends Controller
             throw new NotFoundHttpException;
         }
 
-        return view('pages.show', ['seo' => Seo::for($page), 'page' => $page]);
+        // FAQPage structured data, built only from FAQ blocks actually on the
+        // page (brief §15 — schema must match visible content).
+        $faqRows = collect($page->visibleSections)
+            ->where('type', 'faq')
+            ->flatMap(fn (PageSection $section): array => $section->rows('questions'))
+            ->all();
+
+        $faqSchema = Schema::faq($faqRows);
+
+        return view('pages.show', [
+            'seo' => Seo::for($page),
+            'schemas' => $faqSchema === null ? [] : [$faqSchema],
+            'page' => $page,
+        ]);
     }
 }

@@ -204,6 +204,42 @@ final class Schema
             ->all();
     }
 
+    /**
+     * A page's FAQ, as FAQPage structured data — client SEO brief §15.
+     *
+     * Built only from the question/answer pairs actually on the page, because the
+     * brief (and Google's 2026 guidance) is firm: FAQ schema must represent FAQ
+     * content visible to the visitor, never added just to win a rich result. The
+     * one caller passes exactly the rows the FAQ block renders. Null when there
+     * is nothing real to describe.
+     *
+     * @param  array<int, array<string, mixed>>  $items
+     * @return array<string, mixed>|null
+     */
+    public static function faq(array $items): ?array
+    {
+        $questions = [];
+
+        foreach ($items as $item) {
+            $q = trim((string) ($item['question'] ?? ''));
+            $a = trim(strip_tags((string) ($item['answer'] ?? '')));
+
+            if ($q === '' || $a === '') {
+                continue;
+            }
+
+            $questions[] = [
+                '@type' => 'Question',
+                'name' => $q,
+                'acceptedAnswer' => ['@type' => 'Answer', 'text' => $a],
+            ];
+        }
+
+        return $questions === []
+            ? null
+            : self::ld(['@type' => 'FAQPage', 'mainEntity' => $questions]);
+    }
+
     /** @return array<string, mixed> */
     private static function publisher(): array
     {

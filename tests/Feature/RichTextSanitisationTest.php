@@ -219,6 +219,9 @@ it('echoes no rich text without sanitising it', function (): void {
         // template-supplied name with '' for an unknown key. Nothing stored
         // reaches it.
         'components/ui/icon.blade.php' => 'Inlined Lucide paths, keyed by a literal name.',
+        // json_encode with JSON_HEX_TAG escapes </script>, so a value cannot
+        // break out of the JSON-LD block. See partials/schema.blade.php.
+        'partials/schema.blade.php' => 'JSON-LD via json_encode with JSON_HEX_TAG, not rich text.',
     ];
 
     $offenders = [];
@@ -257,4 +260,5 @@ it('has no stale entries in the list of raw echoes held on purpose', function (s
     'components/blog/comments.blade.php',
     'components/home/accreditation.blade.php',
     'components/ui/icon.blade.php',
+    'partials/schema.blade.php',
 ]);

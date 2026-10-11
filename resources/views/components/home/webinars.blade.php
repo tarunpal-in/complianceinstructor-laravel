@@ -16,7 +16,7 @@
 
             <article class="webinar-card">
                 <div class="webinar-photo">
-                    <img src="{{ asset('images/home/workshop.jpg') }}" alt="Audience at a webinar" width="940" height="628">
+                    <img src="{{ asset('images/home/workshop.jpg') }}" alt="Audience at a webinar" width="940" height="628" loading="lazy" decoding="async">
 
                     {{-- Badge and body date derive from one Carbon instance. The
                          comp badges "26 AUG" on a card whose body reads "Aug 22";
