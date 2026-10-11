@@ -81,13 +81,41 @@ php artisan migrate
 Adds the `seo_meta` table. `migrate:fresh --seed` also attaches a few example
 overrides (`SeoMetaSeeder`) so the review environment shows the feature used.
 
-## Not yet built (Phases 2–3)
+## Phase 2 — crawl, redirects & migration safety
 
-- **Phase 2:** redirects table + manager (with loop/chain guards), auto-301 on
-  slug change, custom 404, `robots.txt`, XML sitemap, legacy WordPress URL import.
-- **Phase 3:** schema.org JSON-LD (Organization, WebSite, Breadcrumb, Article,
-  Event, Product), breadcrumbs, og:image refinements, WebP/responsive images,
-  GA4/GTM/Tawk.to settings, FAQ block, and the SEO health dashboard.
+**Redirects** (`redirects` table, `App\Models\Redirect`, managed under Content →
+Redirects). Served by `HandleRedirects`, which runs before `NormalizeUrl` so a
+moved URL goes straight to its destination. `destinationFor()` follows a chain to
+its end so a visitor never bounces more than once, and refuses a loop. The
+manager's save guards refuse a chain, a loop, or a source that would hijack a
+live page (`Redirect::problemWith` / `shadowsLiveContent`); the CSV importer
+(`App\Seo\RedirectImporter`, "Import CSV" on the list) runs the same guards per
+row and skips bad ones with a reason.
+
+**Auto-301 on slug change** (`HasSeo::bootHasSeo`): editing a webinar, article or
+page slug writes `old → new` automatically, and renaming twice flattens the
+chain so every old URL reaches the current one in one hop.
+
+**Custom 404** (`resources/views/errors/404.blade.php`): message, search box,
+home link, full site nav, links to key sections. Noindex (belt and braces beside
+the 404 status). The blog gained a `?q=` text search for the box to use.
+
+**robots.txt** (`/robots.txt`, dynamic): a blanket `Disallow: /` off production
+so staging is never indexed; on production it allows crawling, blocks `/admin`
+and the other machinery, never blocks CSS/JS, and points at the sitemap.
+
+**XML sitemap** (`/sitemap.xml`, `App\Seo\Sitemap`): built from live, indexable
+records — not a crawl — so drafts, noindex pages and redirected paths never
+appear. Cached, and the cache is dropped whenever a webinar, article or page is
+saved.
+
+## Not yet built (Phase 3)
+
+Schema.org JSON-LD (Organization, WebSite, Breadcrumb, Article, Event, Product),
+breadcrumbs, og:image refinements, WebP/responsive images, GA4/GTM/Tawk.to
+settings, FAQ block, and the SEO health dashboard.
+
+Run `php artisan migrate` for the `redirects` table.
 
 Category pages are SEO-editable in the admin now (the trait is on `Industry` and
 `PostCategory`), but they have no dedicated public URL yet — a category is a

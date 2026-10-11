@@ -45,5 +45,21 @@ class SeoMetaSeeder extends Seeder
         Page::query()->where('slug', 'like', '%thank%')->first()?->seo()->updateOrCreate([], [
             'robots' => 'noindex, follow',
         ]);
+
+        // One example migration redirect, so the register is not empty on review.
+        $webinar = Webinar::query()->latest('id')->first();
+
+        if ($webinar !== null) {
+            \App\Models\Redirect::query()->updateOrCreate(
+                ['from_path' => '/legacy/fmla-webinar-2025'],
+                [
+                    'to_path' => '/webinars/'.$webinar->slug,
+                    'status_code' => 301,
+                    'source' => \App\Models\Redirect::SOURCE_IMPORT,
+                    'is_active' => true,
+                    'note' => 'Example: an old WordPress URL pointed at its replacement.',
+                ],
+            );
+        }
     }
 }

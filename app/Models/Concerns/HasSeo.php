@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Models\Concerns;
 
+use App\Models\Redirect;
 use App\Models\SeoMeta;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 
 /**
@@ -27,6 +29,78 @@ use Illuminate\Database\Eloquent\Relations\MorphOne;
  */
 trait HasSeo
 {
+    /**
+     * Keep a page reachable at its old URL after its slug changes — brief §2/§4.
+     *
+     * "Permanent URLs" cannot mean "never changed", because a title gets fixed
+     * and a slug follows it. It means the old URL keeps working: a 301 is written
+     * from the old path to the new one automatically, so links and search equity
+     * survive the rename without anybody remembering to add a redirect.
+     *
+     * Only for types with a public URL — `seoPathForSlug` returns null for the
+     * rest (a speaker has no page yet), and then there is nothing to redirect.
+     */
+    public static function bootHasSeo(): void
+    {
+        static::updated(function (Model $model): void {
+            if (! $model->wasChanged('slug')) {
+                return;
+            }
+
+            $old = $model->getOriginal('slug');
+            $new = $model->getAttribute('slug');
+
+            if (! is_string($old) || $old === '' || $old === $new) {
+                return;
+            }
+
+            /** @var self $model */
+            $oldPath = $model->seoPathForSlug($old);
+            $newPath = $model->seoPathForSlug((string) $new);
+
+            if ($oldPath === null || $newPath === null) {
+                return;
+            }
+
+            Redirect::recordMove($oldPath, $newPath, Redirect::SOURCE_SLUG_CHANGE);
+        });
+
+        // Keep the cached sitemap current. Only types with a public URL are in
+        // it, so only their changes need to bust it.
+        $bust = function (Model $model): void {
+            /** @var self $model */
+            if ($model->seoPathForSlug((string) $model->getAttribute('slug')) !== null) {
+                \Illuminate\Support\Facades\Cache::forget(\App\Seo\Sitemap::CACHE_KEY);
+            }
+        };
+
+        static::saved($bust);
+        static::deleted($bust);
+    }
+
+    /**
+     * Whether this record may appear in search and in the sitemap.
+     *
+     * A page the SEO team set to noindex is kept out of both. The default (no
+     * robots override) is indexable.
+     */
+    public function isIndexable(): bool
+    {
+        return ! str_contains(strtolower((string) $this->seoRobots()), 'noindex');
+    }
+
+    /**
+     * The public path this record would have with a given slug, or null.
+     *
+     * Null by default — not every SEO-editable type has a public URL yet. The
+     * three that do (webinar, article, page) override this, and it is what the
+     * slug-change redirect is built from.
+     */
+    public function seoPathForSlug(string $slug): ?string
+    {
+        return null;
+    }
+
     /** @return MorphOne<SeoMeta, $this> */
     public function seo(): MorphOne
     {

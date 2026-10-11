@@ -347,4 +347,10 @@ class Webinar extends Model implements HasMedia, Seoable
 
         return $url === '' ? null : $url;
     }
+
+    /** The public path, so a slug change leaves a 301 behind (brief §4). */
+    public function seoPathForSlug(string $slug): ?string
+    {
+        return '/webinars/'.$slug;
+    }
 }

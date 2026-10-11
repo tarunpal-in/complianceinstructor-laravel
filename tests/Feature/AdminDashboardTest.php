@@ -93,7 +93,7 @@ it('renders the agreed navigation items', function (string $item): void {
     'Orders', 'Payments', 'Coupons',
     'Plans', 'Subscriptions',
     'Customers', 'Entitlements', 'Certificates',
-    'Pages', 'Blog',
+    'Pages', 'Blog', 'Redirects',
     'Inquiries', 'Subscribers',
     // 'Emails' is now a cluster; its overview and log are tabs inside it, not
     // separate sidebar items.

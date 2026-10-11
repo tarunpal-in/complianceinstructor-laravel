@@ -17,6 +17,14 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', HomeController::class)->name('home');
 
 /*
+ * Crawl directives — client SEO brief §5/§6. Both have a file extension, so the
+ * trailing-slash and redirect middleware leave them alone, and both sit above
+ * the page catch-all so a page can never shadow them.
+ */
+Route::get('/robots.txt', App\Http\Controllers\RobotsController::class)->name('robots');
+Route::get('/sitemap.xml', App\Http\Controllers\SitemapController::class)->name('sitemap');
+
+/*
  * The comp's breadcrumb reads Home › Live Webinars › Human Resources › Title,
  * which suggests /live-webinars/{industry}/{slug}. That is left until P2 builds
  * the catalogue those first two segments link to — inventing the nesting now

@@ -312,6 +312,12 @@ class Post extends Model implements HasMedia, Seoable
         return $this->coverUrl('banner');
     }
 
+    /** The public path, so a slug change leaves a 301 behind (brief §4). */
+    public function seoPathForSlug(string $slug): ?string
+    {
+        return '/'.self::PATH_PREFIX.'/'.$slug;
+    }
+
     /**
      * Other articles a reader might want next.
      *

@@ -24,9 +24,18 @@ class BlogController extends Controller
             ->where('slug', (string) $request->query('category'))
             ->first();
 
+        // A plain-text filter, so the custom 404's search box has somewhere to
+        // go. A LIKE over title and excerpt is enough at this catalogue size;
+        // Scout can take over if the archive ever outgrows it.
+        $term = trim((string) $request->query('q'));
+
         $posts = Post::query()
             ->live()
             ->when($category !== null, fn ($query) => $query->where('post_category_id', $category?->getKey()))
+            ->when($term !== '', fn ($query) => $query->where(function ($q) use ($term): void {
+                $q->where('title', 'like', "%{$term}%")
+                    ->orWhere('excerpt', 'like', "%{$term}%");
+            }))
             ->with(['category', 'author', 'media'])
             ->latest('published_at')
             ->paginate(9)
@@ -44,6 +53,7 @@ class BlogController extends Controller
             'posts' => $posts,
             'categories' => PostCategory::query()->active()->get(),
             'activeCategory' => $category,
+            'searchTerm' => $term,
         ]);
     }
 }

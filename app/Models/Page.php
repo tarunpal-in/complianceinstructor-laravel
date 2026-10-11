@@ -156,6 +156,12 @@ class Page extends Model implements Seoable
         return '/'.$this->slug;
     }
 
+    /** The public path, so a slug change leaves a 301 behind (brief §4). */
+    public function seoPathForSlug(string $slug): ?string
+    {
+        return '/'.$slug;
+    }
+
     /**
      * A link that opens this page before it is published.
      *

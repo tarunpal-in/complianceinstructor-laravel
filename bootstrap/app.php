@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Middleware\HandleRedirects;
 use App\Http\Middleware\NormalizeUrl;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -15,11 +16,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // One URL form for every public page — bare paths 301 to their
-        // trailing-slash canonical (brief §7). Prepended so the redirect
-        // happens before anything renders. It excludes admin, Livewire, the
-        // API and assets itself.
-        $middleware->web(prepend: [NormalizeUrl::class]);
+        // Both run before anything renders. Redirects first, so a moved URL
+        // goes straight to its destination rather than bouncing through its own
+        // trailing-slash form on the way (brief §4); then NormalizeUrl gives
+        // every surviving public URL its one canonical trailing-slash form
+        // (brief §7). Both exclude admin, Livewire, the API and assets.
+        $middleware->web(prepend: [HandleRedirects::class, NormalizeUrl::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
