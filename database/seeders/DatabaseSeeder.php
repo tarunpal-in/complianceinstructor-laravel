@@ -29,7 +29,11 @@ class DatabaseSeeder extends Seeder
             RolePermissionSeeder::class,
             SettingSeeder::class,
             MediaLibrarySeeder::class,
+            HomePageSeeder::class,
             PageSeeder::class,
+            // Before the coupon and order seeders, which scope to an industry and
+            // need a catalogue to sell. Populates the homepage's live sections.
+            DemoCatalogueSeeder::class,
             BlogSeeder::class,
             MembershipPlanSeeder::class,
             // After the plans, because every subscription snapshots one.

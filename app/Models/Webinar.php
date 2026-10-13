@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Contracts\ReferencesMedia;
 use App\Contracts\Seoable;
 use App\Enums\Format;
 use App\Enums\WebinarStatus;
 use App\Enums\WebinarType;
 use App\Models\Concerns\HasSeo;
+use App\Models\Concerns\RecordsMediaUsage;
 use App\Models\Concerns\ReleasesUniqueNameOnDelete;
 use App\Support\CreditHours;
 use Database\Factories\WebinarFactory;
@@ -20,10 +22,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Spatie\Image\Enums\Fit;
-use Spatie\MediaLibrary\HasMedia;
-use Spatie\MediaLibrary\InteractsWithMedia;
-use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
  * @property WebinarType $type
@@ -38,10 +36,10 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * is ever read from", so a webinar never carries one — the detail page's
  * purchase panel reads offerings, and checkout recomputes from the same rows.
  */
-class Webinar extends Model implements HasMedia, Seoable
+class Webinar extends Model implements ReferencesMedia, Seoable
 {
     /** @use HasFactory<WebinarFactory> */
-    use HasFactory, HasSeo, InteractsWithMedia, ReleasesUniqueNameOnDelete, SoftDeletes;
+    use HasFactory, HasSeo, RecordsMediaUsage, ReleasesUniqueNameOnDelete, SoftDeletes;
 
     protected $fillable = [
         'type', 'status', 'title', 'slug', 'summary',
@@ -50,6 +48,7 @@ class Webinar extends Model implements HasMedia, Seoable
         'attendee_instructions',
         'speaker_id', 'industry_id',
         'scheduled_at', 'timezone', 'duration_minutes', 'seats_total',
+        'card_media_id', 'banner_media_id',
     ];
 
     protected function casts(): array
@@ -60,6 +59,8 @@ class Webinar extends Model implements HasMedia, Seoable
             'scheduled_at' => 'datetime',
             'duration_minutes' => 'integer',
             'seats_total' => 'integer',
+            'card_media_id' => 'integer',
+            'banner_media_id' => 'integer',
         ];
     }
 
@@ -81,6 +82,25 @@ class Webinar extends Model implements HasMedia, Seoable
     public function assets(): HasMany
     {
         return $this->hasMany(WebinarAsset::class);
+    }
+
+    /**
+     * The catalogue-card and hero-background images, picked from the media
+     * library — docs/media-manager.md §3.1. References rather than per-webinar
+     * uploads, so replacing the file in the library updates every webinar that
+     * picked it, and the delete guard (via media_usages) knows it is in use.
+     *
+     * @return BelongsTo<Media, $this>
+     */
+    public function cardMedia(): BelongsTo
+    {
+        return $this->belongsTo(Media::class, 'card_media_id');
+    }
+
+    /** @return BelongsTo<Media, $this> */
+    public function bannerMedia(): BelongsTo
+    {
+        return $this->belongsTo(Media::class, 'banner_media_id');
     }
 
     /** @return BelongsToMany<Accreditation, $this> */
@@ -314,27 +334,35 @@ class Webinar extends Model implements HasMedia, Seoable
 
     // Media -----------------------------------------------------------------
 
-    public function registerMediaCollections(): void
+    /** The catalogue-card image URL, or null when none is picked. */
+    public function cardImageUrl(): ?string
     {
-        // Two collections rather than two columns: the catalogue card is a
-        // 16:10 thumbnail, the detail page a full-bleed hero.
-        $this->addMediaCollection('card')->singleFile();
-        $this->addMediaCollection('banner')->singleFile();
+        return $this->cardMedia?->detailImageUrl();
     }
 
-    public function registerMediaConversions(?Media $media = null): void
+    /** The hero-background image URL, or null when none is picked. */
+    public function bannerImageUrl(): ?string
     {
-        $this->addMediaConversion('card')
-            ->fit(Fit::Crop, 640, 400);
+        return $this->bannerMedia?->detailImageUrl();
+    }
 
-        $this->addMediaConversion('banner')
-            ->fit(Fit::Crop, 1920, 640);
+    /**
+     * The library media this webinar points at, for the delete guard.
+     *
+     * @return array<string, int|null>
+     */
+    public function mediaUsageMap(): array
+    {
+        return [
+            'card image' => $this->card_media_id,
+            'background image' => $this->banner_media_id,
+        ];
     }
 
     // SEO — CLAUDE.md §5.6 / client SEO brief -------------------------------
 
     /**
-     * The webinar's own social image is its banner.
+     * The webinar's own social image is its background, then its card.
      *
      * This is the brief's §13/§15 rule made structural: "use the relevant image,
      * the webinar banner, not the company logo." Because the rule lives on the
@@ -343,9 +371,7 @@ class Webinar extends Model implements HasMedia, Seoable
      */
     public function defaultSeoOgImageUrl(): ?string
     {
-        $url = $this->getFirstMediaUrl('banner');
-
-        return $url === '' ? null : $url;
+        return $this->bannerImageUrl() ?? $this->cardImageUrl();
     }
 
     /** The public path, so a slug change leaves a 301 behind (brief §4). */

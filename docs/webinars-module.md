@@ -76,8 +76,14 @@ webinar is present. Price is still resolved server-side from `offerings`, so
 §5.3 has one `image`, used for the card thumbnail. The hero needs a separate
 wide banner.
 
-**Resolved:** two medialibrary collections, `card` and `banner`, rather than a
-second column.
+**Resolved:** two media-library *references*, `card_media_id` and
+`banner_media_id`, picked through the media manager (docs/media-manager.md §3.1)
+rather than uploaded per webinar. A reference means replacing the file in the
+library updates every webinar that picked it, and `media_usages` lets the delete
+guard refuse to remove a file a webinar still points at (Webinar implements
+`ReferencesMedia` / `RecordsMediaUsage`). `Webinar::cardImageUrl()` /
+`bannerImageUrl()` resolve the URL; the hero prefers the background then the
+card, the rail the card then the background.
 
 ### 2.4 Attendee instructions
 

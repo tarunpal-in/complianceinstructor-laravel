@@ -213,8 +213,9 @@ it('echoes no rich text without sanitising it', function (): void {
         // Escaped first, then nl2br. Correct, and the pattern the others should
         // have followed.
         'components/blog/comments.blade.php' => 'e() before nl2br, so the body is escaped.',
-        // A hardcoded literal in HomeController::partners(), not stored content.
-        'components/home/accreditation.blade.php' => 'Static accreditation badges written in the controller.',
+        // nl2br over an e()-escaped badge, so the line-break markup is the only
+        // HTML and the client's copy can never inject its own.
+        'components/home/accreditation.blade.php' => 'e() before nl2br, so the badge is escaped.',
         // A map of Lucide SVG paths written in the file itself, looked up by a
         // template-supplied name with '' for an unknown key. Nothing stored
         // reaches it.

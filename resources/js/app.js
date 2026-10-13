@@ -1,8 +1,10 @@
-import Alpine from 'alpinejs';
-
-// CLAUDE.md §3 — Blade + Livewire + Alpine, with Livewire reserved for places
-// where state is real (cart, checkout, catalogue filters). The marketing pages
-// need only what the comp does: mobile nav, the search panel, and the toast.
+// CLAUDE.md §3 — Blade + Livewire + Alpine. Livewire 3 ships its own Alpine and
+// starts it, so we do NOT import or start a second Alpine (two instances clash).
+// The public layout loads @livewireScripts on every page, and our components
+// register against Livewire's Alpine via the alpine:init event below.
+document.addEventListener('alpine:init', () => {
+// The marketing pages need only what the comp does: mobile nav, the search
+// panel, and the toast.
 Alpine.data('site', () => ({
     mobileOpen: false,
     searchOpen: false,
@@ -40,14 +42,6 @@ Alpine.data('purchasePanel', (offerings) => ({
     get formattedTotal() {
         // Integer cents throughout (§4 rule 6); only the final render divides.
         return '$' + (this.total / 100).toLocaleString('en-US', { minimumFractionDigits: 0 });
-    },
-
-    addToCart() {
-        if (this.total === 0) return;
-
-        // The cart is P3. Until then this confirms the selection rather than
-        // pretending to have taken it.
-        this.$dispatch('notice', 'Checkout opens once the cart is live.');
     },
 }));
 
@@ -109,7 +103,4 @@ Alpine.data('webinarTabs', () => ({
         sections.forEach((section) => observer.observe(section));
     },
 }));
-
-window.Alpine = Alpine;
-
-Alpine.start();
+});

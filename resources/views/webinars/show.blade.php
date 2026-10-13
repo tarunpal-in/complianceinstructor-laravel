@@ -2,7 +2,9 @@
 
 
 @section('content')
-    @include('partials.breadcrumbs')
+    {{-- The webinar-specific breadcrumb (Home › Live Webinars › Industry › Title)
+         is the visible one; the generic partials.breadcrumbs is not rendered here
+         to avoid a second, duplicate trail. --}}
     <x-webinar.breadcrumb :webinar="$webinar" />
 
     <x-webinar.hero :webinar="$webinar" />

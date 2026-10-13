@@ -3,6 +3,9 @@
 declare(strict_types=1);
 
 use App\Enums\UserRole;
+use App\Models\Order;
+use App\Models\Payment;
+use App\Models\Refund;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 
@@ -20,6 +23,32 @@ it('shows the dashboard to an admin', function (): void {
         ->get('/admin')
         ->assertSuccessful()
         ->assertSee('Compliance Instructor', escape: false);
+});
+
+/*
+ * The Recent Orders widget derives each order's status from its payments and
+ * refunds, so its query must eager-load them. With Model::shouldBeStrict() on
+ * outside production, a missing eager load throws LazyLoadingViolationException
+ * the moment the widget has an order with a payment to show — which it now does
+ * after `migrate:fresh --seed`. The dashboard renders the widget deferred, so
+ * this drives the widget directly, where its query and status column actually
+ * run.
+ */
+it('renders the Recent Orders widget when there are orders to list', function (): void {
+    $order = Order::factory()->create(['placed_at' => now(), 'subtotal_cents' => 20000, 'total_cents' => 20000]);
+    $payment = Payment::factory()->forOrder($order)->create(['amount_cents' => 20000]);
+    Refund::factory()->partialOf($payment, 5000)->create();
+
+    $component = Livewire\Livewire::actingAs(userWithRole(UserRole::SuperAdmin))
+        ->test(App\Filament\Widgets\RecentOrders::class)
+        ->assertCanSeeTableRecords([$order])
+        ->assertSee($order->number);
+
+    // The status column derives from payments and refunds, so the table query
+    // must eager-load them — reverting that eager load fails here.
+    $eager = array_keys($component->instance()->getTable()->getQuery()->getEagerLoads());
+
+    expect($eager)->toContain('payments.refunds');
 });
 
 it('lets roles holding view_any_user open the user list', function (UserRole $role): void {

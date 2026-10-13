@@ -7,7 +7,7 @@
         ['label' => 'About', 'chevron' => false],
         ['label' => 'Training', 'chevron' => true],
         ['label' => 'Industry', 'chevron' => true],
-        ['label' => 'Speakers', 'chevron' => false],
+        ['label' => 'Speakers', 'chevron' => false, 'url' => route('speakers.index')],
         ['label' => 'Memberships', 'chevron' => false],
         ['label' => 'Blog', 'chevron' => false],
         ['label' => 'Help', 'chevron' => false],
@@ -19,7 +19,7 @@
 
     <nav class="nav-links" :class="{ open: mobileOpen }" aria-label="Primary">
         @foreach ($links as $link)
-            <a href="#{{ Str::lower($link['label']) }}" @click="mobileOpen = false">
+            <a href="{{ $link['url'] ?? '#'.Str::lower($link['label']) }}" @click="mobileOpen = false">
                 {{ $link['label'] }}@if ($link['chevron'])<x-ui.icon name="chevron-down" :size="13" />@endif
             </a>
         @endforeach
@@ -31,9 +31,9 @@
             <span x-show="searchOpen" x-cloak><x-ui.icon name="x" :size="20" /></span>
         </button>
 
-        <button class="icon-button" aria-label="Shopping cart" @click="showNotice('Your cart is ready for checkout')">
+        <a class="icon-button" href="{{ route('cart.index') }}" aria-label="Shopping cart">
             <x-ui.icon name="shopping-cart" :size="20" />
-        </button>
+        </a>
 
         <button class="login-button" @click="showNotice('Sign up is coming soon')">Login / Sign Up</button>
 

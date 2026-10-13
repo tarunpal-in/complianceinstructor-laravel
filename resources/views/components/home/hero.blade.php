@@ -1,4 +1,36 @@
-@props(['stats' => [], 'bodies' => []])
+@props([
+    'eyebrow' => null,
+    'headingLead' => null,
+    'headingHighlight' => null,
+    'headingTail' => null,
+    'lede' => null,
+    'primaryLabel' => null,
+    'secondaryLabel' => null,
+    'secondaryUrl' => null,
+    'stats' => null,
+    'bodies' => null,
+])
+
+@php
+    // Defaults match the comp exactly, so rendering this component with no props
+    // — the fallback when the homepage has not been seeded — is pixel-identical
+    // to what shipped. `?:` rather than `??` so an empty field also falls back,
+    // keeping the front door from ever rendering a blank headline.
+    $eyebrow = $eyebrow ?: '#1 COMPLIANCE TRAINING PLATFORM';
+    $headingLead = $headingLead ?: 'Stay Ahead —';
+    $headingHighlight = $headingHighlight ?: 'Learn from';
+    $headingTail = $headingTail ?: 'the Best.';
+    $lede = $lede ?: 'Access live and recorded compliance webinars led by certified industry experts. Earn HRCI, SHRM, and NASBA/CPE recertification credits — complete with study materials, certificates, and transcripts.';
+    $primaryLabel = $primaryLabel ?: 'Start Learning Now';
+    $secondaryLabel = $secondaryLabel ?: 'View Courses';
+    $secondaryUrl = $secondaryUrl ?: '#webinars';
+    $stats = $stats ?: [
+        ['value' => '1,200+', 'label' => 'Webinars Delivered'],
+        ['value' => '48,000+', 'label' => 'Professionals Trained'],
+        ['value' => '4.9★', 'label' => 'Average Rating'],
+    ];
+    $bodies = $bodies ?: ['HRCI', 'SHRM', 'CPE'];
+@endphp
 
 <section class="hero" id="home">
     {{-- Decorative dot field. Seven clusters scattered behind the content, as
@@ -16,15 +48,15 @@
 
     <div class="hero-inner">
         <div class="hero-copy">
-            <div class="eyebrow gold">• #1 COMPLIANCE TRAINING PLATFORM</div>
+            <div class="eyebrow gold">• {{ $eyebrow }}</div>
 
-            <h1>Stay Ahead — <span>Learn from</span><br>the Best.</h1>
+            <h1>{{ $headingLead }} <span>{{ $headingHighlight }}</span><br>{{ $headingTail }}</h1>
 
-            <p class="hero-lede">Access live and recorded compliance webinars led by certified industry experts. Earn HRCI, SHRM, and NASBA/CPE recertification credits — complete with study materials, certificates, and transcripts.</p>
+            <p class="hero-lede">{{ $lede }}</p>
 
             <div class="hero-buttons">
-                <button class="button primary" @click="showNotice('Welcome to your learning journey')">Start Learning Now</button>
-                <a class="button secondary" href="#webinars">View Courses</a>
+                <button class="button primary" @click="showNotice('Welcome to your learning journey')">{{ $primaryLabel }}</button>
+                <a class="button secondary" href="{{ $secondaryUrl }}">{{ $secondaryLabel }}</a>
             </div>
 
             {{-- §5.6 `settings` owns these figures in P6. The comp's own 4.9 here

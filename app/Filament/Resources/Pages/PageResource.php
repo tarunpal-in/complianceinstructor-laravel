@@ -61,6 +61,10 @@ class PageResource extends Resource
     {
         return parent::getEloquentQuery()
             ->withoutGlobalScopes([SoftDeletingScope::class])
+            // The homepage is a Page too, but it is edited through the dedicated
+            // "Homepage Sections" screen — "publish" and "address" make no sense
+            // for the front door, so it stays out of the ordinary list.
+            ->where('slug', '!=', Page::HOME_SLUG)
             ->with('sections');
     }
 

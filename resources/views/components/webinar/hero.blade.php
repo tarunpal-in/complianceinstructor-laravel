@@ -1,7 +1,7 @@
 @props(['webinar'])
 
 @php
-    $banner = $webinar->getFirstMediaUrl('banner') ?: $webinar->getFirstMediaUrl('card');
+    $banner = $webinar->bannerImageUrl() ?? $webinar->cardImageUrl();
 @endphp
 
 <section class="wd-hero" @if ($banner) style="background-image: url('{{ $banner }}')" @endif>
@@ -28,7 +28,7 @@
 
             <dl class="wd-facts">
                 <div>
-                    <dt><x-ui.icon name="calendar-days" :size="16" /> Date &amp; Time</dt>
+                    <dt><x-ui.icon name="calendar-days" :size="20" /> Date &amp; Time</dt>
                     <dd>
                         @if ($webinar->scheduled_at)
                             {{ $webinar->scheduled_at->timezone($webinar->timezone)->format('j M Y') }}
@@ -40,17 +40,17 @@
                 </div>
 
                 <div>
-                    <dt><x-ui.icon name="clock-3" :size="16" /> Duration</dt>
+                    <dt><x-ui.icon name="clock-3" :size="20" /> Duration</dt>
                     <dd>{{ $webinar->duration_minutes ? $webinar->duration_minutes.' Minutes' : 'Self-paced' }}</dd>
                 </div>
 
                 <div>
-                    <dt><x-ui.icon name="user-round" :size="16" /> Speaker</dt>
+                    <dt><x-ui.icon name="user-round" :size="20" /> Speaker</dt>
                     <dd>{{ $webinar->speaker?->name ?? 'To be announced' }}</dd>
                 </div>
 
                 <div>
-                    <dt><x-ui.icon name="award" :size="16" /> Credits</dt>
+                    <dt><x-ui.icon name="award" :size="20" /> Credits</dt>
                     <dd>{{ $webinar->creditBodies() }}</dd>
                 </div>
             </dl>

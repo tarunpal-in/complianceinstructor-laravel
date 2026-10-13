@@ -1,7 +1,7 @@
 @props(['webinar'])
 
 @php
-    $image = $webinar->getFirstMediaUrl('card', 'card') ?: $webinar->getFirstMediaUrl('banner');
+    $image = $webinar->cardImageUrl() ?? $webinar->bannerImageUrl();
     $date = $webinar->scheduled_at?->timezone($webinar->timezone);
     $speaker = $webinar->speaker;
     $portrait = $speaker?->getFirstMediaUrl('portrait', 'thumb');

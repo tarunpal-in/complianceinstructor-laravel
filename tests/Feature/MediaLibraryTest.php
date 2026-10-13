@@ -8,7 +8,7 @@ use App\Enums\MediaKind;
 use App\Jobs\ExtractDocumentText;
 use App\Models\Media;
 use App\Models\MediaFolder;
-use App\Models\Webinar;
+use App\Models\Speaker;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -97,14 +97,14 @@ it('returns the existing file when the same bytes are uploaded again', function 
 });
 
 /**
- * A webinar banner that happens to match a library image is a different thing
+ * A speaker portrait that happens to match a library image is a different thing
  * with a different owner and its own crop. Collapsing the two would delete one
  * record's image when the other was tidied up.
  */
 it('does not deduplicate a library file against one attached to a record', function (): void {
-    $webinar = Webinar::factory()->create();
+    $speaker = Speaker::factory()->create();
 
-    Media::factory()->pdf()->attachedTo($webinar, 'banner')->create(['hash' => hash('sha256', 'shared')]);
+    Media::factory()->pdf()->attachedTo($speaker, 'portrait')->create(['hash' => hash('sha256', 'shared')]);
 
     $result = app(StoreLibraryMedia::class)(
         UploadedFile::fake()->createWithContent('banner.pdf', 'shared'),

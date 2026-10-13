@@ -12,7 +12,7 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\RestoreBulkAction;
-use Filament\Tables\Columns\SpatieMediaLibraryImageColumn;
+use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
@@ -26,10 +26,9 @@ class WebinarsTable
     {
         return $table
             ->columns([
-                SpatieMediaLibraryImageColumn::make('card')
-                    ->collection('card')
-                    ->conversion('card')
-                    ->label(''),
+                ImageColumn::make('card_media_id')
+                    ->label('')
+                    ->state(fn (Webinar $record): ?string => $record->cardImageUrl()),
 
                 TextColumn::make('title')
                     ->searchable()

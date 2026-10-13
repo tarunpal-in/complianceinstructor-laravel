@@ -51,6 +51,7 @@ return [
      */
     'usage_models' => [
         App\Models\Setting::class,
+        App\Models\Webinar::class,
         // App\Models\Page::class,      — P6
         // App\Models\PageSection::class, — P6
     ],

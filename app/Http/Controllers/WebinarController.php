@@ -41,7 +41,8 @@ class WebinarController extends Controller
             'industry',
             'accreditations',
             'offerings.formats',
-            'media',
+            'cardMedia',
+            'bannerMedia',
         ]);
 
         $crumbs = [
@@ -77,7 +78,7 @@ class WebinarController extends Controller
         $base = fn (): Builder => Webinar::query()
             ->public()
             ->whereKeyNot($webinar->getKey())
-            ->with(['speaker.media', 'accreditations', 'media'])
+            ->with(['speaker.media', 'accreditations', 'cardMedia', 'bannerMedia'])
             ->latest('scheduled_at');
 
         // An Eloquent collection rather than collect(): the top-up below needs

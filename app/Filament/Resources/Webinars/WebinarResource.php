@@ -51,7 +51,7 @@ class WebinarResource extends Resource
     {
         return parent::getEloquentQuery()
             ->withoutGlobalScopes([SoftDeletingScope::class])
-            ->with(['speaker', 'industry'])
+            ->with(['speaker', 'industry', 'cardMedia'])
             ->withCount(['offerings', 'accreditations']);
     }
 

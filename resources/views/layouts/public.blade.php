@@ -18,6 +18,7 @@
     {{-- Analytics, Search Console and chat, when the client has set them up. --}}
     @include('partials.integrations-head')
 
+    @livewireStyles
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body>
@@ -38,6 +39,9 @@
         <div class="toast" x-show="notice" x-cloak x-text="notice"></div>
     </div>
 
+    {{-- Livewire 3 on every public page so its Alpine is the single Alpine the
+         marketing pages and the cart/checkout both use (CLAUDE.md §3). --}}
+    @livewireScripts
     @include('partials.integrations-body')
 </body>
 </html>

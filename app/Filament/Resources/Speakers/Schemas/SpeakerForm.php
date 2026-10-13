@@ -6,6 +6,7 @@ namespace App\Filament\Resources\Speakers\Schemas;
 
 use App\Filament\Forms\Components\SeoFields;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
+use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -69,6 +70,39 @@ class SpeakerForm
                         ->label('Active')
                         ->default(true)
                         ->helperText('Inactive speakers stay attached to past webinars but are not listed publicly.'),
+                ]),
+
+            Section::make('Profile page')
+                ->description('Shown on the public speaker profile. The webinar counts, enrolment, topic domains and credits are derived automatically — these are the figures that are not.')
+                ->columns(3)
+                ->schema([
+                    TextInput::make('rating')
+                        ->label('Overall rating')
+                        ->numeric()
+                        ->minValue(0)
+                        ->maxValue(5)
+                        ->step(0.1)
+                        ->suffix('/ 5')
+                        // Hand-entered like the homepage stat band: there is no
+                        // reviews system to derive it from, so leaving it empty
+                        // omits the row rather than showing a made-up score.
+                        ->helperText('Leave empty to hide the rating.'),
+
+                    TextInput::make('reviews_count')
+                        ->label('Total reviews')
+                        ->numeric()
+                        ->minValue(0),
+
+                    TextInput::make('years_teaching')
+                        ->label('Years teaching')
+                        ->numeric()
+                        ->minValue(0),
+
+                    TagsInput::make('expertise')
+                        ->label('Areas of expertise')
+                        ->placeholder('Add a specialty')
+                        ->columnSpanFull()
+                        ->helperText('Shown as tags under the bio — "BSA/AML Compliance", "Fraud Prevention".'),
                 ]),
 
             Section::make('Portrait')

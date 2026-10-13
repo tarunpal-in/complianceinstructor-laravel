@@ -1,18 +1,31 @@
-@props(['plans' => collect()])
+@props([
+    'plans' => collect(),
+    'eyebrow' => null,
+    'heading' => null,
+    'intro' => null,
+    'callbackHeading' => null,
+    'callbackBody' => null,
+    'callbackButton' => null,
+])
 
-{{--
-    The pricing cards, from `membership_plans` (§5.5).
+@php
+    // The list is always the live `membership_plans` (§5.5) — the badge comes
+    // from `plan_entitlements`, so the number a customer reads is the number
+    // they are granted. Only the wrapper copy is editable; defaults match the
+    // comp so a bare <x-home.pricing :plans> is unchanged.
+    $eyebrow = $eyebrow ?: 'FLEXIBLE PRICING';
+    $heading = $heading ?: 'Membership Plans';
+    $intro = $intro ?: 'Invest in your professional development with a plan that matches your learning pace.';
+    $callbackHeading = $callbackHeading ?: 'Not sure which plan is right for you?';
+    $callbackBody = $callbackBody ?: 'Our team can help match you with the best training package for your goals and budget.';
+    $callbackButton = $callbackButton ?: 'Request a Callback';
+@endphp
 
-    The price, term and quota badge are all derived from the record — the badge
-    from `plan_entitlements`, so the number a customer reads here is the number
-    they are actually granted. The tick-and-cross list is `highlights`, which is
-    copy the client edits and which enforces nothing.
---}}
 <section class="pricing section" id="memberships">
     <div class="section-heading centered">
-        <div class="eyebrow">FLEXIBLE PRICING</div>
-        <h2>Membership Plans</h2>
-        <p>Invest in your professional development with a plan that matches your learning pace.</p>
+        <div class="eyebrow">{{ $eyebrow }}</div>
+        <h2>{{ $heading }}</h2>
+        <p>{{ $intro }}</p>
     </div>
 
     @if ($plans->isNotEmpty())
@@ -54,9 +67,9 @@
 
     <div class="callback">
         <div>
-            <strong>Not sure which plan is right for you?</strong>
-            <span>Our team can help match you with the best training package for your goals and budget.</span>
+            <strong>{{ $callbackHeading }}</strong>
+            <span>{{ $callbackBody }}</span>
         </div>
-        <button @click="showNotice('We will be in touch soon')">Request a Callback</button>
+        <button @click="showNotice('We will be in touch soon')">{{ $callbackButton }}</button>
     </div>
 </section>

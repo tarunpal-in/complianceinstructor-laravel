@@ -50,9 +50,20 @@ class Page extends Model implements Seoable
     public const RESERVED_SLUGS = [
         'admin', 'login', 'logout', 'register', 'password', 'forgot-password',
         'reset-password', 'two-factor-challenge', 'passkeys', 'webinars',
-        'stripe', 'horizon', 'storage', 'up', 'api', 'livewire', 'filament',
-        'preview',
+        'speakers', 'cart', 'checkout', 'stripe', 'paypal', 'horizon', 'storage',
+        'up', 'api', 'livewire', 'filament', 'preview', 'home',
     ];
+
+    /**
+     * The slug of the homepage singleton.
+     *
+     * The homepage is a `Page` whose sections are blocks (§2 / §5.6), but it is
+     * served at `/` by HomeController, not by the `/{slug}` catch-all. It is kept
+     * out of the normal Pages list and edited through the "Homepage Sections"
+     * screen instead, so `home` is reserved: nothing else may take the slug, and
+     * the catch-all never serves `/home` as an ordinary page.
+     */
+    public const HOME_SLUG = 'home';
 
     /**
      * How long a preview link stays good for.
@@ -80,6 +91,22 @@ class Page extends Model implements Seoable
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
             ->useLogName('page');
+    }
+
+    /**
+     * The homepage singleton, created on first use.
+     *
+     * Kept as a Draft: it is read directly by HomeController regardless of
+     * status, and staying unpublished is what keeps the `/{slug}` catch-all from
+     * also serving it at `/home`. firstOrCreate so the editor and the seeder
+     * both reach the same single row.
+     */
+    public static function home(): self
+    {
+        return self::firstOrCreate(
+            ['slug' => self::HOME_SLUG],
+            ['title' => 'Homepage', 'status' => PublishStatus::Draft, 'layout' => 'standard'],
+        );
     }
 
     // Relationships -------------------------------------------------------------

@@ -6,11 +6,11 @@ namespace App\Filament\Resources\Webinars\Schemas;
 
 use App\Enums\WebinarStatus;
 use App\Enums\WebinarType;
+use App\Filament\Forms\Components\MediaPicker;
 use App\Filament\Forms\Components\SeoFields;
 use App\Models\Setting;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Callout;
@@ -166,21 +166,13 @@ class WebinarForm
                 ]),
 
                 Tab::make('Media')->schema([
-                    SpatieMediaLibraryFileUpload::make('card')
-                        ->collection('card')
-                        ->image()
-                        ->imageEditor()
-                        ->imageEditorAspectRatios(['16:10'])
-                        ->maxSize(4096)
-                        ->helperText('Catalogue cards and the Similar Webinars rail.'),
+                    MediaPicker::make('card_media_id')
+                        ->label('Card image')
+                        ->helperText('Picked from the media library. Shown on catalogue cards and the Similar Webinars rail (a 16:10 crop reads best).'),
 
-                    SpatieMediaLibraryFileUpload::make('banner')
-                        ->collection('banner')
-                        ->image()
-                        ->imageEditor()
-                        ->imageEditorAspectRatios(['3:1'])
-                        ->maxSize(6144)
-                        ->helperText('The full-width hero on the detail page. Title and badges sit over it, so avoid a busy left third.'),
+                    MediaPicker::make('banner_media_id')
+                        ->label('Background image')
+                        ->helperText('The full-width hero on the detail page. Title and badges sit over it, so avoid a busy left third (a wide image reads best).'),
                 ])->columns(2),
             ]),
             SeoFields::make(),
