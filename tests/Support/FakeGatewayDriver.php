@@ -6,7 +6,10 @@ namespace Tests\Support;
 
 use App\Contracts\PaymentGatewayDriver;
 use App\Enums\PaymentGateway;
+use App\Models\Order;
 use App\Models\Payment;
+use App\Payments\CaptureResult;
+use App\Payments\CheckoutIntent;
 use App\Payments\RefundResult;
 
 /**
@@ -38,6 +41,20 @@ class FakeGatewayDriver implements PaymentGatewayDriver
     public function isConfigured(): bool
     {
         return $this->configured;
+    }
+
+    public function createCheckout(Order $order): CheckoutIntent
+    {
+        return new CheckoutIntent('fake-order-'.$order->getKey());
+    }
+
+    public function capture(Order $order, string $reference): CaptureResult
+    {
+        if ($this->declineWith !== null) {
+            return CaptureResult::failed($this->declineWith);
+        }
+
+        return CaptureResult::succeeded('fake-cap-'.$reference, $order->total_cents);
     }
 
     public function refund(

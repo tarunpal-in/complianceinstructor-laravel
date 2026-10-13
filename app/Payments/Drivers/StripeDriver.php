@@ -6,7 +6,10 @@ namespace App\Payments\Drivers;
 
 use App\Contracts\PaymentGatewayDriver;
 use App\Enums\PaymentGateway;
+use App\Models\Order;
 use App\Models\Payment;
+use App\Payments\CaptureResult;
+use App\Payments\CheckoutIntent;
 use App\Payments\RefundResult;
 use Illuminate\Support\Facades\Log;
 use Stripe\Exception\ApiErrorException;
@@ -29,6 +32,45 @@ class StripeDriver implements PaymentGatewayDriver
     public function isConfigured(): bool
     {
         return filled($this->secret());
+    }
+
+    /**
+     * A PaymentIntent for the order total, whose client secret the Elements on
+     * the checkout page confirm. The amount is the order's own (§14 #1).
+     */
+    public function createCheckout(Order $order): CheckoutIntent
+    {
+        $intent = (new StripeClient((string) $this->secret()))->paymentIntents->create([
+            'amount' => $order->total_cents,
+            'currency' => strtolower($order->currency),
+            'automatic_payment_methods' => ['enabled' => true],
+            'metadata' => ['order_id' => (string) $order->getKey(), 'order_number' => $order->number],
+        ]);
+
+        return new CheckoutIntent((string) $intent->id, null, (string) $intent->client_secret, ['id' => $intent->id]);
+    }
+
+    /**
+     * Confirm the PaymentIntent the buyer approved client-side. `$reference` is
+     * the PaymentIntent id; a status other than `succeeded` is a decline.
+     */
+    public function capture(Order $order, string $reference): CaptureResult
+    {
+        try {
+            $intent = (new StripeClient((string) $this->secret()))->paymentIntents->retrieve($reference, []);
+
+            if ($intent->status !== 'succeeded') {
+                return CaptureResult::failed('The card payment did not complete (status: '.$intent->status.').', ['status' => $intent->status]);
+            }
+
+            // The PaymentIntent id is what refunds and reconciliation key on,
+            // matching how Cashier records it elsewhere.
+            return CaptureResult::succeeded((string) $intent->id, $order->total_cents, ['id' => $intent->id]);
+        } catch (Throwable $e) {
+            Log::warning('Stripe capture failed.', ['order_id' => $order->id, 'message' => $e->getMessage()]);
+
+            return CaptureResult::failed($e->getMessage());
+        }
     }
 
     public function refund(

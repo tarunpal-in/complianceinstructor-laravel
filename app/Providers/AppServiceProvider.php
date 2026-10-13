@@ -78,6 +78,14 @@ class AppServiceProvider extends ServiceProvider
             ->by((string) $request->ip()));
 
         /*
+         * Cart writes — a looser cap than comments because adding to a cart is a
+         * normal, repeated action, but still bounded so a script cannot hammer
+         * the endpoint. Keyed by user when signed in, otherwise by IP.
+         */
+        RateLimiter::for('cart', static fn (Request $request): Limit => Limit::perMinute(60)
+            ->by($request->user()?->getAuthIdentifier() ? 'u'.$request->user()->getAuthIdentifier() : (string) $request->ip()));
+
+        /*
          * The send rate, read by the SendEmail job's RateLimited middleware.
          *
          * Not a nicety. A consumer Gmail account throttles at roughly 20–30
@@ -145,6 +153,16 @@ class AppServiceProvider extends ServiceProvider
 
             return false;
         });
+
+        /*
+         * Finalise order payments from Stripe's webhook (§14 #6). Cashier owns
+         * the endpoint and verifies the signature, then fires WebhookReceived for
+         * every event; our listener acts only on the capture ones.
+         */
+        Event::listen(
+            \Laravel\Cashier\Events\WebhookReceived::class,
+            \App\Listeners\HandleStripeWebhook::class,
+        );
 
         /*
          * One password policy, everywhere.

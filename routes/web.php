@@ -3,13 +3,17 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\BlogController;
+use App\Http\Controllers\CartController;
+use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\MailingListController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\PagePreviewController;
+use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\PostPreviewController;
+use App\Http\Controllers\SpeakerController;
 use App\Http\Controllers\WebinarController;
 use App\Models\Post;
 use Illuminate\Support\Facades\Route;
@@ -33,6 +37,64 @@ Route::get('/sitemap.xml', App\Http\Controllers\SitemapController::class)->name(
  * when it happens, and this slug stays the canonical tail of it either way.
  */
 Route::get('/webinars/{webinar:slug}', WebinarController::class)->name('webinars.show');
+
+/*
+ * The faculty — §6's "Speakers | Index & profile".
+ *
+ * Its own `/speakers` prefix above the page catch-all, with `speakers` reserved
+ * so a marketing page cannot shadow it. The profile route sits after the index
+ * so `/speakers` is the list, not a profile whose slug happens to be empty.
+ */
+Route::get('/speakers', [SpeakerController::class, 'index'])->name('speakers.index');
+Route::get('/speakers/{speaker:slug}', [SpeakerController::class, 'show'])->name('speakers.show');
+
+/*
+ * Cart — §5.4 / §6 (P3 Commerce). The cart page is a Livewire component; adding
+ * is a throttled POST that re-derives every price from the offering (§14 #1).
+ * Above the page catch-all, and `cart`/`checkout` are reserved slugs.
+ */
+Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
+Route::post('/cart/add', [CartController::class, 'add'])->middleware('throttle:cart')->name('cart.add');
+
+/*
+ * Checkout — the Livewire checkout component collects details and places the
+ * order through PlaceOrder (one transaction, totals recomputed server-side).
+ * The received page is shown to the owner or whoever just placed it.
+ */
+Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout.index');
+
+/*
+ * Taking payment on a pending order. The page renders the gateway UI; its two
+ * AJAX endpoints set up and finalise the payment through the same idempotent
+ * RecordCapture the webhook uses.
+ */
+Route::get('/checkout/pay/{order}', [PaymentController::class, 'show'])->name('checkout.pay');
+Route::post('/checkout/pay/{order}/start', [PaymentController::class, 'start'])->middleware('throttle:cart')->name('checkout.pay.start');
+Route::post('/checkout/pay/{order}/complete', [PaymentController::class, 'complete'])->middleware('throttle:cart')->name('checkout.pay.complete');
+
+Route::get('/checkout/complete/{order}', [CheckoutController::class, 'received'])->name('checkout.complete');
+
+/*
+ * The invoice PDF — §8 / §9. `signed` is the whole gate: a guest buyer has no
+ * login, so an unexpired signed link (handed out only by the confirmation email
+ * and the received page) stands in for one, and because the link names the order
+ * it grants that one invoice and no other (closing §14 #10's IDOR).
+ */
+Route::get('/invoice/{order}', [App\Http\Controllers\InvoiceController::class, 'download'])
+    ->middleware('signed')
+    ->name('invoice.download');
+
+/*
+ * PayPal payment webhook — the source of truth for a payment, independent of the
+ * browser (§14 #6). Server-to-server, so CSRF is excluded; its authenticity is
+ * PayPal's signature, verified in the controller. Finalising is idempotent.
+ */
+Route::post('/paypal/webhook', App\Http\Controllers\Webhooks\PayPalWebhookController::class)
+    ->withoutMiddleware([
+        Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
+        Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class,
+    ])
+    ->name('webhooks.paypal');
 
 /*
  * The blog — §5.7 and §6.

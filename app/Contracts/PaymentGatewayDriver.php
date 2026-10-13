@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Contracts;
 
 use App\Enums\PaymentGateway;
+use App\Models\Order;
 use App\Models\Payment;
+use App\Payments\CaptureResult;
+use App\Payments\CheckoutIntent;
 use App\Payments\RefundResult;
 
 /**
@@ -21,6 +24,26 @@ use App\Payments\RefundResult;
 interface PaymentGatewayDriver
 {
     public function gateway(): PaymentGateway;
+
+    /**
+     * Set up a payment for an order and return what the front end needs to let
+     * the buyer approve it — a PayPal order id, a Stripe client secret.
+     *
+     * The amount comes from the order total, which PlaceOrder computed from the
+     * offerings (§14 #1); a gateway is never handed a figure from the request.
+     */
+    public function createCheckout(Order $order): CheckoutIntent;
+
+    /**
+     * Capture the money the buyer approved. `$reference` is the handle the buyer
+     * approved against (the PayPal order id, the Stripe PaymentIntent id).
+     *
+     * A decline is a CaptureResult, not an exception. On success the result
+     * carries the gateway's capture/charge id, which becomes the UNIQUE
+     * `gateway_payment_id` that stops a replayed return or webhook double-granting
+     * (§14 #5 / #6).
+     */
+    public function capture(Order $order, string $reference): CaptureResult;
 
     /**
      * Whether this driver has credentials to work with.

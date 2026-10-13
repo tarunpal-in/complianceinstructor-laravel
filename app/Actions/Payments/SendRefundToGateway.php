@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Actions\Payments;
 
+use App\Actions\Entitlements\RevokeEntitlementsForOrder;
 use App\Email\Dispatcher;
+use App\Enums\OrderStatus;
 use App\Enums\RefundStatus;
 use App\Mail\RefundIssued;
 use App\Models\Refund;
@@ -24,6 +26,7 @@ class SendRefundToGateway
     public function __construct(
         private readonly PaymentGatewayManager $gateways,
         private readonly Dispatcher $dispatcher,
+        private readonly RevokeEntitlementsForOrder $revokeForOrder,
     ) {}
 
     public function __invoke(Refund $refund): Refund
@@ -70,7 +73,23 @@ class SendRefundToGateway
         if ($result->succeeded) {
             $order = $payment->order;
             $order->load('payments.refunds');
-            $order->update(['status' => $order->derivedStatus()]);
+            $status = $order->derivedStatus();
+            $order->update(['status' => $status]);
+
+            /*
+             * A fully refunded order loses the access it bought — §5.2 / §10.
+             * Only on Refunded, not PartiallyRefunded: a partial refund is by
+             * amount and cannot say which seat it was for, so the grants stand
+             * until an admin takes a named one back by hand. The revoke is keyed
+             * on (source Order, this order id), the exact rows the grant wrote.
+             */
+            if ($status === OrderStatus::Refunded) {
+                ($this->revokeForOrder)(
+                    $order,
+                    'Order '.$order->number.' was refunded.',
+                    $refund->issued_by,
+                );
+            }
 
             /*
              * And tell the customer, which until now nothing did — only staff

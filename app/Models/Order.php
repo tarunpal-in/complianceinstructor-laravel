@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\URL;
 
 /**
  * @property OrderStatus $status
@@ -225,6 +226,21 @@ class Order extends Model
     {
         return $this->customer()->email
             ?? (string) ($this->billing_snapshot['email'] ?? '');
+    }
+
+    /**
+     * A signed, expiring link to this order's invoice PDF — §9.
+     *
+     * The invoice route has no other gate, so the signature is the access
+     * control and the expiry bounds how long a leaked link is worth anything.
+     * Thirty days because an accounts department filing a receipt often does it
+     * weeks after the purchase, and a dead invoice link is its own support
+     * ticket; a resend regenerates the link, so the window being finite costs
+     * the customer nothing.
+     */
+    public function invoiceUrl(): string
+    {
+        return URL::signedRoute('invoice.download', $this, now()->addDays(30));
     }
 
     /**

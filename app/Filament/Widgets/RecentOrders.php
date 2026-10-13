@@ -39,8 +39,11 @@ class RecentOrders extends TableWidget
         return $table
             ->heading('Latest orders')
             ->query(
+                // payments.refunds eager-loaded because the status column derives
+                // from them (derivedStatus → captured/refunded cents); without it
+                // the widget lazy-loads once there are orders to show.
                 Order::query()
-                    ->with('user')
+                    ->with(['user', 'payments.refunds'])
                     ->whereNotNull('placed_at')
                     ->latest('placed_at')
                     ->limit(10),
@@ -88,6 +91,6 @@ class RecentOrders extends TableWidget
     /** @return Builder<Order> */
     protected function getTableQuery(): Builder
     {
-        return Order::query()->with('user')->whereNotNull('placed_at')->latest('placed_at')->limit(10);
+        return Order::query()->with(['user', 'payments.refunds'])->whereNotNull('placed_at')->latest('placed_at')->limit(10);
     }
 }

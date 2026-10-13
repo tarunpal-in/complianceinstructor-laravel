@@ -212,8 +212,12 @@ final class EmailCatalogue
                 category: EmailCategory::Purchase,
                 tier: EmailTier::Required,
                 trigger: 'A payment is verified and the order is paid.',
+                mailable: \App\Mail\OrderConfirmation::class,
                 lockReason: 'A customer who paid and received nothing is §14 #6 — the predecessor\'s worst defect, reachable from an admin toggle.',
-                blockedBy: 'Checkout (P3).',
+                // Carries a signed, expiring link to the invoice PDF, so a stored
+                // body goes stale — a resend rebuilds the link rather than
+                // replaying a dead one.
+                hasExpiringLinks: true,
             ),
             new EmailDefinition(
                 key: 'purchase.payment_declined',
@@ -221,8 +225,8 @@ final class EmailCatalogue
                 category: EmailCategory::Purchase,
                 tier: EmailTier::Required,
                 trigger: 'A capture fails at the gateway.',
+                mailable: \App\Mail\PaymentDeclined::class,
                 lockReason: 'They think they have bought something. They have not.',
-                blockedBy: 'Checkout (P3).',
             ),
             new EmailDefinition(
                 key: 'purchase.refund_issued',
@@ -239,8 +243,8 @@ final class EmailCatalogue
                 category: EmailCategory::Purchase,
                 tier: EmailTier::Required,
                 trigger: 'A multi-seat order names an attendee who is not the purchaser.',
+                mailable: \App\Mail\SeatAssigned::class,
                 lockReason: 'The attendee did not buy it and has no other way of knowing it exists.',
-                blockedBy: 'Attendee capture at checkout (P3).',
             ),
         ];
     }

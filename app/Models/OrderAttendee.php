@@ -21,7 +21,7 @@ class OrderAttendee extends Model
     /** @use HasFactory<OrderAttendeeFactory> */
     use HasFactory;
 
-    protected $fillable = ['order_item_id', 'name', 'email', 'user_id'];
+    protected $fillable = ['order_item_id', 'name', 'email', 'user_id', 'entitlement_id'];
 
     /** @return BelongsTo<OrderItem, $this> */
     public function orderItem(): BelongsTo
@@ -33,6 +33,16 @@ class OrderAttendee extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * The entitlement this seat was granted on a paid order, if any.
+     *
+     * @return BelongsTo<Entitlement, $this>
+     */
+    public function entitlement(): BelongsTo
+    {
+        return $this->belongsTo(Entitlement::class);
     }
 
     /** Whether this seat has been claimed by an account yet. */

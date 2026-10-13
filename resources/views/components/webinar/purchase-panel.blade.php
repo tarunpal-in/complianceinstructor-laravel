@@ -29,6 +29,11 @@
              Saying so beats an empty box with a dead button. --}}
         <p class="purchase-empty">Booking for this session is not open yet.</p>
     @else
+        {{-- A real POST now (P3). Only the selected quantities are sent — no
+             price or total — and the server re-derives everything from the
+             offering (§14 #1). The Alpine total is display only. --}}
+        <form method="POST" action="{{ route('cart.add') }}" class="purchase-form">
+            @csrf
         <ul class="purchase-rows">
             @foreach ($offerings as $offering)
                 @php
@@ -74,6 +79,7 @@
 
                     <select
                         id="qty-{{ $offering->id }}"
+                        name="quantities[{{ $offering->id }}]"
                         class="purchase-qty"
                         x-model.number="quantities[{{ $offering->id }}]"
                         x-on:change="recalculate()"
@@ -91,10 +97,11 @@
             <strong x-text="formattedTotal"></strong>
         </div>
 
-        <button type="button" class="purchase-cta" x-bind:disabled="total === 0" x-on:click="addToCart()">
+        <button type="submit" class="purchase-cta" x-bind:disabled="total === 0">
             <span x-show="total === 0">Select an Option Above</span>
             <span x-show="total > 0" x-cloak>Add to Cart <span x-text="'– ' + formattedTotal"></span></span>
         </button>
+        </form>
 
         <p class="purchase-trust">
             <span><x-ui.icon name="shield-check" :size="14" /> Secure</span>
