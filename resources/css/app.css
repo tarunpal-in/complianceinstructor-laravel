@@ -102,7 +102,10 @@ h1, h2 { font-family: 'DM Sans', sans-serif; letter-spacing: -0.055em; }
 .nav-actions { margin-left: auto; display: flex; align-items: center; gap: 19px; }
 .icon-button, .mobile-menu { border: 0; background: none; padding: 4px; cursor: pointer; color: #1b2030; display: grid; place-items: center; }
 .login-button, .button.primary { background: #f8ad1b; color: #111426; border: 0; border-radius: 8px; padding: 12px 22px; font-size: 14px; font-weight: 700; cursor: pointer; box-shadow: 0 7px 16px rgba(248, 173, 27, 0.18); }
-.login-button { padding: 12px 22px; }
+.login-button { padding: 12px 22px; display: inline-block; text-decoration: none; }
+.nav-logout { margin: 0; }
+.nav-logout-btn { background: none; border: 0; color: #59616f; font-size: 13px; font-weight: 600; cursor: pointer; padding: 6px 4px; }
+.nav-logout-btn:hover { color: #101a2c; text-decoration: underline; }
 .mobile-menu { display: none; }
 .search-panel { position: absolute; top: 76px; right: max(var(--gutter), calc((100% - var(--container)) / 2)); width: 320px; padding: 12px 16px; display: flex; align-items: center; gap: 10px; background: white; border: 1px solid #e5e7ec; border-radius: 9px; box-shadow: 0 14px 30px #192b4018; z-index: 6; }
 .search-panel input { width: 100%; border: 0; outline: 0; font-size: 13px; }
@@ -375,8 +378,8 @@ h1 span { color: #0c5484; }
 .feature { font-size: 13px; display: flex; align-items: center; gap: 10px; margin: 14px 0; }
 .feature svg { color: #10be89; flex: none; }
 .feature.muted { color: #b4bbc4; }
-.plan button { position: absolute; bottom: 26px; left: 27px; right: 27px; border: 0; border-radius: 9px; background: #101a2c; color: white; height: 47px; cursor: pointer; font-weight: 700; }
-.plan.popular button { background: #f8ae1e; color: #111426; }
+.plan button, .plan .plan-cta { position: absolute; bottom: 26px; left: 27px; right: 27px; border: 0; border-radius: 9px; background: #101a2c; color: white; height: 47px; cursor: pointer; font-weight: 700; display: flex; align-items: center; justify-content: center; text-decoration: none; }
+.plan.popular button, .plan.popular .plan-cta { background: #f8ae1e; color: #111426; }
 .callback { margin-top: 43px; display: flex; align-items: center; justify-content: space-between; padding: 28px 38px; border: 1px solid #e3e7ec; border-radius: 14px; background: #fbfcfd; }
 .callback strong, .callback span { display: block; }
 .callback strong { font-size: 16px; margin-bottom: 9px; }
@@ -1193,3 +1196,77 @@ img, svg, video { max-width: 100%; }
 .pay-trust { display: flex; align-items: center; justify-content: center; gap: 6px; color: #78808f; font-size: 12px; margin-top: 16px; }
 .pay-stripe { margin: 16px 0; }
 #stripe-pay { width: 100%; margin-top: 8px; }
+
+/* Memberships — pricing hero + subscribe page (P4). */
+.mb-hero { background: #0c4e80; color: #fff; padding: 72px max(var(--gutter), calc((100% - var(--container)) / 2)); }
+.mb-hero-inner { max-width: 760px; }
+.mb-eyebrow { font-size: 12px; letter-spacing: 0.12em; font-weight: 700; color: #f6af1e; }
+.mb-hero h1 { font-size: 40px; line-height: 1.1; margin: 10px 0 14px; }
+.mb-hero p { color: #d6e4f0; font-size: 16px; line-height: 1.6; margin: 0; }
+
+.mb-subscribe-grid { display: grid; grid-template-columns: 360px 1fr; gap: 40px; align-items: start; margin-top: 24px; }
+.mb-summary { background: #fff; border: 1px solid #e2e6eb; border-radius: 14px; padding: 26px; }
+.mb-summary h2 { margin: 0 0 6px; font-size: 20px; color: #101a2c; }
+.mb-summary-price { font-size: 26px; font-weight: 800; color: #0b5889; }
+.mb-summary-price small { font-size: 14px; font-weight: 500; color: #6b7280; }
+.mb-summary-headline { color: #101a2c; font-weight: 700; margin: 10px 0; }
+.mb-allowances { list-style: none; margin: 16px 0; padding: 0; display: grid; gap: 10px; }
+.mb-allowances li { display: flex; align-items: center; gap: 8px; color: #374151; font-size: 14px; }
+.mb-summary-total { border-top: 1px solid #e8eaed; margin: 18px 0 0; padding-top: 14px; }
+.mb-summary-total div { display: flex; justify-content: space-between; font-weight: 700; color: #101a2c; }
+.mb-pay h1 { font-size: 26px; color: #101a2c; margin: 0 0 8px; }
+.mb-pay-lead { color: #4b5563; margin: 0 0 20px; }
+.mb-pay-placeholder { border: 1px dashed #cbd5e1; border-radius: 10px; padding: 28px; color: #6b7280; text-align: center; background: #f8fafc; }
+.mb-pay-trust { margin-top: 18px; color: #6b7280; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+
+@media (max-width: 860px) {
+    .mb-subscribe-grid { grid-template-columns: 1fr; }
+    .mb-hero h1 { font-size: 30px; }
+}
+
+/* Membership subscribe — inline Stripe Elements (P4 slice 2). */
+.mb-pay-error { color: #b42318; font-size: 14px; margin: 0 0 12px; min-height: 1em; }
+#mb-payment-element { margin: 8px 0 16px; }
+.mb-subscribe-btn { width: 100%; }
+
+/* Membership self-service management (P4 slice 3). */
+.mb-manage h1 { font-size: 30px; color: #101a2c; margin: 12px 0 18px; }
+.mb-flash { border-radius: 10px; padding: 12px 16px; font-size: 14px; margin: 0 0 16px; }
+.mb-flash-ok { background: #dcfce7; color: #166534; }
+.mb-flash-error { background: #fee2e2; color: #b42318; }
+.mb-manage-card { background: #fff; border: 1px solid #e2e6eb; border-radius: 14px; padding: 26px; max-width: 640px; }
+.mb-manage-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.mb-manage-head h2 { margin: 0 0 4px; font-size: 22px; color: #101a2c; }
+.mb-manage-term { color: #6b7280; margin: 0; font-size: 14px; }
+.mb-manage-price { font-size: 18px; font-weight: 700; color: #0b5889; margin: 12px 0 0; }
+.mb-manage-sub { font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: #9ca3af; margin: 22px 0 10px; }
+.mb-manage-allowances { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.mb-manage-allowances li { display: flex; justify-content: space-between; border-bottom: 1px solid #f1f3f5; padding-bottom: 8px; color: #374151; }
+.mb-manage-actions { margin-top: 22px; }
+.mb-manage-note { color: #6b7280; font-size: 14px; margin: 0 0 12px; }
+.mb-state { align-self: center; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; background: #e5e7eb; color: #374151; }
+.mb-state-success { background: #dcfce7; color: #166534; }
+.mb-state-warning { background: #fef3c7; color: #92400e; }
+.mb-state-danger { background: #fee2e2; color: #b42318; }
+.mb-manage-change { margin-top: 36px; }
+.mb-change-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; margin-top: 12px; }
+.mb-change-plan { border: 1px solid #e2e6eb; border-radius: 12px; padding: 20px; background: #fff; }
+.mb-change-plan h4 { margin: 0 0 6px; color: #101a2c; }
+.mb-change-price { font-weight: 700; color: #0b5889; margin-bottom: 10px; }
+.mb-change-price small { font-weight: 500; color: #6b7280; }
+.mb-change-plan ul { list-style: none; margin: 0 0 14px; padding: 0; font-size: 13px; color: #374151; display: grid; gap: 6px; }
+
+/* Webinar page — membership redeem-to-unlock panel (P5 slice 2). */
+.wd-panel-stack { display: grid; gap: 16px; }
+.membership-panel { background: #fff; border: 1px solid #e2e6eb; border-radius: 14px; padding: 20px; }
+.membership-panel h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: #0b5889; margin: 0 0 12px; }
+.mp-flash { border-radius: 8px; padding: 8px 12px; font-size: 13px; margin: 0 0 10px; }
+.mp-flash-ok { background: #dcfce7; color: #166534; }
+.mp-flash-error { background: #fee2e2; color: #b42318; }
+.mp-formats { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.mp-formats li { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.mp-format-name { font-weight: 600; color: #101a2c; }
+.mp-open { background: #0c4e80; color: #fff; border-radius: 8px; padding: 8px 14px; font-weight: 700; text-decoration: none; font-size: 14px; }
+.mp-redeem { background: #f8ad1b; color: #111426; border: 0; border-radius: 8px; padding: 8px 14px; font-weight: 700; cursor: pointer; font-size: 14px; }
+.mp-remaining { display: block; font-size: 12px; color: #6b7280; margin-top: 4px; }
+.mp-exhausted { font-size: 13px; color: #9aa3af; }

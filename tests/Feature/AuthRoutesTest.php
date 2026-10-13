@@ -16,10 +16,11 @@ use Illuminate\Support\Facades\Route;
 /**
  * What owns authentication — see docs/auth.md.
  *
- * Fortify was removed on 2026-10-02: installed, never registered in
- * `bootstrap/providers.php`, and unregisterable without opening an unconditional
- * `POST /login` that authenticates on the same session without reaching
- * Filament's two-factor challenge.
+ * Fortify was removed on 2026-10-02 because it could not be registered without an
+ * unconditional `POST /login` that authenticates on the same session without
+ * reaching Filament's two-factor challenge. Customer auth was then built as the
+ * `account` Filament panel (P4): login, registration, reset and verification,
+ * each through the panel's own page, and no global `POST /login`.
  *
  * §9's requirement did not change, so these assert it against the code that
  * actually runs rather than against a package name in the brief.
@@ -28,21 +29,20 @@ beforeEach(function (): void {
     $this->seed(RolePermissionSeeder::class);
 });
 
-// There is no public authentication surface ------------------------------------------------
+// Public auth is the account panel, and nothing Fortify-shaped ------------------------------
 
 /*
- * §9: "no hand-rolled reset endpoint exists to get wrong". The strongest form of
- * that is no public auth endpoint existing at all, which is the state today — the
- * only way in is /admin/login.
+ * The dangerous shapes stay absent. `login`/`register` now exist as GET aliases
+ * into the account panel, but none of the Fortify/Breeze named routes that would
+ * imply a second hand-rolled auth stack do — in particular nothing named
+ * `login.store`, which is where a global `POST /login` would live.
  */
-it('exposes no public authentication route', function (string $name): void {
+it('exposes no Fortify-style authentication route', function (string $name): void {
     expect(Route::has($name))->toBeFalse(
-        "Route [{$name}] exists. If public auth is being built, docs/auth.md needs updating first."
+        "Route [{$name}] exists. Customer auth is the account Filament panel; a {$name} route means a second auth stack crept in."
     );
 })->with([
-    'login',
     'login.store',
-    'register',
     'register.store',
     'password.request',
     'password.email',
@@ -50,6 +50,34 @@ it('exposes no public authentication route', function (string $name): void {
     'password.update',
     'two-factor.login',
     'verification.verify',
+]);
+
+/*
+ * The specific bypass docs/auth.md refused Fortify over: a `POST /login` that
+ * authenticates on the `web` session without facing two-factor. `/login` is a GET
+ * redirect into the account panel; a POST to it must not sign anyone in.
+ */
+it('has no global POST login endpoint', function (): void {
+    $post = collect(Route::getRoutes()->getRoutes())
+        ->first(fn ($route): bool => $route->uri() === 'login' && in_array('POST', $route->methods(), true));
+
+    expect($post)->toBeNull();
+
+    $this->post('/login', ['email' => 'x@example.com', 'password' => 'secret-secret-1'])
+        ->assertStatus(405);
+});
+
+/*
+ * Customer auth exists now, and it is the account panel's — Filament pages, each
+ * carrying their own protection, not a bespoke stack.
+ */
+it('owns customer auth in the account panel', function (string $name): void {
+    expect(Route::has($name))->toBeTrue("Account panel route [{$name}] is missing.");
+})->with([
+    'filament.account.auth.login',
+    'filament.account.auth.register',
+    'filament.account.auth.password-reset.request',
+    'filament.account.auth.email-verification.verify',
 ]);
 
 /*
@@ -76,14 +104,33 @@ it('creates no account from an unauthenticated request', function (string $path)
 })->with(['/register', '/login', '/forgot-password', '/reset-password']);
 
 /*
- * Filament's own login is the only way in, and it is the page that carries the
- * two-factor challenge. A second one authenticating on the same session is the
- * specific reason Fortify came out rather than being switched on.
+ * Both logins are Filament panel pages, each carrying its own protection. Staff
+ * and customers are kept to separate panels so a staff member cannot sign in
+ * through the customer login and reach a session that never faced two-factor —
+ * the bypass docs/auth.md refused Fortify's global POST /login over.
  */
-it('leaves the panel login as the only way to sign in', function (): void {
+it('signs in only through a Filament panel login', function (): void {
     $this->get('/admin/login')->assertSuccessful();
+    $this->get('/account/login')->assertSuccessful();
 
-    expect(Route::has('filament.admin.auth.login'))->toBeTrue();
+    expect(Route::has('filament.admin.auth.login'))->toBeTrue()
+        ->and(Route::has('filament.account.auth.login'))->toBeTrue();
+});
+
+it('keeps staff out of the customer panel and customers out of admin', function (): void {
+    $accountPanel = Filament\Facades\Filament::getPanel('account');
+    $adminPanel = Filament\Facades\Filament::getPanel('admin');
+
+    $customer = User::factory()->create();
+    $staff = User::factory()->create();
+    $staff->assignRole(UserRole::Support->value);
+
+    expect($customer->canAccessPanel($accountPanel))->toBeTrue()
+        ->and($customer->canAccessPanel($adminPanel))->toBeFalse()
+        // A staff member cannot authenticate through the customer panel at all —
+        // this is the line that prevents the two-factor bypass.
+        ->and($staff->canAccessPanel($accountPanel))->toBeFalse()
+        ->and($staff->canAccessPanel($adminPanel))->toBeTrue();
 });
 
 it('registers no Fortify service provider', function (): void {

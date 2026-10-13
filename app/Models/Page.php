@@ -50,8 +50,9 @@ class Page extends Model implements Seoable
     public const RESERVED_SLUGS = [
         'admin', 'login', 'logout', 'register', 'password', 'forgot-password',
         'reset-password', 'two-factor-challenge', 'passkeys', 'webinars',
-        'speakers', 'cart', 'checkout', 'stripe', 'paypal', 'horizon', 'storage',
-        'up', 'api', 'livewire', 'filament', 'preview', 'home',
+        'speakers', 'cart', 'checkout', 'invoice', 'membership', 'learning', 'account',
+        'stripe', 'paypal', 'horizon', 'storage', 'up', 'api', 'livewire', 'filament',
+        'preview', 'home',
     ];
 
     /**

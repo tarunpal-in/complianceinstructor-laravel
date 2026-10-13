@@ -9,6 +9,7 @@ use App\Email\SendBudget;
 use App\Enums\UserRole;
 use App\Mail\PasswordChanged;
 use App\Mail\ResetPassword;
+use App\Mail\VerifyEmail;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Payments\Drivers\ManualDriver;
@@ -16,6 +17,7 @@ use App\Payments\Drivers\PayPalDriver;
 use App\Payments\Drivers\StripeDriver;
 use App\Payments\PaymentGatewayManager;
 use Filament\Auth\Notifications\ResetPassword as FilamentResetPassword;
+use Filament\Auth\Notifications\VerifyEmail as FilamentVerifyEmail;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -155,6 +157,30 @@ class AppServiceProvider extends ServiceProvider
         });
 
         /*
+         * The same interception for the customer panel's email verification.
+         *
+         * Filament's emailVerification() sends its own VerifyEmail notification
+         * with a signed link; left alone it would be the one account email with
+         * no row in the log. We carry Filament's computed URL into our mailable so
+         * the link is identical, and return false to cancel Filament's own send.
+         */
+        Event::listen(static function (NotificationSending $event): ?bool {
+            if (! $event->notification instanceof FilamentVerifyEmail) {
+                return null;
+            }
+
+            if (! $event->notifiable instanceof User) {
+                return null;
+            }
+
+            app(Dispatcher::class)->send(
+                new VerifyEmail($event->notifiable, $event->notification->url),
+            );
+
+            return false;
+        });
+
+        /*
          * Finalise order payments from Stripe's webhook (§14 #6). Cashier owns
          * the endpoint and verifies the signature, then fires WebhookReceived for
          * every event; our listener acts only on the capture ones.
@@ -162,6 +188,16 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(
             \Laravel\Cashier\Events\WebhookReceived::class,
             \App\Listeners\HandleStripeWebhook::class,
+        );
+
+        /*
+         * And keep membership snapshots in step with Stripe (§8 / P4). Cashier
+         * updates the subscription columns for a lifecycle event; this re-snapshots
+         * our allowance rows when the billed plan has moved out from under them.
+         */
+        Event::listen(
+            \Laravel\Cashier\Events\WebhookReceived::class,
+            \App\Listeners\SyncSubscriptionFromWebhook::class,
         );
 
         /*

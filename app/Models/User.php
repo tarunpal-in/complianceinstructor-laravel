@@ -13,6 +13,7 @@ use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthentication;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthenticationRecovery;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
+use Illuminate\Contracts\Auth\MustVerifyEmail as MustVerifyEmailContract;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -34,7 +35,7 @@ use Spatie\Permission\Traits\HasRoles;
  */
 #[Fillable(['name', 'email', 'password'])]
 #[Hidden(['password', 'remember_token'])]
-class User extends Authenticatable implements FilamentUser, HasAppAuthentication, HasAppAuthenticationRecovery
+class User extends Authenticatable implements FilamentUser, HasAppAuthentication, HasAppAuthenticationRecovery, MustVerifyEmailContract
 {
     /**
      * Billable is what gives a user `subscriptions()` and the Stripe customer
@@ -125,10 +126,24 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
      */
     public function canAccessPanel(Panel $panel): bool
     {
-        // Deactivated staff keep their roles, so "holds a role" is no longer
-        // the same question as "may get in". A leaver's history still points
-        // at a real person with a job title; their access stops here.
-        return ! $this->isDeactivated() && $this->hasAnyRole(UserRole::values());
+        if ($this->isDeactivated()) {
+            // Deactivated staff keep their roles, so "holds a role" is no longer
+            // the same question as "may get in". A leaver's history still points
+            // at a real person with a job title; their access stops here.
+            return false;
+        }
+
+        // Staff and customers are kept to separate panels, and this is the line
+        // that enforces it. The admin panel enforces two-factor on its login;
+        // the customer panel does not. If a staff member could authenticate
+        // through the customer login, they would reach an authenticated `web`
+        // session that never faced the two-factor challenge — the exact bypass
+        // docs/auth.md refused Fortify's global POST /login over. So staff may
+        // not use the account panel at all, and a customer (no roles) may not
+        // use the admin panel.
+        return $panel->getId() === 'account'
+            ? ! $this->isStaff()
+            : $this->hasAnyRole(UserRole::values());
     }
 
     /**
@@ -261,6 +276,23 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     public function isDeactivated(): bool
     {
         return $this->deactivated_at !== null;
+    }
+
+    /**
+     * This account's membership, as our model — CLAUDE.md §5.5 / P5.
+     *
+     * Queried through our own model rather than Cashier's `subscription('default')`
+     * so the return type is honestly `App\Models\Subscription` (the plan link and
+     * allowance snapshot live there), not the base Cashier class the stubs return.
+     * The most recent `default` subscription, or null for a non-member.
+     */
+    public function membership(): ?Subscription
+    {
+        return Subscription::query()
+            ->where('user_id', $this->getKey())
+            ->where('type', 'default')
+            ->latest('id')
+            ->first();
     }
 
     /** @return BelongsTo<User, $this> */

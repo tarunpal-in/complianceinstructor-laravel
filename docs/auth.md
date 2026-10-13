@@ -68,20 +68,37 @@ itself. Nothing about two-factor changes.
 `PasswordValidationRules` is no loss: it returned `Password::default()`, which is
 exactly what Filament's reset page already applies.
 
-## What this means for P5
+## Customer auth — decided for P4 (2026-10-14)
 
-The learner area needs public registration, login, email verification and
-password reset for customers. Three options, to be chosen **then** rather than
-assumed now:
+P4 (memberships) is the first phase that cannot work without customer accounts:
+Cashier attaches the Stripe customer to a billable `User`, and a subscription
+belongs to one. Three options were on the table:
 
 1. **A second Filament panel** for customers. Consistent with §2's first leverage
-   decision, and it already has login, reset and two-factor built.
+   decision, and it already has login, reset, verification and two-factor built.
 2. **Re-add Fortify**, headless, with `registration()` on and the `POST /login`
    conflict resolved by giving customers their own guard or route prefix.
 3. **Hand-built Blade auth** on Laravel's broker. Most control, most §9 risk.
 
-Option 1 is the cheapest and the most consistent; option 2 is what the brief
-assumed. Either way the decision wants the public auth design in front of it.
+**Chosen: option 1 — the `account` panel** (`App\Providers\Filament\AccountPanelProvider`,
+served at `/account`). It is the cheapest and the most consistent, and decisively
+it registers **no global `POST /login`**: each panel authenticates through its own
+page, so the two-factor bypass that kept Fortify out cannot exist.
+
+How the bypass stays closed: `User::canAccessPanel` lets only a non-staff account
+into `account`, and only a role-holder into `admin`. A staff member therefore
+cannot authenticate through the customer panel at all, so they can never reach a
+`web` session that skipped the admin two-factor challenge. `AuthRoutesTest`
+asserts both the separation and the absence of any `POST /login`.
+
+What the panel owns: login, registration (customers get no role, so they are
+customers by construction), password reset (Laravel's broker still issues the
+token; `AppServiceProvider` carries both the reset and the verification mail
+through the Dispatcher so they are logged like every other email), and email
+verification (`User implements MustVerifyEmail`). `/login` and `/register` are
+plain GET redirect aliases into the panel for the navbar's convenience.
+
+The learner dashboard (P5) will fill this panel's currently-bare dashboard.
 
 ## Known gap, not addressed here
 

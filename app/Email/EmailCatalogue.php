@@ -138,20 +138,13 @@ final class EmailCatalogue
                 category: EmailCategory::Account,
                 tier: EmailTier::Required,
                 trigger: 'Somebody registers, or changes the address on their account.',
+                mailable: \App\Mail\VerifyEmail::class,
                 lockReason: 'Without it nobody can prove they own the address they signed up with.',
                 hasExpiringLinks: true,
-                /*
-                 * Not an oversight and not a template away. There is no public
-                 * authentication surface at all — no registration, no customer
-                 * login, nothing to verify an address *for*. Fortify, which would
-                 * have supplied the route, was removed on 2026-10-02 rather than
-                 * registered: see docs/auth.md for why, including the unconditional
-                 * POST /login that would have bypassed two-factor.
-                 *
-                 * This arrives with the learner area in P5, alongside whatever
-                 * then owns public auth.
-                 */
-                blockedBy: 'There is no public sign-up to verify an address for yet (P5).',
+                // The customer panel (docs/auth.md) now owns public auth, so there
+                // is a registration to verify an address for. Filament issues the
+                // signed link; AppServiceProvider carries the mail through the log.
+                notResendableReason: 'The link is signed and expires. Registering again, or "Resend verification" in the account area, issues a fresh one.',
             ),
             new EmailDefinition(
                 key: 'account.password_reset',

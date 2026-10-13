@@ -75,6 +75,56 @@ Route::post('/checkout/pay/{order}/complete', [PaymentController::class, 'comple
 Route::get('/checkout/complete/{order}', [CheckoutController::class, 'received'])->name('checkout.complete');
 
 /*
+ * Public auth entry points — docs/auth.md. Customer auth lives in the `account`
+ * Filament panel; these are just friendly GET aliases to its login and register
+ * pages (pure redirects, no auth logic — nothing like Fortify's global
+ * POST /login), so the navbar and redirect()->guest() can say route('login').
+ */
+Route::get('/login', fn () => redirect()->route('filament.account.auth.login'))->name('login');
+Route::get('/register', fn () => redirect()->route('filament.account.auth.register'))->name('register');
+
+/*
+ * Memberships — §6 / P4. The pricing page is public; the subscribe page needs a
+ * signed-in, billable account (its controller sends a guest to log in). Above
+ * the page catch-all, and `membership` is a reserved slug.
+ */
+Route::get('/membership', [App\Http\Controllers\MembershipController::class, 'index'])->name('membership.index');
+
+/*
+ * Self-service management of the member's own subscription (§6). All resolve the
+ * subscription from the signed-in account, never from the request.
+ */
+Route::get('/membership/manage', [App\Http\Controllers\MembershipController::class, 'manage'])
+    ->middleware('auth')->name('membership.manage');
+Route::post('/membership/manage/cancel', [App\Http\Controllers\MembershipController::class, 'cancel'])
+    ->middleware(['auth', 'throttle:cart'])->name('membership.cancel');
+Route::post('/membership/manage/resume', [App\Http\Controllers\MembershipController::class, 'resume'])
+    ->middleware(['auth', 'throttle:cart'])->name('membership.resume');
+Route::post('/membership/manage/change', [App\Http\Controllers\MembershipController::class, 'change'])
+    ->middleware(['auth', 'throttle:cart'])->name('membership.change');
+
+/*
+ * Spend a membership allowance to unlock a webinar (§5.2). The webinar is the
+ * route key; the format comes in the body. Redeeming grants one ledger row, and
+ * the webinar page then shows the format as held.
+ */
+Route::post('/membership/watch/{webinar:slug}', [App\Http\Controllers\MembershipAccessController::class, 'watch'])
+    ->middleware(['auth', 'throttle:cart'])->name('membership.watch');
+Route::get('/membership/{plan:slug}/subscribe', [App\Http\Controllers\MembershipController::class, 'subscribe'])->name('membership.subscribe');
+Route::post('/membership/{plan:slug}/subscribe/intent', [App\Http\Controllers\MembershipController::class, 'intent'])
+    ->middleware(['auth', 'throttle:cart'])->name('membership.subscribe.intent');
+Route::post('/membership/{plan:slug}/subscribe/confirm', [App\Http\Controllers\MembershipController::class, 'confirm'])
+    ->middleware(['auth', 'throttle:cart'])->name('membership.subscribe.confirm');
+
+/*
+ * Learner access to what they are entitled to (§5.2 / §9). Gated by the
+ * entitlement ledger in the controller, not by the route; the file itself is
+ * reached through a signed, expiring URL the controller hands back.
+ */
+Route::get('/learning/{webinar:slug}/{format}', [App\Http\Controllers\LearningAccessController::class, 'access'])
+    ->middleware('auth')->name('learning.access');
+
+/*
  * The invoice PDF — §8 / §9. `signed` is the whole gate: a guest buyer has no
  * login, so an unexpired signed link (handed out only by the confirmation email
  * and the received page) stands in for one, and because the link names the order

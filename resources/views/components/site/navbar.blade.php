@@ -35,7 +35,15 @@
             <x-ui.icon name="shopping-cart" :size="20" />
         </a>
 
-        <button class="login-button" @click="showNotice('Sign up is coming soon')">Login / Sign Up</button>
+        @auth
+            <a class="login-button" href="{{ route('filament.account.pages.dashboard') }}">My Account</a>
+            <form method="POST" action="{{ route('filament.account.auth.logout') }}" class="nav-logout">
+                @csrf
+                <button type="submit" class="nav-logout-btn">Log out</button>
+            </form>
+        @else
+            <a class="login-button" href="{{ route('login') }}">Login / Sign Up</a>
+        @endauth
 
         <button class="mobile-menu" aria-label="Toggle menu" :aria-expanded="mobileOpen ? 'true' : 'false'" @click="mobileOpen = ! mobileOpen">
             <span x-show="! mobileOpen"><x-ui.icon name="menu" /></span>
