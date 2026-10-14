@@ -59,7 +59,14 @@
                         </p>
                     @endforeach
 
-                    <button @click="showNotice('{{ $plan->name }} plan selected')">Get Started</button>
+                    {{-- A real link for a sellable plan (active + a Stripe price);
+                         otherwise the enquiry prompt, since there is nothing to
+                         subscribe to yet. --}}
+                    @if ($plan->isSellable())
+                        <a class="plan-cta" href="{{ route('membership.subscribe', $plan) }}">Get Started</a>
+                    @else
+                        <button @click="showNotice('{{ $plan->name }} — contact us to subscribe')">Contact Us</button>
+                    @endif
                 </article>
             @endforeach
         </div>

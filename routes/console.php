@@ -74,3 +74,17 @@ Schedule::command('emails:prune-bodies')
     ->dailyAt('03:30')
     ->withoutOverlapping()
     ->runInBackground();
+
+/*
+ * The membership reconcile safety net (§8 / P4).
+ *
+ * The webhook listener keeps snapshots in step in real time; this catches the
+ * subscription whose `customer.subscription.updated` was never delivered, so a
+ * plan change made in Stripe cannot leave a member on the wrong allowances for
+ * longer than a day. **This needs cron**, the same `schedule:run` the sweeps above
+ * depend on.
+ */
+Schedule::command('memberships:reconcile')
+    ->dailyAt('04:00')
+    ->withoutOverlapping()
+    ->runInBackground();
