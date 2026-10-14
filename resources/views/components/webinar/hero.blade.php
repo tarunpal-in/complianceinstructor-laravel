@@ -1,4 +1,4 @@
-@props(['webinar'])
+@props(['webinar', 'membership' => null])
 
 @php
     $banner = $webinar->bannerImageUrl() ?? $webinar->cardImageUrl();
@@ -72,6 +72,11 @@
             </div>
         </div>
 
-        <x-webinar.purchase-panel :webinar="$webinar" />
+        <div class="wd-panel-stack">
+            <x-webinar.purchase-panel :webinar="$webinar" />
+            @if ($membership)
+                <x-webinar.membership-panel :webinar="$webinar" :membership="$membership" />
+            @endif
+        </div>
     </div>
 </section>

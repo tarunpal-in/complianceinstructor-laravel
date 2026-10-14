@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\Format;
+use App\Models\Entitlement;
 use App\Models\Setting;
 use App\Models\Webinar;
 use App\Seo\Schema;
@@ -55,6 +57,7 @@ class WebinarController extends Controller
             'breadcrumbs' => $crumbs,
             'schemas' => [Schema::event($webinar), Schema::breadcrumbs($crumbs)],
             'webinar' => $webinar,
+            'membership' => $this->membershipAccess($webinar),
             'similar' => $this->similar($webinar),
             'instructions' => $webinar->resolvedInstructions(),
             'qaNote' => Setting::get(
@@ -62,6 +65,82 @@ class WebinarController extends Controller
                 'During the Q&A session following the live event, ask a question and get a direct response from our expert speaker.',
             ),
         ]);
+    }
+
+    /**
+     * How the signed-in member can reach this webinar on their plan — §5.2 / P5.
+     *
+     * Null for a guest or a non-member, so the panel renders nothing. Otherwise,
+     * for each format the webinar is sold in *and* the plan includes, one of
+     * three states: already `held` (a grant exists — show an open link),
+     * `spendable` (an allowance is free this window — offer to redeem), or
+     * `exhausted` (included, but spent). The redeem itself is the tested
+     * RedeemMembershipAllowance, reached from the panel.
+     *
+     * @return array{subscription: \App\Models\Subscription, formats: list<array{format: Format, state: string, remaining: string}>}|null
+     */
+    private function membershipAccess(Webinar $webinar): ?array
+    {
+        $user = auth()->user();
+
+        if ($user === null) {
+            return null;
+        }
+
+        $subscription = $user->membership();
+
+        if ($subscription === null || ! $subscription->state()->grantsAccess()) {
+            return null;
+        }
+
+        $subscription->loadMissing('entitlements', 'plan');
+
+        /** @var list<array{format: Format, state: string, remaining: string}> $rows */
+        $rows = [];
+
+        foreach ($this->offeredFormats($webinar) as $format) {
+            // Only formats the plan actually grants — otherwise there is nothing
+            // to offer and nothing to redeem.
+            if ($subscription->allowanceFor($format) === null) {
+                continue;
+            }
+
+            $state = match (true) {
+                Entitlement::grants($user, $webinar, $format) => 'held',
+                $subscription->canSpend($format) => 'spendable',
+                default => 'exhausted',
+            };
+
+            $rows[] = [
+                'format' => $format,
+                'state' => $state,
+                'remaining' => $subscription->describeRemaining($format),
+            ];
+        }
+
+        return $rows === [] ? null : ['subscription' => $subscription, 'formats' => $rows];
+    }
+
+    /**
+     * The formats this webinar is sold in, de-duplicated.
+     *
+     * @return list<Format>
+     */
+    private function offeredFormats(Webinar $webinar): array
+    {
+        $seen = [];
+        $formats = [];
+
+        foreach ($webinar->offerings as $offering) {
+            foreach ($offering->formatEnums() as $format) {
+                if (! isset($seen[$format->value])) {
+                    $seen[$format->value] = true;
+                    $formats[] = $format;
+                }
+            }
+        }
+
+        return $formats;
     }
 
     /**
