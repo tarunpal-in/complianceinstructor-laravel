@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Orders;
 
 use App\Actions\Coupons\RedeemCoupon;
+use App\Cart\CartPricing;
 use App\Checkout\BillingDetails;
 use App\Enums\OrderStatus;
 use App\Models\Cart;
@@ -104,10 +105,16 @@ class PlaceOrder
         $subtotal = 0;
         $seatCursor = 0;
 
+        // The add-on cross-sell rule, re-derived from the cart here and frozen
+        // onto the lines — never the cart's displayed price (§14 #1).
+        $unitPrices = app(CartPricing::class)->unitPrices($items);
+
         foreach ($items as $item) {
             $offering = $item->offering;
-            // The price source (§5.3/§14 #1) — never the cart snapshot.
-            $price = $offering->priceCents();
+            // The price source (§5.3/§14 #1) — never the cart snapshot. The
+            // effective price applies the add-on rule; a line with no entry
+            // (should not happen for an available item) falls back to standalone.
+            $price = $unitPrices[$item->getKey()] ?? $offering->priceCents();
             $quantity = $item->quantity;
             $webinar = $offering->offerable instanceof Webinar ? $offering->offerable : null;
 

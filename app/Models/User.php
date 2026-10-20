@@ -8,6 +8,7 @@ use App\Email\Dispatcher;
 use App\Enums\EmailCategory;
 use App\Enums\UserRole;
 use App\Mail\ResetPassword;
+use App\Mail\VerifyEmail;
 use Database\Factories\UserFactory;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthentication;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthenticationRecovery;
@@ -33,7 +34,7 @@ use Spatie\Permission\Traits\HasRoles;
  * CLAUDE.md §5.8 — users carry NO role column; roles come from Spatie.
  * §14 #12 and §9 both ban raw `role_id === 1` comparisons for authorization.
  */
-#[Fillable(['name', 'email', 'password'])]
+#[Fillable(['name', 'email', 'password', 'email_verified_at'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements FilamentUser, HasAppAuthentication, HasAppAuthenticationRecovery, MustVerifyEmailContract
 {
@@ -242,6 +243,29 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     public function sendPasswordResetNotification($token): void
     {
         app(Dispatcher::class)->send(ResetPassword::forToken($this, (string) $token));
+    }
+
+    /**
+     * Verification goes through the log too, and through the account panel's own
+     * verify route.
+     *
+     * The `Registered` event fires Laravel's default listener, which would send
+     * the framework's VerifyEmail against a `verification.verify` route that does
+     * not exist — the customer panel owns verification, not the global scaffold.
+     * So this overrides it the same way the reset is overridden: build the
+     * panel's signed verify URL and carry the mail through the Dispatcher. The
+     * panel's own "resend" button is covered separately, by the notification
+     * interception in AppServiceProvider.
+     */
+    public function sendEmailVerificationNotification(): void
+    {
+        $url = \Illuminate\Support\Facades\URL::temporarySignedRoute(
+            'filament.account.auth.email-verification.verify',
+            now()->addMinutes((int) config('auth.verification.expire', 60)),
+            ['id' => $this->getKey(), 'hash' => sha1((string) $this->getEmailForVerification())],
+        );
+
+        app(Dispatcher::class)->send(new VerifyEmail($this, $url));
     }
 
     /**

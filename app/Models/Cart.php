@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Cart\CartPricing;
 use Database\Factories\CartFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -44,10 +45,25 @@ class Cart extends Model
         return $this->hasMany(CartItem::class);
     }
 
-    /** Live subtotal: the sum of each line at the offering's current price. */
+    /**
+     * Live subtotal, with the add-on cross-sell rule applied — a secondary
+     * format of a webinar already in the cart is charged at its add-on price
+     * (§5.3 / §14 #1, via CartPricing).
+     */
     public function subtotalCents(): int
     {
-        return $this->items->sum(fn (CartItem $item): int => $item->lineSubtotalCents());
+        return app(CartPricing::class)->subtotalCents($this->items);
+    }
+
+    /**
+     * The effective unit price per cart item, for the cart views (so each line
+     * shows the add-on price where the rule applies).
+     *
+     * @return array<int, int> cart item id => unit price cents
+     */
+    public function effectiveUnitPrices(): array
+    {
+        return app(CartPricing::class)->unitPrices($this->items);
     }
 
     /** Total units across every line, for the cart badge. */

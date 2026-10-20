@@ -97,6 +97,26 @@ it('shows what a customer has bought', function (): void {
         ->assertCanNotSeeTableRecords([$somebody]);
 });
 
+it('saves a user edit including the email-verified-at field', function (): void {
+    // The Account form has an "Email verified at" field, so saving mass-assigns
+    // email_verified_at — which must be fillable or Model::shouldBeStrict()
+    // throws a MassAssignmentException on the edit.
+    $this->actingAs(userWithRole(UserRole::SuperAdmin));
+
+    $customer = User::factory()->create(['email_verified_at' => null]);
+
+    Livewire\Livewire::test(EditUser::class, ['record' => $customer->getKey()])
+        ->fillForm([
+            'name' => $customer->name,
+            'email' => $customer->email,
+            'email_verified_at' => now(),
+        ])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($customer->fresh()->email_verified_at)->not->toBeNull();
+});
+
 it('counts what each customer has bought without a second query per row', function (): void {
     $this->actingAs(userWithRole(UserRole::SuperAdmin));
 

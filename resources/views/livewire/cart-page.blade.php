@@ -50,7 +50,14 @@
                     <strong>{{ Money::format($cart->subtotalCents(), $cart->currency) }}</strong>
                 </div>
                 <p class="cart-summary-note">Coupons and tax are applied at checkout.</p>
-                <a class="btn-primary cart-checkout" href="{{ route('checkout.index') }}">Proceed to checkout</a>
+
+                @auth
+                    <a class="btn-primary cart-checkout" href="{{ route('checkout.index') }}">Proceed to checkout</a>
+                @else
+                    {{-- Checkout needs an account (no guest checkout): sign in or
+                         register right here, without losing the cart. --}}
+                    <livewire:auth.cart-auth />
+                @endauth
             </aside>
         </div>
     @endif

@@ -60,4 +60,29 @@ return [
         'webhook_id' => env('PAYPAL_WEBHOOK_ID'),
     ],
 
+    /*
+     * Social sign-in for customers (Socialite). Each provider's buttons only
+     * render once its credentials are set, so the page degrades to email and
+     * password until an OAuth app is configured — the same config-gating the
+     * payment gateways use. `linkedin-openid` is Socialite's current LinkedIn
+     * driver; `microsoft` comes from socialiteproviders/microsoft.
+     */
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI', '/auth/google/callback'),
+    ],
+
+    'linkedin-openid' => [
+        'client_id' => env('LINKEDIN_CLIENT_ID'),
+        'client_secret' => env('LINKEDIN_CLIENT_SECRET'),
+        'redirect' => env('LINKEDIN_REDIRECT_URI', '/auth/linkedin/callback'),
+    ],
+
+    'microsoft' => [
+        'client_id' => env('MICROSOFT_CLIENT_ID'),
+        'client_secret' => env('MICROSOFT_CLIENT_SECRET'),
+        'redirect' => env('MICROSOFT_REDIRECT_URI', '/auth/microsoft/callback'),
+    ],
+
 ];

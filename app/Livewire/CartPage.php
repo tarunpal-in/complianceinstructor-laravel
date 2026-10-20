@@ -25,11 +25,13 @@ class CartPage extends Component
     public function updateQuantity(int $itemId, int $quantity): void
     {
         $this->withOwnedItem($itemId, fn (CartItem $item) => app(CartManager::class)->setQuantity($item, $quantity));
+        $this->dispatch('cart:changed');
     }
 
     public function removeItem(int $itemId): void
     {
         $this->withOwnedItem($itemId, fn (CartItem $item) => app(CartManager::class)->remove($item));
+        $this->dispatch('cart:changed');
     }
 
     /**

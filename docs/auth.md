@@ -100,6 +100,34 @@ plain GET redirect aliases into the panel for the navbar's convenience.
 
 The learner dashboard (P5) will fill this panel's currently-bare dashboard.
 
+## Branded sign-in and social login (2026-10-14)
+
+The Filament-styled account login was replaced by **one branded page at `/login`**
+(a Livewire full-page component, `App\Livewire\Auth\AuthPage`) that toggles
+between sign-in and sign-up and offers social login. The account panel keeps
+password reset, email verification and the profile page, but its own `->login()`
+and `->registration()` are off; an unauthenticated visitor to `/account` is sent
+to `route('login')`.
+
+This is the "hand-built Blade auth" option, chosen for the on-brand experience —
+so the bypass that kept Fortify out has to be closed by hand, and is:
+
+- There is still **no global `POST /login`**. Email/password sign-in is a Livewire
+  action, not a route; `AuthRoutesTest` asserts no POST route at `login`.
+- The sign-in action and the social callback both **refuse a staff account** and
+  send it to the admin login, so neither becomes a second way into a `web`
+  session that skipped the admin two-factor challenge.
+- New accounts (email or social) are customers — no role. Social identities come
+  back email-verified; email/password sign-ups fire `Registered`, which now routes
+  the verification mail through the account panel's verify route via the
+  Dispatcher (`User::sendEmailVerificationNotification`), like the reset.
+
+**Social providers** are Google, LinkedIn and Microsoft through Socialite
+(`SocialAuthController`, `App\Support\SocialProviders`). Each is config-gated on
+its credentials, so a button shows only when that provider is set up; the OAuth
+round-trip itself is verified once real credentials are added, as with the
+payment gateways.
+
 ## Known gap, not addressed here
 
 **No password policy is configured.** `Password::defaults()` is never called, so

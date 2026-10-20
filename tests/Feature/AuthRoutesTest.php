@@ -54,8 +54,9 @@ it('exposes no Fortify-style authentication route', function (string $name): voi
 
 /*
  * The specific bypass docs/auth.md refused Fortify over: a `POST /login` that
- * authenticates on the `web` session without facing two-factor. `/login` is a GET
- * redirect into the account panel; a POST to it must not sign anyone in.
+ * authenticates on the `web` session without facing two-factor. `/login` is the
+ * branded Livewire sign-in page (a GET), whose login action excludes staff; a
+ * POST to the path itself must not sign anyone in.
  */
 it('has no global POST login endpoint', function (): void {
     $post = collect(Route::getRoutes()->getRoutes())
@@ -68,17 +69,26 @@ it('has no global POST login endpoint', function (): void {
 });
 
 /*
- * Customer auth exists now, and it is the account panel's — Filament pages, each
- * carrying their own protection, not a bespoke stack.
+ * Customer auth is the branded /login page plus the account panel's reset and
+ * verification routes; its own login/registration pages were turned off so there
+ * is one on-brand sign-in. The Filament login route must be gone, not merely
+ * unused.
  */
-it('owns customer auth in the account panel', function (string $name): void {
-    expect(Route::has($name))->toBeTrue("Account panel route [{$name}] is missing.");
+it('owns customer auth through the branded page and the account panel', function (string $name): void {
+    expect(Route::has($name))->toBeTrue("Customer auth route [{$name}] is missing.");
 })->with([
-    'filament.account.auth.login',
-    'filament.account.auth.register',
+    'login',
+    'register',
+    'auth.redirect',
+    'auth.callback',
     'filament.account.auth.password-reset.request',
     'filament.account.auth.email-verification.verify',
 ]);
+
+it('no longer exposes the Filament account login or registration pages', function (): void {
+    expect(Route::has('filament.account.auth.login'))->toBeFalse()
+        ->and(Route::has('filament.account.auth.register'))->toBeFalse();
+});
 
 /*
  * The predecessor's second critical finding was an unauthenticated bulk user
@@ -104,17 +114,17 @@ it('creates no account from an unauthenticated request', function (string $path)
 })->with(['/register', '/login', '/forgot-password', '/reset-password']);
 
 /*
- * Both logins are Filament panel pages, each carrying its own protection. Staff
- * and customers are kept to separate panels so a staff member cannot sign in
- * through the customer login and reach a session that never faced two-factor —
- * the bypass docs/auth.md refused Fortify's global POST /login over.
+ * Staff sign in at the Filament admin login (which enforces two-factor);
+ * customers sign in at the branded /login page, whose login action refuses a
+ * staff account. Keeping the two apart is what stops a staff member reaching a
+ * `web` session that never faced two-factor — the bypass docs/auth.md refused
+ * Fortify's global POST /login over.
  */
-it('signs in only through a Filament panel login', function (): void {
+it('serves an admin login and a separate branded customer login', function (): void {
     $this->get('/admin/login')->assertSuccessful();
-    $this->get('/account/login')->assertSuccessful();
+    $this->get(route('login'))->assertSuccessful();
 
-    expect(Route::has('filament.admin.auth.login'))->toBeTrue()
-        ->and(Route::has('filament.account.auth.login'))->toBeTrue();
+    expect(Route::has('filament.admin.auth.login'))->toBeTrue();
 });
 
 it('keeps staff out of the customer panel and customers out of admin', function (): void {

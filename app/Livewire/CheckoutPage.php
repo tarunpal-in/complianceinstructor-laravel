@@ -14,7 +14,9 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderItemFormat;
 use App\Models\Webinar;
+use App\Support\Countries;
 use Illuminate\Contracts\View\View;
+use Illuminate\Validation\Rule;
 use Livewire\Component;
 use RuntimeException;
 
@@ -36,7 +38,21 @@ class CheckoutPage extends Component
 
     public string $email = '';
 
+    public string $jobTitle = '';
+
     public string $company = '';
+
+    public string $addressLine1 = '';
+
+    public string $addressLine2 = '';
+
+    public string $city = '';
+
+    public string $region = '';
+
+    public string $postalCode = '';
+
+    public string $country = Countries::DEFAULT;
 
     /** @var array<int, array{name: string, email: string}> */
     public array $attendees = [];
@@ -55,6 +71,14 @@ class CheckoutPage extends Component
 
     public function mount(): void
     {
+        // Checkout requires an account (no guest checkout). The controller already
+        // blocks a signed-out visitor; this is the component's own guard.
+        if (($user = auth()->user()) === null) {
+            $this->redirectRoute('cart.index', navigate: true);
+
+            return;
+        }
+
         $cart = app(CartManager::class)->peek();
 
         if ($cart === null || $cart->isEmpty()) {
@@ -63,10 +87,8 @@ class CheckoutPage extends Component
             return;
         }
 
-        if (($user = auth()->user()) !== null) {
-            $this->name = (string) $user->name;
-            $this->email = (string) $user->email;
-        }
+        $this->name = (string) $user->name;
+        $this->email = (string) $user->email;
 
         $this->seedAttendees($cart);
     }
@@ -118,13 +140,29 @@ class CheckoutPage extends Component
     {
         $this->placeError = null;
 
+        // No guest checkout — if the session lapsed, back to the cart to sign in.
+        if (auth()->guest()) {
+            return $this->redirectRoute('cart.index', navigate: true);
+        }
+
         $this->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
+            'jobTitle' => ['required', 'string', 'max:255'],
             'company' => ['nullable', 'string', 'max:255'],
+            'addressLine1' => ['required', 'string', 'max:255'],
+            'addressLine2' => ['nullable', 'string', 'max:255'],
+            'city' => ['required', 'string', 'max:255'],
+            'region' => ['nullable', 'string', 'max:255'],
+            'postalCode' => ['required', 'string', 'max:32'],
+            'country' => ['required', 'string', Rule::in(Countries::names())],
             'attendees.*.name' => ['required', 'string', 'max:255'],
             'attendees.*.email' => ['required', 'email', 'max:255'],
             'gateway' => ['required', 'in:paypal,stripe'],
+        ], attributes: [
+            'jobTitle' => 'job title',
+            'addressLine1' => 'address',
+            'postalCode' => 'postal code',
         ]);
 
         $cart = app(CartManager::class)->current();
@@ -136,7 +174,18 @@ class CheckoutPage extends Component
         try {
             $order = app(PlaceOrder::class)(
                 $cart,
-                new BillingDetails($this->name, $this->email, $this->company !== '' ? $this->company : null),
+                new BillingDetails(
+                    name: $this->name,
+                    email: $this->email,
+                    company: $this->blankToNull($this->company),
+                    country: $this->blankToNull($this->country),
+                    jobTitle: $this->blankToNull($this->jobTitle),
+                    addressLine1: $this->blankToNull($this->addressLine1),
+                    addressLine2: $this->blankToNull($this->addressLine2),
+                    city: $this->blankToNull($this->city),
+                    region: $this->blankToNull($this->region),
+                    postalCode: $this->blankToNull($this->postalCode),
+                ),
                 auth()->user(),
                 $this->appliedCoupon,
                 array_values($this->attendees),
@@ -179,6 +228,14 @@ class CheckoutPage extends Component
     {
         $this->appliedCoupon = null;
         $this->couponDiscount = 0;
+    }
+
+    /** An empty optional field is stored as absent, not an empty string. */
+    private function blankToNull(string $value): ?string
+    {
+        $value = trim($value);
+
+        return $value === '' ? null : $value;
     }
 
     private function seedAttendees(Cart $cart): void

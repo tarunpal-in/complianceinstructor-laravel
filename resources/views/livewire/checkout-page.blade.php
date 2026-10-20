@@ -3,7 +3,7 @@
 <div class="checkout">
     <form wire:submit="place" class="checkout-grid">
         <div class="checkout-main">
-            {{-- Billing --}}
+            {{-- Your details --}}
             <div class="co-card">
                 <h2>Your details</h2>
                 <div class="co-fields">
@@ -17,9 +17,56 @@
                         <input type="email" wire:model="email" autocomplete="email">
                         @error('email') <em class="co-err">{{ $message }}</em> @enderror
                     </label>
-                    <label class="co-field co-field-full">
+                    <label class="co-field">
+                        <span>Job title</span>
+                        <input type="text" wire:model="jobTitle" autocomplete="organization-title">
+                        @error('jobTitle') <em class="co-err">{{ $message }}</em> @enderror
+                    </label>
+                    <label class="co-field">
                         <span>Company <small>(optional)</small></span>
                         <input type="text" wire:model="company" autocomplete="organization">
+                        @error('company') <em class="co-err">{{ $message }}</em> @enderror
+                    </label>
+                </div>
+            </div>
+
+            {{-- Billing address --}}
+            <div class="co-card">
+                <h2>Billing address</h2>
+                <div class="co-fields">
+                    <label class="co-field co-field-full">
+                        <span>Address</span>
+                        <input type="text" wire:model="addressLine1" autocomplete="address-line1">
+                        @error('addressLine1') <em class="co-err">{{ $message }}</em> @enderror
+                    </label>
+                    <label class="co-field co-field-full">
+                        <span>Address line 2 <small>(optional)</small></span>
+                        <input type="text" wire:model="addressLine2" autocomplete="address-line2">
+                        @error('addressLine2') <em class="co-err">{{ $message }}</em> @enderror
+                    </label>
+                    <label class="co-field">
+                        <span>City</span>
+                        <input type="text" wire:model="city" autocomplete="address-level2">
+                        @error('city') <em class="co-err">{{ $message }}</em> @enderror
+                    </label>
+                    <label class="co-field">
+                        <span>State / Region <small>(optional)</small></span>
+                        <input type="text" wire:model="region" autocomplete="address-level1">
+                        @error('region') <em class="co-err">{{ $message }}</em> @enderror
+                    </label>
+                    <label class="co-field">
+                        <span>Postal code</span>
+                        <input type="text" wire:model="postalCode" autocomplete="postal-code">
+                        @error('postalCode') <em class="co-err">{{ $message }}</em> @enderror
+                    </label>
+                    <label class="co-field">
+                        <span>Country</span>
+                        <select wire:model="country" autocomplete="country-name">
+                            @foreach (\App\Support\Countries::names() as $countryName)
+                                <option value="{{ $countryName }}">{{ $countryName }}</option>
+                            @endforeach
+                        </select>
+                        @error('country') <em class="co-err">{{ $message }}</em> @enderror
                     </label>
                 </div>
             </div>

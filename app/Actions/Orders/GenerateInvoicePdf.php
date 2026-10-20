@@ -54,7 +54,13 @@ class GenerateInvoicePdf
             'billTo' => [
                 'name' => $snapshot['name'] ?? $order->customerName(),
                 'email' => $snapshot['email'] ?? $order->customerEmail(),
+                'job_title' => $snapshot['job_title'] ?? null,
                 'company' => $snapshot['company'] ?? null,
+                'address_line1' => $snapshot['address_line1'] ?? null,
+                'address_line2' => $snapshot['address_line2'] ?? null,
+                'city' => $snapshot['city'] ?? null,
+                'region' => $snapshot['region'] ?? null,
+                'postal_code' => $snapshot['postal_code'] ?? null,
                 'country' => $snapshot['country'] ?? null,
             ],
             'businessName' => Business::name(),

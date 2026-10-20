@@ -145,3 +145,87 @@ it('shows a line on the cart page once something is added', function (): void {
 it('reserves the cart and checkout slugs', function (): void {
     expect(Page::RESERVED_SLUGS)->toContain('cart')->toContain('checkout');
 });
+
+// Header cart count ----------------------------------------------------------
+
+it('shows the total unit count on the header cart badge', function (): void {
+    $user = User::factory()->create();
+    $offering = Offering::factory()->live()->create();
+    $this->actingAs($user);
+    app(CartManager::class)->add($offering, 3);
+
+    Livewire::test(App\Livewire\CartCount::class)
+        ->assertSee('cart-badge')
+        ->assertSee('3');
+});
+
+it('shows no badge when the cart is empty', function (): void {
+    Livewire::test(App\Livewire\CartCount::class)
+        ->assertDontSee('cart-badge');
+});
+
+// Account-gated checkout -----------------------------------------------------
+
+it('shows a guest the sign-in form, not a checkout button', function (): void {
+    $offering = Offering::factory()->live()->create();
+    $this->post('/cart/add', ['quantities' => [$offering->id => 1]]);
+
+    $this->get('/cart')
+        ->assertSuccessful()
+        ->assertSee('Sign in to check out')
+        ->assertSee('Create account')
+        ->assertDontSee('Proceed to checkout');
+});
+
+it('shows a signed-in customer the checkout button, not the sign-in form', function (): void {
+    $user = User::factory()->create();
+    $offering = Offering::factory()->live()->create();
+    $this->actingAs($user);
+    app(CartManager::class)->add($offering, 1);
+
+    $this->get('/cart')
+        ->assertSuccessful()
+        ->assertSee('Proceed to checkout')
+        ->assertDontSee('Sign in to check out');
+});
+
+it('redirects a guest away from checkout back to the cart to sign in', function (): void {
+    $offering = Offering::factory()->live()->create();
+    $this->post('/cart/add', ['quantities' => [$offering->id => 1]]);
+
+    $this->get('/checkout')
+        ->assertRedirect(route('cart.index'))
+        ->assertSessionHas('cart_error');
+});
+
+it('sends a guest to checkout after signing in from the cart', function (): void {
+    $offering = Offering::factory()->live()->create();
+    $this->post('/cart/add', ['quantities' => [$offering->id => 1]]);
+
+    $user = User::factory()->create(['password' => 'secret-password']);
+
+    Livewire::test(App\Livewire\Auth\CartAuth::class)
+        ->set('email', $user->email)
+        ->set('password', 'secret-password')
+        ->call('login')
+        ->assertRedirect(route('checkout.index'));
+
+    // The guest cart followed them into their account (CartManager merge).
+    expect(app(CartManager::class)->current()->items)->toHaveCount(1);
+});
+
+it('sends a new registrant to checkout after signing up from the cart', function (): void {
+    $offering = Offering::factory()->live()->create();
+    $this->post('/cart/add', ['quantities' => [$offering->id => 1]]);
+
+    Livewire::test(App\Livewire\Auth\CartAuth::class)
+        ->set('mode', 'register')
+        ->set('name', 'New Buyer')
+        ->set('email', 'new.buyer@example.com')
+        ->set('password', 'Str0ng-Passw0rd!')
+        ->set('password_confirmation', 'Str0ng-Passw0rd!')
+        ->call('register')
+        ->assertRedirect(route('checkout.index'));
+
+    expect(app(CartManager::class)->current()->items)->toHaveCount(1);
+});

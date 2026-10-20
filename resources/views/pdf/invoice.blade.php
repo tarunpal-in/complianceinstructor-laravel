@@ -52,9 +52,17 @@
         <div style="text-align:right">
             <h3>Billed to</h3>
             <p><strong>{{ $billTo['name'] }}</strong></p>
+            @if (!empty($billTo['job_title']))<p>{{ $billTo['job_title'] }}</p>@endif
             @if (!empty($billTo['company']))<p>{{ $billTo['company'] }}</p>@endif
-            <p>{{ $billTo['email'] }}</p>
+            @if (!empty($billTo['address_line1']))<p>{{ $billTo['address_line1'] }}</p>@endif
+            @if (!empty($billTo['address_line2']))<p>{{ $billTo['address_line2'] }}</p>@endif
+            @php
+                $cityLine = collect([$billTo['city'] ?? null, $billTo['region'] ?? null, $billTo['postal_code'] ?? null])
+                    ->filter()->implode(', ');
+            @endphp
+            @if ($cityLine !== '')<p>{{ $cityLine }}</p>@endif
             @if (!empty($billTo['country']))<p>{{ $billTo['country'] }}</p>@endif
+            <p>{{ $billTo['email'] }}</p>
         </div>
     </div>
 

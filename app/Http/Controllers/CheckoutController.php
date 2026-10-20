@@ -22,6 +22,13 @@ class CheckoutController extends Controller
 {
     public function index(CartManager $cart): View|RedirectResponse
     {
+        // Checkout requires an account (no guest checkout): send a signed-out
+        // visitor back to the cart, where the sign-in / register form lives.
+        if (auth()->guest()) {
+            return redirect()->route('cart.index')
+                ->with('cart_error', 'Please sign in or create an account to check out.');
+        }
+
         // Nothing to check out — back to the cart rather than an empty form.
         if (($current = $cart->peek()) === null || $current->isEmpty()) {
             return redirect()->route('cart.index');

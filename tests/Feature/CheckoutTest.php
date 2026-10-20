@@ -110,7 +110,34 @@ it('validates the billing and attendee fields', function (): void {
         ->set('attendees.0.name', '')
         ->set('attendees.0.email', '')
         ->call('place')
-        ->assertHasErrors(['name', 'email', 'attendees.0.name', 'attendees.0.email']);
+        ->assertHasErrors([
+            'name', 'email', 'jobTitle', 'addressLine1', 'city', 'postalCode',
+            'attendees.0.name', 'attendees.0.email',
+        ]);
+
+    expect(Order::query()->count())->toBe(0);
+});
+
+it('defaults the billing country to the United States', function (): void {
+    $user = User::factory()->create();
+    seedCart($user);
+
+    expect(Livewire::actingAs($user)->test(CheckoutPage::class)->get('country'))
+        ->toBe('United States');
+});
+
+it('rejects a country that is not on the list', function (): void {
+    $user = User::factory()->create(['email' => 'buyer@example.test']);
+    seedCart($user, 1, Offering::factory()->live()->create(['price_cents' => 20000]));
+
+    Livewire::actingAs($user)->test(CheckoutPage::class)
+        ->set('name', 'Buyer')->set('email', 'buyer@example.test')
+        ->set('jobTitle', 'HR Manager')->set('addressLine1', '100 Market St')
+        ->set('city', 'Austin')->set('postalCode', '78701')
+        ->set('country', 'Atlantis')
+        ->set('attendees.0.name', 'Buyer')->set('attendees.0.email', 'buyer@example.test')
+        ->call('place')
+        ->assertHasErrors(['country']);
 
     expect(Order::query()->count())->toBe(0);
 });
@@ -122,6 +149,11 @@ it('places a pending order and redirects to the pay page', function (): void {
     Livewire::actingAs($user)->test(CheckoutPage::class)
         ->set('name', 'Buyer')
         ->set('email', 'buyer@example.test')
+        ->set('jobTitle', 'HR Manager')
+        ->set('addressLine1', '100 Market St')
+        ->set('city', 'Austin')
+        ->set('postalCode', '78701')
+        ->set('country', 'United States')
         ->set('attendees.0.name', 'Buyer')
         ->set('attendees.0.email', 'buyer@example.test')
         ->call('place')
@@ -130,7 +162,11 @@ it('places a pending order and redirects to the pay page', function (): void {
     $order = Order::query()->sole();
     expect($order->status)->toBe(OrderStatus::Pending)
         ->and($order->user_id)->toBe($user->id)
-        ->and($order->total_cents)->toBe(20000);
+        ->and($order->total_cents)->toBe(20000)
+        // The billing snapshot froze the new fields (§5.4).
+        ->and($order->billing_snapshot['job_title'])->toBe('HR Manager')
+        ->and($order->billing_snapshot['address_line1'])->toBe('100 Market St')
+        ->and($order->billing_snapshot['country'])->toBe('United States');
 });
 
 it('applies a coupon when placing', function (): void {
@@ -140,6 +176,8 @@ it('applies a coupon when placing', function (): void {
 
     Livewire::actingAs($user)->test(CheckoutPage::class)
         ->set('name', 'Buyer')->set('email', 'buyer@example.test')
+        ->set('jobTitle', 'HR Manager')->set('addressLine1', '100 Market St')
+        ->set('city', 'Austin')->set('postalCode', '78701')->set('country', 'United States')
         ->set('attendees.0.name', 'Buyer')->set('attendees.0.email', 'buyer@example.test')
         ->set('couponCode', 'TENOFF')->call('applyCoupon')
         ->call('place');
