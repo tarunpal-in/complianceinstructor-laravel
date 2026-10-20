@@ -67,7 +67,7 @@ class PostsTable
                     ->placeholder('No byline')
                     ->toggleable(),
 
-                TextColumn::make('commentsAwaitingReview')
+                TextColumn::make('commentsAwaitingReview_count')
                     ->label('To read')
                     ->counts('commentsAwaitingReview')
                     ->badge()

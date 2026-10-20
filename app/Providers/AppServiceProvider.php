@@ -20,13 +20,16 @@ use Filament\Auth\Notifications\ResetPassword as FilamentResetPassword;
 use Filament\Auth\Notifications\VerifyEmail as FilamentVerifyEmail;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\LazyLoadingViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\Events\NotificationSending;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\ViewErrorBag;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 use Laravel\Cashier\Cashier;
 
@@ -53,6 +56,18 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        /*
+         * A default errors bag for every view.
+         *
+         * `$errors` is normally shared by the `web` group's ShareErrorsFromSession
+         * middleware — but an error page (a 404 for an unmatched URL, say) is
+         * rendered by the exception handler before that middleware runs, and the
+         * shared public layout's footer uses @error('email') for the newsletter
+         * form. Without this, a plain 404 turns into a 500. A real request still
+         * gets its session errors: the middleware shares them over this default.
+         */
+        View::share('errors', new ViewErrorBag);
+
         // §5.5 — Cashier keeps ownership of the subscriptions table, and our
         // model adds the plan link and the allowance snapshot on top. Wiring it
         // here rather than only using it in our own queries matters: Cashier
@@ -201,6 +216,16 @@ class AppServiceProvider extends ServiceProvider
         );
 
         /*
+         * Microsoft is not a Socialite core driver; socialiteproviders/microsoft
+         * adds it through this event. Google and LinkedIn are built in and need
+         * no registration.
+         */
+        Event::listen(
+            \SocialiteProviders\Manager\SocialiteWasCalled::class,
+            [\SocialiteProviders\Microsoft\MicrosoftExtendSocialite::class, 'handle'],
+        );
+
+        /*
          * One password policy, everywhere.
          *
          * Both password paths — Filament's reset page and its profile page — apply
@@ -252,5 +277,31 @@ class AppServiceProvider extends ServiceProvider
         // price from a request), and lazy loading is what made the predecessor's
         // dashboards slow enough to need caching.
         Model::shouldBeStrict(! $this->app->isProduction());
+
+        /*
+         * Lazy-loading violations: fatal in tests, a log line everywhere else.
+         *
+         * §10 wants N+1s caught, and the test suite is where that is enforced —
+         * so during tests a lazy load still throws, keeping the money and access
+         * paths eager-loaded. But outside tests (local and staging), a missing
+         * eager load on, say, an admin table should be a warning a developer
+         * tidies up, not a 500 the client walks into. Production never runs
+         * strict, so this handler is not reached there at all.
+         */
+        // app() resolves the live container at call time: the callback is stored
+        // statically on the model and outlives the container that registered it
+        // (the test harness rebuilds the app between tests), so a captured
+        // $this->app would go stale.
+        Model::handleLazyLoadingViolationUsing(static function (Model $model, string $relation): void {
+            if (app()->runningUnitTests()) {
+                throw new LazyLoadingViolationException($model, $relation);
+            }
+
+            Log::warning(sprintf(
+                'Lazy loaded [%s] on [%s] — add it to the query\'s eager loads.',
+                $relation,
+                $model::class,
+            ));
+        });
     }
 }

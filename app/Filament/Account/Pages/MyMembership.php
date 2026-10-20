@@ -22,13 +22,13 @@ class MyMembership extends Page
 {
     protected string $view = 'filament.account.pages.my-membership';
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCreditCard;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUsers;
 
-    protected static ?string $title = 'My membership';
+    protected static ?string $title = 'Memberships';
 
-    protected static ?string $navigationLabel = 'My membership';
+    protected static ?string $navigationLabel = 'Memberships';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 6;
 
     public function membership(): ?Subscription
     {

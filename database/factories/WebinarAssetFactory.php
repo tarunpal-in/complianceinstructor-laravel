@@ -23,6 +23,7 @@ class WebinarAssetFactory extends Factory
             'label' => null,
             'url' => fake()->url(),
             'disk_path' => null,
+            'embed' => false,
             'available_from' => null,
             'is_active' => true,
         ];
@@ -31,6 +32,12 @@ class WebinarAssetFactory extends Factory
     public function format(Format $format): static
     {
         return $this->state(fn (): array => ['format' => $format]);
+    }
+
+    /** Plays inside the site's own player rather than opening out. */
+    public function embeddable(): static
+    {
+        return $this->state(fn (): array => ['embed' => true]);
     }
 
     /** Held back until a given moment — how a join link is released on schedule. */

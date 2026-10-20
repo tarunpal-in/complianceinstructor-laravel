@@ -68,14 +68,32 @@ class AssetsRelationManager extends RelationManager
 
                 FileUpload::make('disk_path')
                     ->label('File')
-                    ->disk('local')
+                    ->disk(config('filesystems.webinar_assets'))
                     ->directory('webinar-assets')
                     ->visibility('private')
-                    ->maxSize(51200)
+                    // 2 GB, so a recording can be uploaded here, not just a small
+                    // transcript. PHP's upload_max_filesize / post_max_size and
+                    // the web server's body limit must allow it too; for very
+                    // large videos, uploading straight into the R2 bucket (or a
+                    // streaming platform URL in Link) is still the better path.
+                    ->maxSize(2 * 1024 * 1024)
                     ->columnSpanFull()
-                    // 'local' is Laravel's private disk; public/ would make the
-                    // file reachable by anyone who guesses the path (§9).
-                    ->helperText('Stored on the private disk. Transcripts and course materials go here rather than in Link.'),
+                    // The private webinar-assets disk (local in dev, Cloudflare
+                    // R2 in production); never public/, which would make the file
+                    // reachable by anyone who guesses the path (§9).
+                    ->helperText('Stored privately (Cloudflare R2 in production). Videos up to 2 GB; transcripts and materials welcome too.'),
+
+                Toggle::make('embed')
+                    ->label('Play inside the site')
+                    ->default(false)
+                    ->visible(fn (callable $get): bool => $get('format') === Format::Recorded->value)
+                    ->columnSpanFull()
+                    // Off: the recording just opens — a share link (Dropbox, a
+                    // CDN) in a new tab, or a download of the file. On: it plays
+                    // in the site's own player, for an uploaded file or a
+                    // platform embed URL. A plain Dropbox share link will not
+                    // iframe, so leave this off for one.
+                    ->helperText('Off: the learner opens the link or downloads the file (use for a Dropbox or share link). On: the recording plays in our embedded player — for a file uploaded above, or a streaming platform\'s embed URL.'),
 
                 DateTimePicker::make('available_from')
                     ->label('Release at')
@@ -113,6 +131,11 @@ class AssetsRelationManager extends RelationManager
                     ->label('File')
                     ->boolean()
                     ->getStateUsing(fn (WebinarAsset $record): bool => filled($record->disk_path)),
+
+                IconColumn::make('embed')
+                    ->label('In-site player')
+                    ->boolean()
+                    ->toggleable(),
 
                 TextColumn::make('available_from')
                     ->label('Released')

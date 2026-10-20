@@ -25,11 +25,11 @@ class EmailPreferences extends Page
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBell;
 
-    protected static ?string $title = 'Email preferences';
+    protected static ?string $title = 'Notifications';
 
-    protected static ?string $navigationLabel = 'Email preferences';
+    protected static ?string $navigationLabel = 'Notifications';
 
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 8;
 
     /**
      * Each declinable category and whether this member currently accepts it.

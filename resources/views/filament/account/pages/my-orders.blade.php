@@ -1,50 +1,66 @@
 <x-filament-panels::page>
-    @php $orders = $this->orders(); @endphp
+    @php
+        $orders = $this->orders();
+        $handoutsByOrder = $this->handoutsByOrder();
+    @endphp
 
-    @if ($orders->isEmpty())
-        <div class="rounded-xl border border-dashed border-gray-300 dark:border-gray-700 p-10 text-center">
-            <p class="text-gray-500 dark:text-gray-400">You haven't placed any orders yet.</p>
-        </div>
-    @else
-        <div class="overflow-hidden rounded-xl bg-white dark:bg-gray-900 shadow-sm ring-1 ring-gray-950/5 dark:ring-white/10">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-50 dark:bg-gray-800/50 text-left text-xs uppercase tracking-wide text-gray-500">
-                    <tr>
-                        <th class="px-4 py-3">Order</th>
-                        <th class="px-4 py-3">Date</th>
-                        <th class="px-4 py-3">Status</th>
-                        <th class="px-4 py-3 text-right">Total</th>
-                        <th class="px-4 py-3 text-right">Invoice</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-                    @foreach ($orders as $order)
-                        <tr>
-                            <td class="px-4 py-3 font-semibold text-gray-950 dark:text-white">{{ $order->number }}</td>
-                            <td class="px-4 py-3 text-gray-600 dark:text-gray-400">
-                                {{ optional($order->placed_at)->format('j M Y') ?? '—' }}
-                            </td>
-                            <td class="px-4 py-3">
-                                <span class="rounded-full bg-gray-100 dark:bg-gray-800 px-2.5 py-0.5 text-xs font-medium text-gray-700 dark:text-gray-300">
-                                    {{ $order->status->label() }}
-                                </span>
-                            </td>
-                            <td class="px-4 py-3 text-right text-gray-950 dark:text-white">
-                                {{ \App\Support\Money::format($order->total_cents, $order->currency) }}
-                            </td>
-                            <td class="px-4 py-3 text-right">
-                                @if ($order->capturedCents() > 0)
-                                    <a href="{{ $order->invoiceUrl() }}" class="font-semibold text-primary-600 hover:underline">
-                                        Download
-                                    </a>
-                                @else
-                                    <span class="text-gray-400">—</span>
-                                @endif
-                            </td>
-                        </tr>
+    @forelse ($orders as $order)
+        @php $handouts = $handoutsByOrder->get($order->getKey()) ?? collect(); @endphp
+
+        <div class="ld-card">
+            <div class="ld-order-head">
+                <div class="ld-card-main">
+                    <h3 class="ld-card-title">Order {{ $order->number }}</h3>
+                    <p class="ld-card-speaker">
+                        {{ optional($order->placed_at)->format('j F Y') ?? 'Date pending' }}
+                        · <span class="ld-order-status">{{ $order->status->label() }}</span>
+                    </p>
+                </div>
+
+                <div class="ld-order-right">
+                    <span class="ld-order-total">{{ \App\Support\Money::format($order->total_cents, $order->currency) }}</span>
+                    @if ($order->capturedCents() > 0)
+                        <a href="{{ $order->invoiceUrl() }}" class="ld-btn" target="_blank" rel="noopener">Download invoice</a>
+                    @endif
+                </div>
+            </div>
+
+            @if ($order->items->isNotEmpty())
+                <ul class="ld-order-items">
+                    @foreach ($order->items as $item)
+                        <li>
+                            <span class="ld-order-item-desc">{{ $item->description }}</span>
+                            <span class="ld-order-item-qty">&times;{{ $item->quantity }}</span>
+                            <span class="ld-order-item-amt">{{ \App\Support\Money::format($item->line_total_cents, $order->currency) }}</span>
+                        </li>
                     @endforeach
-                </tbody>
-            </table>
+                </ul>
+            @endif
+
+            @if ($handouts->isNotEmpty())
+                <div class="ld-handouts">
+                    <span class="ld-handouts-label">Study materials</span>
+                    <ul class="ld-handouts-list">
+                        @foreach ($handouts as $handout)
+                            <li>
+                                <a href="{{ route('learning.handout', $handout) }}" class="ld-handout" target="_blank" rel="noopener">
+                                    <span class="ld-handout-ext">{{ $handout->extension() }}</span>
+                                    <span class="ld-handout-name">{{ $handout->displayName() }}</span>
+                                    <span class="ld-handout-get">Download</span>
+                                </a>
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
         </div>
-    @endif
+    @empty
+        <div class="ld-empty">
+            <span class="ld-empty-icon">
+                <x-filament::icon icon="heroicon-o-rectangle-stack" class="h-7 w-7" />
+            </span>
+            <p class="ld-empty-text">You haven't placed any orders yet.</p>
+            <a href="{{ route('webinars.index') }}" class="ld-empty-link">Browse webinars</a>
+        </div>
+    @endforelse
 </x-filament-panels::page>

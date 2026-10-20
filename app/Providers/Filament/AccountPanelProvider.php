@@ -9,15 +9,16 @@ use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
-use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\View\PanelsRenderHook;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 /**
@@ -48,22 +49,42 @@ class AccountPanelProvider extends PanelProvider
             ->id('account')
             ->path('account')
             ->brandName('Compliance Instructor')
-            ->login()
-            ->registration()
+            // Login and registration are the branded /login page (a Livewire
+            // component), not Filament's own — so there is one on-brand customer
+            // sign-in. The panel keeps password reset, email verification and the
+            // profile page; an unauthenticated visitor is sent to route('login').
             ->passwordReset()
             ->emailVerification()
             ->profile(isSimple: false)
             ->defaultAvatarProvider(InitialsAvatarProvider::class)
             ->colors([
-                'primary' => Color::Blue,
+                // Our brand blue drives buttons and the active nav item — the
+                // customer area wears our colours, not Filament's default.
+                'primary' => Color::hex('#0c5484'),
                 'gray' => Color::Slate,
             ])
-            ->pages([
-                Dashboard::class,
-            ])
-            // The learner area (P5) — its own namespace so none of the admin
-            // resources or pages are ever discovered into the customer panel.
+            // Light only, like the public site. The brand skin is built for the
+            // cream/blue palette, and dark mode left the heading and brand text
+            // unreadable on a dark background — so there is no dark toggle here.
+            ->darkMode(false)
+            // No bare "Dashboard": the member lands on Upcoming Webinars and every
+            // destination is one click in the sidebar — one menu item per thing,
+            // for a non-technical audience (the simplicity-first direction).
+            // The learner pages are discovered from their own namespace, so none
+            // of the admin resources or pages reach the customer panel.
             ->discoverPages(in: app_path('Filament/Account/Pages'), for: 'App\\Filament\\Account\\Pages')
+            // The public site's colours (deep blue, gold, warm cream) carried
+            // into the panel's chrome and the learner cards — injected into
+            // <head> so it does not depend on Filament's Tailwind build.
+            ->renderHook(
+                PanelsRenderHook::HEAD_END,
+                fn (): string => Blade::render('@include("filament.account.partials.account-theme")'),
+            )
+            // A clear way back to the public catalogue and site from the panel.
+            ->renderHook(
+                PanelsRenderHook::SIDEBAR_NAV_END,
+                fn (): string => Blade::render('@include("filament.account.partials.site-links")'),
+            )
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,

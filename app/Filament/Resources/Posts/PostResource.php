@@ -64,7 +64,8 @@ class PostResource extends Resource
     {
         return parent::getEloquentQuery()
             ->withoutGlobalScopes([SoftDeletingScope::class])
-            ->with(['category', 'author', 'media']);
+            ->with(['category', 'author', 'media'])
+            ->withCount('commentsAwaitingReview');
     }
 
     public static function getPages(): array

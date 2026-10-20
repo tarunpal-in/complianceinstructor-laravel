@@ -83,6 +83,7 @@ class WebinarResource extends Resource
             RelationManagers\OfferingsRelationManager::class,
             RelationManagers\AccreditationsRelationManager::class,
             RelationManagers\AssetsRelationManager::class,
+            RelationManagers\HandoutsRelationManager::class,
         ];
     }
 

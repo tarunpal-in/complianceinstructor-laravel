@@ -414,6 +414,17 @@ final class EmailCatalogue
     {
         return [
             new EmailDefinition(
+                key: 'marketing.webinar_shared',
+                name: 'A webinar was shared with you',
+                category: EmailCategory::Marketing,
+                // On by default: the send is user-initiated (somebody pressed
+                // "Share"), so it should go unless an admin deliberately turns the
+                // feature off. Not Required, because that off switch is reasonable.
+                tier: EmailTier::Optional,
+                trigger: 'Somebody uses the "Share Webinar" form on a webinar page.',
+                mailable: \App\Mail\WebinarShared::class,
+            ),
+            new EmailDefinition(
                 key: 'marketing.list_confirm',
                 name: 'Confirm your email address',
                 category: EmailCategory::Marketing,

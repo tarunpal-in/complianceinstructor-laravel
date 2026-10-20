@@ -19,6 +19,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Webinar-asset disk
+    |--------------------------------------------------------------------------
+    |
+    | Where private learner content (recordings, transcripts, downloadable
+    | materials) is stored. 'local' in development, 'r2' (Cloudflare R2) in
+    | production — a private bucket served only through signed, expiring URLs
+    | (§9 / §11), never a public path.
+    |
+    */
+
+    'webinar_assets' => env('WEBINAR_ASSETS_DISK', 'local'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Filesystem Disks
     |--------------------------------------------------------------------------
     |
@@ -58,6 +72,25 @@ return [
             'url' => env('AWS_URL'),
             'endpoint' => env('AWS_ENDPOINT'),
             'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
+            'throw' => false,
+            'report' => false,
+        ],
+
+        // Cloudflare R2 — S3-compatible, zero egress. A private bucket: files
+        // are reached only through signed, expiring URLs (temporaryUrl), which
+        // the S3 driver presigns natively. Region is 'auto' for R2, and the
+        // endpoint is the account URL, e.g. https://<accountid>.r2.cloudflarestorage.com
+        'r2' => [
+            'driver' => 's3',
+            'key' => env('R2_ACCESS_KEY_ID'),
+            'secret' => env('R2_SECRET_ACCESS_KEY'),
+            'region' => env('R2_DEFAULT_REGION', 'auto'),
+            'bucket' => env('R2_BUCKET'),
+            'endpoint' => env('R2_ENDPOINT'),
+            'use_path_style_endpoint' => env('R2_USE_PATH_STYLE_ENDPOINT', false),
+            // Left null for a private bucket (served via signed URLs); set only
+            // if a bucket is fronted by a public custom domain.
+            'url' => env('R2_URL'),
             'throw' => false,
             'report' => false,
         ],
