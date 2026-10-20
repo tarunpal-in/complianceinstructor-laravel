@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Accreditations\Schemas;
 
 use App\Support\CompletionRules;
+use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -33,6 +34,14 @@ class AccreditationForm
                     Textarea::make('description')
                         ->rows(3)
                         ->columnSpanFull(),
+
+                    SpatieMediaLibraryFileUpload::make('logo')
+                        ->collection('logo')
+                        ->image()
+                        ->imageEditor()
+                        ->maxSize(2048)
+                        ->columnSpanFull()
+                        ->helperText('The body\'s logo, shown on the homepage "Accreditation Partners" section. Upload a licensed or official mark.'),
 
                     TextInput::make('sort_order')->numeric()->default(0),
 

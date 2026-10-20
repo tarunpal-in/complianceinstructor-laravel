@@ -1,7 +1,9 @@
 @props(['webinar'])
 
 @php
-    $image = $webinar->cardImageUrl() ?? $webinar->bannerImageUrl();
+    // Falls back to the shared default so a webinar with no uploaded media still
+    // shows a card image, like the catalogue and homepage cards.
+    $image = $webinar->cardImageUrl() ?? $webinar->bannerImageUrl() ?? asset('images/home/workshop.jpg');
     $date = $webinar->scheduled_at?->timezone($webinar->timezone);
     $speaker = $webinar->speaker;
     $portrait = $speaker?->getFirstMediaUrl('portrait', 'thumb');

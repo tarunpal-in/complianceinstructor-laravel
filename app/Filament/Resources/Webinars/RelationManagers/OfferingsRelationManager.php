@@ -22,6 +22,7 @@ use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 
 /**
@@ -153,6 +154,10 @@ class OfferingsRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('sku')
+            // The "Option" column composes its name from the offering's formats
+            // (label()), so eager-load them — otherwise each row would lazy-load
+            // and strict mode throws (and it would be an N+1 in production).
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('formats'))
             ->columns([
                 TextColumn::make('label')
                     ->label('Option')

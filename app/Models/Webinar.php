@@ -85,6 +85,17 @@ class Webinar extends Model implements ReferencesMedia, Seoable
     }
 
     /**
+     * All handouts (the admin manages active and inactive alike); the learner
+     * side loads only the active ones.
+     *
+     * @return HasMany<WebinarHandout, $this>
+     */
+    public function handouts(): HasMany
+    {
+        return $this->hasMany(WebinarHandout::class)->orderBy('sort_order');
+    }
+
+    /**
      * The catalogue-card and hero-background images, picked from the media
      * library — docs/media-manager.md §3.1. References rather than per-webinar
      * uploads, so replacing the file in the library updates every webinar that
@@ -242,6 +253,31 @@ class Webinar extends Model implements ReferencesMedia, Seoable
         $last = array_pop($codes);
 
         return implode(', ', $codes).' & '.$last;
+    }
+
+    /**
+     * The scheduled time shown in both US zones — "10:00 AM PT / 1:00 PM ET".
+     *
+     * It is one instant rendered in Pacific and Eastern, so it is correct for any
+     * US session whatever `timezone` was entered — this is a US audience (§1),
+     * and PT/ET is the convention the comp uses. Never print the raw IANA zone.
+     */
+    public function scheduledTimeLabel(): ?string
+    {
+        if ($this->scheduled_at === null) {
+            return null;
+        }
+
+        $pacific = $this->scheduled_at->copy()->setTimezone('America/Los_Angeles')->format('g:i A');
+        $eastern = $this->scheduled_at->copy()->setTimezone('America/New_York')->format('g:i A');
+
+        return $pacific.' PT / '.$eastern.' ET';
+    }
+
+    /** The scheduled date in Eastern — "Aug 22, 2025" — paired with the time label. */
+    public function scheduledDateLabel(): ?string
+    {
+        return $this->scheduled_at?->copy()->setTimezone('America/New_York')->format('M j, Y');
     }
 
     /**

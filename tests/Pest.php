@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 use App\Actions\Payments\RequestRefund;
 use App\Actions\Payments\SendRefundToGateway;
+use App\Enums\Format;
 use App\Enums\OrderNumberReset;
 use App\Enums\PaymentGateway;
 use App\Enums\PaymentStatus;
 use App\Enums\UserRole;
 use App\Filament\Resources\Webinars\Pages\EditWebinar;
 use App\Filament\Resources\Webinars\RelationManagers\OfferingsRelationManager;
+use App\Models\Cart;
+use App\Models\CartItem;
+use App\Models\Offering;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\Refund;
@@ -68,6 +72,34 @@ function publishedWebinar(array $attributes = []): Webinar
         'session_highlights' => 'What the session covers.',
         ...$attributes,
     ]);
+}
+
+/** A single-format offering of a webinar, with an optional add-on price (§5.3). */
+function fmtOffering(Webinar $webinar, Format $format, int $price, ?int $addon = null): Offering
+{
+    return Offering::factory()->withFormats($format)->create([
+        'offerable_type' => Webinar::class,
+        'offerable_id' => $webinar->getKey(),
+        'price_cents' => $price,
+        'addon_price_cents' => $addon,
+        'is_active' => true,
+    ]);
+}
+
+/**
+ * A cart built from offering/quantity pairs, relations loaded for pricing.
+ *
+ * @param  list<array{0: Offering, 1: int}>  $lines
+ */
+function cartOf(array $lines): Cart
+{
+    $cart = Cart::factory()->create();
+
+    foreach ($lines as [$offering, $qty]) {
+        CartItem::factory()->for($cart)->create(['offering_id' => $offering->getKey(), 'quantity' => $qty]);
+    }
+
+    return $cart->load('items.offering.formats', 'items.offering.offerable');
 }
 
 /** The offerings relation manager, mounted on a webinar. */

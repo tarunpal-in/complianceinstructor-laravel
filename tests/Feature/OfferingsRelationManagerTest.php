@@ -14,6 +14,18 @@ beforeEach(function (): void {
     Livewire\Livewire::actingAs(userWithRole(UserRole::SuperAdmin));
 });
 
+it('renders the options table with each row labelled from its formats', function (): void {
+    // A bundle whose "Option" column name is composed from its formats — the
+    // table must eager-load formats or strict mode throws a lazy-load violation.
+    $bundle = Offering::factory()->everything()->for($this->webinar, 'offerable')->create(['sku' => 'BND']);
+    $single = Offering::factory()->withFormats(Format::Transcript)->for($this->webinar, 'offerable')->create(['sku' => 'TRN']);
+
+    manager($this->webinar)
+        ->assertCanSeeTableRecords([$bundle, $single])
+        ->assertSee($bundle->label())
+        ->assertSee($single->label());
+});
+
 it('creates a bundle granting three formats', function (): void {
     manager($this->webinar)->callTableAction('create', data: [
         'format_values' => [Format::Live->value, Format::Recorded->value, Format::Transcript->value],

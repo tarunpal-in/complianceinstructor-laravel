@@ -9,6 +9,10 @@ use Database\Factories\AccreditationFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Spatie\Image\Enums\Fit;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
  * @property-read \Illuminate\Database\Eloquent\Relations\Pivot|null $pivot
@@ -19,10 +23,24 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  * on the pivot per webinar rather than here — the same body awards different
  * amounts for different sessions.
  */
-class Accreditation extends Model
+class Accreditation extends Model implements HasMedia
 {
     /** @use HasFactory<AccreditationFactory> */
-    use HasFactory;
+    use HasFactory, InteractsWithMedia;
+
+    public function registerMediaCollections(): void
+    {
+        // The accrediting body's own logo, shown on the homepage "Accreditation
+        // Partners" section and wherever the body is credited. The admin uploads
+        // it on the accreditation screen.
+        $this->addMediaCollection('logo')->singleFile();
+    }
+
+    public function registerMediaConversions(?Media $media = null): void
+    {
+        $this->addMediaConversion('logo')
+            ->fit(Fit::Contain, 240, 120);
+    }
 
     protected $fillable = [
         'code', 'name', 'description', 'is_active', 'sort_order',

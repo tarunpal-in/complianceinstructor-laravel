@@ -36,7 +36,15 @@ Route::get('/sitemap.xml', App\Http\Controllers\SitemapController::class)->name(
  * URL that had already been indexed. §5.6 has a `redirects` table for the move
  * when it happens, and this slug stays the canonical tail of it either way.
  */
+/*
+ * The catalogue (§7 P2) — the filtered grid the breadcrumb above links into.
+ * Above the {webinar:slug} show route so `/webinars` is the list, not a webinar
+ * whose slug is empty. Industry landing pages share the same page with the topic
+ * preset; `webinars` and `industry` are reserved slugs.
+ */
+Route::get('/webinars', [App\Http\Controllers\CatalogueController::class, 'index'])->name('webinars.index');
 Route::get('/webinars/{webinar:slug}', WebinarController::class)->name('webinars.show');
+Route::get('/industry/{industry:slug}', [App\Http\Controllers\IndustryController::class, 'show'])->name('industries.show');
 
 /*
  * The faculty — §6's "Speakers | Index & profile".
@@ -80,8 +88,28 @@ Route::get('/checkout/complete/{order}', [CheckoutController::class, 'received']
  * pages (pure redirects, no auth logic — nothing like Fortify's global
  * POST /login), so the navbar and redirect()->guest() can say route('login').
  */
-Route::get('/login', fn () => redirect()->route('filament.account.auth.login'))->name('login');
-Route::get('/register', fn () => redirect()->route('filament.account.auth.register'))->name('register');
+/*
+ * One branded customer sign-in / sign-up page (a Livewire full-page component),
+ * replacing the Filament account panel's own login. Email and password go
+ * through Laravel's guard; the social routes hand off to Socialite. Staff are
+ * refused here and use /admin, so there is still no customer login that skips the
+ * admin two-factor challenge (docs/auth.md).
+ */
+Route::get('/login', App\Livewire\Auth\AuthPage::class)->name('login');
+Route::get('/register', fn () => redirect()->route('login', ['mode' => 'register']))->name('register');
+
+Route::get('/auth/{provider}/redirect', [App\Http\Controllers\Auth\SocialAuthController::class, 'redirect'])
+    ->name('auth.redirect');
+Route::get('/auth/{provider}/callback', [App\Http\Controllers\Auth\SocialAuthController::class, 'callback'])
+    ->name('auth.callback');
+
+Route::post('/logout', function () {
+    Illuminate\Support\Facades\Auth::guard('web')->logout();
+    request()->session()->invalidate();
+    request()->session()->regenerateToken();
+
+    return redirect()->route('home');
+})->name('logout');
 
 /*
  * Memberships — §6 / P4. The pricing page is public; the subscribe page needs a
@@ -121,8 +149,25 @@ Route::post('/membership/{plan:slug}/subscribe/confirm', [App\Http\Controllers\M
  * entitlement ledger in the controller, not by the route; the file itself is
  * reached through a signed, expiring URL the controller hands back.
  */
+// A study-material file — any active entitlement for its webinar opens it,
+// through a signed, expiring URL. Declared before the {webinar}/{format} routes
+// so the literal "handout" segment is matched first, not as a webinar slug.
+Route::get('/learning/handout/{handout}', [App\Http\Controllers\LearningAccessController::class, 'handout'])
+    ->middleware('auth')->name('learning.handout');
+
+// A learner's own CEU certificate PDF — owner-scoped, through a signed, expiring
+// URL. Literal "certificate" segment, so declared before the {webinar}/{format}
+// routes for the same reason as the handout route above.
+Route::get('/learning/certificate/{certificate}', [App\Http\Controllers\LearningAccessController::class, 'certificate'])
+    ->middleware('auth')->name('learning.certificate');
+
 Route::get('/learning/{webinar:slug}/{format}', [App\Http\Controllers\LearningAccessController::class, 'access'])
     ->middleware('auth')->name('learning.access');
+
+// The in-site player: the same gate, but the recording is embedded rather than
+// redirected away, so the learner watches without leaving the site.
+Route::get('/learning/{webinar:slug}/{format}/watch', [App\Http\Controllers\LearningAccessController::class, 'watch'])
+    ->middleware('auth')->name('learning.watch');
 
 /*
  * The invoice PDF — §8 / §9. `signed` is the whole gate: a guest buyer has no

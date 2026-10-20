@@ -58,22 +58,13 @@
             <div class="wd-hero-actions">
                 <a class="btn-primary" href="#overview">Click to Know More</a>
 
-                <button
-                    type="button"
-                    class="btn-ghost"
-                    x-data
-                    x-on:click="
-                        navigator.clipboard?.writeText(window.location.href);
-                        $dispatch('notice', 'Link copied to your clipboard')
-                    "
-                >
-                    <x-ui.icon name="share-2" :size="18" /> Share Webinar
-                </button>
+                {{-- Opens a popup form to email this webinar's details to someone. --}}
+                <livewire:share-webinar :webinar="$webinar" />
             </div>
         </div>
 
         <div class="wd-panel-stack">
-            <x-webinar.purchase-panel :webinar="$webinar" />
+            <livewire:purchase-panel :webinar="$webinar" />
             @if ($membership)
                 <x-webinar.membership-panel :webinar="$webinar" :membership="$membership" />
             @endif

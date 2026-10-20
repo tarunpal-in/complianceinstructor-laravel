@@ -191,6 +191,25 @@ it('prefers a per-webinar instruction override', function (): void {
 
 // The rail --------------------------------------------------------------------
 
+it('prefers upcoming sessions over past ones in the rail', function (): void {
+    $industry = Industry::factory()->create();
+    $webinar = publishedWebinar(['industry_id' => $industry->id]);
+
+    // Four upcoming sessions fill the rail; a past one is left out.
+    Webinar::factory()->count(4)->scheduled()->create([
+        'industry_id' => $industry->id,
+        'scheduled_at' => now()->addWeeks(2),
+    ]);
+    Webinar::factory()->completed()->create([
+        'industry_id' => $industry->id,
+        'title' => 'Expired Past Session',
+    ]);
+
+    $this->get(route('webinars.show', $webinar))
+        ->assertSee('Similar Webinars')
+        ->assertDontSee('Expired Past Session');
+});
+
 it('fills the rail with other webinars from the same industry first', function (): void {
     $industry = Industry::factory()->create();
 

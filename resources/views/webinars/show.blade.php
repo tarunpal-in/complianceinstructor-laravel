@@ -44,4 +44,7 @@
             @endforelse
         </aside>
     </div>
+
+    {{-- The mini-cart drawer, opened by the purchase panel after an add (§5.3). --}}
+    <livewire:cart-drawer />
 @endsection

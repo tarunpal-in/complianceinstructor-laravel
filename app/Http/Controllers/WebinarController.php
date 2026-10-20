@@ -154,27 +154,36 @@ class WebinarController extends Controller
      */
     private function similar(Webinar $webinar): Collection
     {
+        $limit = 4;
+
         $base = fn (): Builder => Webinar::query()
             ->public()
             ->whereKeyNot($webinar->getKey())
-            ->with(['speaker.media', 'accreditations', 'cardMedia', 'bannerMedia'])
-            ->latest('scheduled_at');
+            ->with(['speaker.media', 'accreditations', 'cardMedia', 'bannerMedia']);
 
-        // An Eloquent collection rather than collect(): the top-up below needs
-        // modelKeys(), which the base Support collection does not have.
-        $sameIndustry = $webinar->industry_id === null
+        // 1. Upcoming sessions in the same industry, soonest first — the most
+        //    relevant "similar" there is. An Eloquent collection rather than
+        //    collect(): the top-ups below call modelKeys().
+        $picks = $webinar->industry_id === null
             ? new Collection
-            : $base()->where('industry_id', $webinar->industry_id)->limit(4)->get();
+            : $base()->where('industry_id', $webinar->industry_id)->upcoming()->limit($limit)->get();
 
-        if ($sameIndustry->count() >= 4) {
-            return $sameIndustry;
+        // 2. Top up with other upcoming sessions, so the rail stays current and
+        //    does not repeat the same four on every page.
+        if ($picks->count() < $limit) {
+            $picks = $picks->merge(
+                $base()->whereKeyNot($picks->modelKeys())->upcoming()->limit($limit - $picks->count())->get()
+            );
         }
 
-        return $sameIndustry->merge(
-            $base()
-                ->whereKeyNot($sameIndustry->modelKeys())
-                ->limit(4 - $sameIndustry->count())
-                ->get()
-        );
+        // 3. Still short — a young catalogue with few upcoming sessions — so fall
+        //    back to the most recent so the column is never empty.
+        if ($picks->count() < $limit) {
+            $picks = $picks->merge(
+                $base()->whereKeyNot($picks->modelKeys())->latest('scheduled_at')->limit($limit - $picks->count())->get()
+            );
+        }
+
+        return $picks;
     }
 }

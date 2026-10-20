@@ -14,6 +14,10 @@
     $buttonLabel = $buttonLabel ?: 'Meet the Speakers';
     $buttonUrl = $buttonUrl ?: '#speakers';
 
+    // Real active speakers wherever the catalogue has any — so the section is
+    // dynamic even on the fallback render path (no `home_faculty` block). The
+    // hardcoded set is only for a brand-new install with no speakers yet.
+    $speakers = $speakers ?: \App\Support\HomepageContent::activeSpeakers();
     $speakers = $speakers ?: [
         ['name' => 'Diane Whitfield', 'credentials' => 'SPHR · Former regional HR director, Fortune 100 retail', 'bodies' => 'HRCI · SHRM', 'image' => 'seminar'],
         ['name' => 'Marcus Reed', 'credentials' => 'CPP · 18 years in multi-state payroll operations', 'bodies' => 'CPE · APA', 'image' => 'office'],
@@ -51,9 +55,15 @@
                          read every speaker a second time. --}}
                     @foreach ([false, true] as $isDuplicate)
                         @foreach ($column['speakers'] as $speaker)
-                            @php $image = $speaker['image_url'] ?? asset('images/home/'.($speaker['image'] ?? 'seminar').'.jpg'); @endphp
+                            @php
+                                $image = $speaker['image_url'] ?? asset('images/home/'.($speaker['image'] ?? 'seminar').'.jpg');
+                                $speakerUrl = $speaker['url'] ?? route('speakers.index');
+                            @endphp
 
-                            <article class="faculty-card" @if ($isDuplicate) aria-hidden="true" @endif>
+                            {{-- The whole card links to the speaker's profile; the
+                                 bodies line is a span, not a nested anchor. --}}
+                            <a class="faculty-card" href="{{ $speakerUrl }}"
+                               @if ($isDuplicate) aria-hidden="true" tabindex="-1" @endif>
                                 <img
                                     src="{{ $image }}"
                                     alt="{{ $isDuplicate ? '' : $speaker['name'] }}"
@@ -63,8 +73,8 @@
                                 >
                                 <h3>{{ $speaker['name'] }}</h3>
                                 <p>{{ $speaker['credentials'] }}</p>
-                                <a href="#speakers" @if ($isDuplicate) tabindex="-1" @endif>{{ $speaker['bodies'] }}</a>
-                            </article>
+                                <span class="faculty-bodies">{{ $speaker['bodies'] }}</span>
+                            </a>
                         @endforeach
                     @endforeach
                 </div>
