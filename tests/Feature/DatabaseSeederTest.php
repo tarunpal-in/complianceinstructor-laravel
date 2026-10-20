@@ -22,3 +22,17 @@ it('runs the full database seeder into a working app', function (): void {
 
     $this->get('/')->assertSuccessful()->assertSee('Membership Plans', escape: false);
 });
+
+it('re-running the order seeder is a no-op, not a number collision', function (): void {
+    // migrate --seed on an already-seeded database re-runs the seeders; the
+    // order numbers are positional, so a second run used to collide on the
+    // unique number (e.g. CI-2026-0003). It must now be idempotent.
+    $this->seed();
+    $count = Order::query()->count();
+
+    expect($count)->toBeGreaterThan(0);
+
+    $this->seed(Database\Seeders\OrderSeeder::class);
+
+    expect(Order::query()->count())->toBe($count);
+});

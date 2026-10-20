@@ -16,9 +16,32 @@
         ->filter()
         ->values()
         ->all();
+
+    // The rotating "Certificate Ready" card's lines (title + subtitle each).
+    $featureCards = collect($block->rows('feature_cards'))
+        ->map(fn (array $row): array => ['title' => $row['title'] ?? '', 'subtitle' => $row['subtitle'] ?? ''])
+        ->filter(fn (array $row): bool => $row['title'] !== '')
+        ->values()
+        ->all();
+
+    // The rotating "Approved" card cycles through every active accrediting body.
+    $accreditationCodes = \App\Support\HomepageContent::accreditationCodes();
+
+    // The admin-uploaded hero image(s), stored on the public disk via the
+    // block's file field. One shows static; several rotate as a slider. Falls
+    // back to the shipped default inside the component when none are set. The
+    // legacy single `image` key is still honoured.
+    $heroImagePaths = $block->value('images');
+    $heroImagePaths = is_array($heroImagePaths) ? $heroImagePaths : array_filter([$block->value('image')]);
+    $heroImageUrls = collect($heroImagePaths)
+        ->filter()
+        ->map(fn ($path): string => \Illuminate\Support\Facades\Storage::disk('public')->url($path))
+        ->values()
+        ->all();
 @endphp
 
 <x-home.hero
+    :image-urls="$heroImageUrls ?: null"
     :eyebrow="$block->value('eyebrow')"
     :heading-lead="$block->value('heading_lead')"
     :heading-highlight="$block->value('heading_highlight')"
@@ -29,4 +52,8 @@
     :secondary-url="$block->value('secondary_url')"
     :stats="$stats ?: null"
     :bodies="$bodies ?: null"
+    :feature-cards="$featureCards ?: null"
+    :accreditations="$accreditationCodes ?: null"
+    :accreditation-suffix="$block->value('accreditation_suffix')"
+    :accreditation-note="$block->value('accreditation_note')"
 />

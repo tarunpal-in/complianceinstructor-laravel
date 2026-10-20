@@ -51,8 +51,8 @@ class Page extends Model implements Seoable
         'admin', 'login', 'logout', 'register', 'password', 'forgot-password',
         'reset-password', 'two-factor-challenge', 'passkeys', 'webinars',
         'speakers', 'cart', 'checkout', 'invoice', 'membership', 'learning', 'account',
-        'stripe', 'paypal', 'horizon', 'storage', 'up', 'api', 'livewire', 'filament',
-        'preview', 'home',
+        'auth', 'industry', 'stripe', 'paypal', 'horizon', 'storage', 'up', 'api', 'livewire',
+        'filament', 'preview', 'home',
     ];
 
     /**

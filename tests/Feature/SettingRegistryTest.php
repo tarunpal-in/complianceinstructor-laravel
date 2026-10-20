@@ -144,6 +144,11 @@ function declaredAheadOfTheirReaders(): array
         'formats.recorded.description' => 'Key is built at runtime from the Format enum.',
         'formats.transcript.description' => 'Key is built at runtime from the Format enum.',
         'formats.download.description' => 'Key is built at runtime from the Format enum.',
+
+        // Built from EmailDefinition::settingKey() ('email.enabled.'.$key), so
+        // the literal never appears; EmailDefinition::isEnabled() reads it. The
+        // first built, switchable email — further ones join this list as built.
+        'email.enabled.marketing.webinar_shared' => 'Key is built at runtime from the email catalogue; EmailDefinition::isEnabled reads it.',
     ];
 }
 

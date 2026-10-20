@@ -9,4 +9,5 @@
     :callback-heading="$block->value('callback_heading')"
     :callback-body="$block->value('callback_body')"
     :callback-button="$block->value('callback_button')"
+    :callback-url="$block->value('callback_url')"
 />

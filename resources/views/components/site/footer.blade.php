@@ -2,15 +2,9 @@
     $business = \App\Support\Business::class;
     $socials = $business::socials();
 
-    // Still hardcoded, and deliberately not a setting: these are menu entries,
-    // which §5.6 gives to `navigation_items` and the navigation manager.
-    // Putting them in Settings would be the junk-drawer move.
-    $columns = [
-        'Company' => ['About Us', 'Speakers', 'Blog', 'Careers', 'Press'],
-        'Training' => ['Live Webinars', 'Recorded Webinars', 'Packages', 'Memberships'],
-        'Resources' => ['FAQ', 'Help Center', 'Contact'],
-        'Legal' => ['Terms of Service', 'Privacy Policy', 'Refund Policy', 'Cookie Policy'],
-    ];
+    // The footer menu from the navigation manager (§5.6), falling back to the
+    // designed columns until the client edits it.
+    $columns = \App\Support\Navigation::footer();
 @endphp
 
 <footer class="footer">
@@ -64,11 +58,11 @@
         </div>
 
         <div class="footer-links">
-            @foreach ($columns as $heading => $links)
+            @foreach ($columns as $column)
                 <div>
-                    <h4>{{ $heading }}</h4>
-                    @foreach ($links as $link)
-                        <a href="#top">{{ $link }}</a>
+                    <h4>{{ $column['label'] }}</h4>
+                    @foreach ($column['children'] as $link)
+                        <a href="{{ $link['url'] ?: '#' }}" @if ($link['new_tab']) target="_blank" rel="noopener" @endif>{{ $link['label'] }}</a>
                     @endforeach
                 </div>
             @endforeach

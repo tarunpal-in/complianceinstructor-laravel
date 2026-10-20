@@ -16,12 +16,6 @@ use Database\Seeders\RolePermissionSeeder;
  * editor is gated and round-trips.
  */
 
-/** The Builder field shape Filament expects for one block. */
-function homeBlock(string $type, array $data = [], bool $visible = true): array
-{
-    return ['type' => $type, 'data' => [...$data, 'is_visible' => $visible]];
-}
-
 beforeEach(function (): void {
     $this->seed(RolePermissionSeeder::class);
 });
@@ -76,12 +70,8 @@ it('numbers the process steps by position', function (): void {
         ->toContain('<span class="step-number">03</span>');
 });
 
-it('exposes the homepage blocks in render order in the editor', function (): void {
-    $types = collect(App\Filament\Pages\Schemas\HomeBlocks::all())
-        ->map(fn ($block): string => $block->getName())
-        ->all();
-
-    expect($types)->toBe([
+it('exposes the homepage sections in tab order in the editor', function (): void {
+    expect(App\Filament\Pages\Schemas\HomeBlocks::knownTypes())->toBe([
         'home_hero', 'home_process', 'home_webinars', 'home_categories',
         'home_benefits', 'home_faculty', 'home_accreditation', 'home_stories',
         'home_pricing',
@@ -127,6 +117,73 @@ it('shows active industries in the categories block', function (): void {
     App\Models\Industry::factory()->create(['name' => 'Aviation Safety', 'is_active' => true]);
 
     $this->get('/')->assertSee('Aviation Safety', escape: false);
+});
+
+it('renders the categories as a slider when the admin chooses that layout', function (): void {
+    $this->seed(HomePageSeeder::class);
+    App\Models\Industry::factory()->create(['name' => 'Aviation Safety', 'is_active' => true]);
+
+    Page::where('slug', 'home')->sole()
+        ->sections()->where('type', 'home_categories')
+        ->update(['data->layout' => 'slider', 'data->autoplay' => true]);
+
+    $this->get('/')
+        ->assertSee('Aviation Safety', escape: false)
+        ->assertSee('category-slider', escape: false)       // slider container
+        ->assertSee('categorySlider({ autoplay: true })', escape: false) // autoplay wired
+        ->assertDontSee('class="category-grid"', escape: false);
+});
+
+it('drives the hero float cards from the block and the accrediting bodies', function (): void {
+    $this->seed(HomePageSeeder::class);
+
+    App\Models\Accreditation::query()->delete();
+    App\Models\Accreditation::factory()->create(['code' => 'NASBA', 'is_active' => true, 'sort_order' => 0]);
+
+    $this->get('/')
+        // The accreditation card's first code is live from the catalogue.
+        ->assertSee('NASBA Approved', escape: false)
+        ->assertSee('Industry Accredited', escape: false)
+        // The certificate card's first feature is the seeded block content.
+        ->assertSee('Certificate Ready', escape: false)
+        ->assertSee('Instant download', escape: false);
+});
+
+it('renders the hero as a crossfade slider when several images are set', function (): void {
+    $this->seed(HomePageSeeder::class);
+
+    Page::where('slug', 'home')->sole()
+        ->sections()->where('type', 'home_hero')
+        ->update(['data->images' => ['homepage/one.jpg', 'homepage/two.jpg']]);
+
+    $this->get('/')
+        ->assertSee('hero-slides', escape: false)
+        ->assertSee('heroSlides({ count: 2 })', escape: false)
+        ->assertSee('/storage/homepage/one.jpg', escape: false)
+        ->assertSee('/storage/homepage/two.jpg', escape: false);
+});
+
+it('renders a single hero image without the slider', function (): void {
+    $this->seed(HomePageSeeder::class);
+
+    Page::where('slug', 'home')->sole()
+        ->sections()->where('type', 'home_hero')
+        ->update(['data->images' => ['homepage/only.jpg']]);
+
+    $this->get('/')
+        ->assertDontSee('hero-slides', escape: false)
+        ->assertSee('/storage/homepage/only.jpg', escape: false);
+});
+
+it('counts only public webinars for a category card', function (): void {
+    $this->seed(HomePageSeeder::class);
+
+    $industry = App\Models\Industry::factory()->create(['name' => 'Aviation Safety', 'is_active' => true]);
+    App\Models\Webinar::factory()->count(2)->scheduled()->create(['industry_id' => $industry->id]);
+    // A draft is not in the catalogue, so it must not inflate the count.
+    App\Models\Webinar::factory()->create(['industry_id' => $industry->id, 'status' => App\Enums\WebinarStatus::Draft]);
+
+    $this->get('/')->assertSee('2 Courses', escape: false);
 });
 
 it('shows active speakers in the faculty block', function (): void {
@@ -228,24 +285,15 @@ it('round-trips a save without stacking sections', function (): void {
 it('saves an edited hero and shows it on the homepage', function (): void {
     $this->seed(HomePageSeeder::class);
 
+    // The hero tab writes under its own key; mount has already filled the rest
+    // of the hero (lede, stats, badges) from the seed, so we only override copy.
     Livewire\Livewire::actingAs(userWithRole(UserRole::ContentEditor))
         ->test(HomepageSections::class)
-        ->fillForm([
-            'sections' => [
-                homeBlock('home_hero', [
-                    'eyebrow' => 'TRUSTED BY TEAMS',
-                    'heading_lead' => 'Train Smarter —',
-                    'heading_highlight' => 'Stay Compliant',
-                    'heading_tail' => 'All Year.',
-                    'lede' => 'A fresh lede for the homepage hero.',
-                    'primary_label' => 'Get Started',
-                    'secondary_label' => 'See Plans',
-                    'secondary_url' => '/#memberships',
-                    'stats' => [['value' => '900+', 'label' => 'Courses']],
-                    'bodies' => [['label' => 'HRCI']],
-                ]),
-            ],
-        ])
+        ->set('data.home_hero.eyebrow', 'TRUSTED BY TEAMS')
+        ->set('data.home_hero.heading_lead', 'Train Smarter —')
+        ->set('data.home_hero.heading_highlight', 'Stay Compliant')
+        ->set('data.home_hero.heading_tail', 'All Year.')
+        ->set('data.home_hero.primary_label', 'Get Started')
         ->call('save')
         ->assertHasNoFormErrors();
 
@@ -255,6 +303,30 @@ it('saves an edited hero and shows it on the homepage', function (): void {
         ->assertSee('Stay Compliant', escape: false)
         ->assertSee('Get Started', escape: false)
         ->assertDontSee('Start Learning Now', escape: false);
+});
+
+it('reorders and hides sections from the Arrange tab', function (): void {
+    $this->seed(HomePageSeeder::class);
+
+    // Move Membership Plans to the front and hide How It Works.
+    $arrange = collect(App\Filament\Pages\Schemas\HomeBlocks::knownTypes())
+        ->sortBy(fn (string $type): int => $type === 'home_pricing' ? -1 : 0)
+        ->map(fn (string $type): array => ['type' => $type, 'is_visible' => $type !== 'home_process'])
+        ->values()
+        ->all();
+
+    Livewire\Livewire::actingAs(userWithRole(UserRole::ContentEditor))
+        ->test(HomepageSections::class)
+        ->set('data.arrange', $arrange)
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    $sections = Page::where('slug', 'home')->sole()->sections()->orderBy('sort_order')->get();
+
+    expect($sections->first()->type)->toBe('home_pricing')
+        ->and($sections->firstWhere('type', 'home_process')->is_visible)->toBeFalse()
+        // Nothing lost: every designed section is still present.
+        ->and($sections)->toHaveCount(count(App\Filament\Pages\Schemas\HomeBlocks::knownTypes()));
 });
 
 it('backfills the designed sections if the home page is emptied', function (): void {

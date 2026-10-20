@@ -10,6 +10,9 @@
     <div class="pb-feature-grid">
         @foreach ($block->rows('features') as $feature)
             <article class="pb-feature">
+                @if (filled($feature['icon'] ?? null))
+                    <span class="pb-feature-icon"><x-ui.icon :name="$feature['icon']" :size="22" /></span>
+                @endif
                 <h3>{{ $feature['title'] ?? '' }}</h3>
                 @if (filled($feature['body'] ?? null))
                     <p>{{ $feature['body'] }}</p>

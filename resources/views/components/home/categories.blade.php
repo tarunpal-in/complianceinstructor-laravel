@@ -3,6 +3,8 @@
     'eyebrow' => null,
     'heading' => null,
     'intro' => null,
+    'layout' => null,
+    'autoplay' => false,
 ])
 
 @php
@@ -14,6 +16,9 @@
         ['name' => 'Human Resource', 'count' => 48, 'image' => 'office'],
         ['name' => 'Microsoft Office', 'count' => 48, 'image' => 'seminar'],
     ];
+
+    // The admin picks the display style; anything unexpected falls back to grid.
+    $layout = in_array($layout, ['grid', 'slider'], true) ? $layout : 'grid';
 @endphp
 
 <section class="categories section" id="industry">
@@ -23,24 +28,33 @@
         <p>{{ $intro }}</p>
     </div>
 
-    <div class="category-grid">
-        @foreach ($categories as $category)
-            {{-- A real image URL if the record has one, else the comp's default
-                 asset keyed by name. --}}
-            @php $image = $category['image_url'] ?? asset('images/home/'.($category['image'] ?? 'seminar').'.jpg'); @endphp
+    @if ($layout === 'slider')
+        {{-- Horizontal slider: scroll-snap track with prev/next controls, so the
+             admin can list more categories than fit in one row. Pauses on hover
+             when auto-advance is on. --}}
+        <div class="category-slider"
+             x-data="categorySlider({ autoplay: {{ $autoplay ? 'true' : 'false' }} })"
+             @mouseenter="pause()" @mouseleave="resume()">
+            <button type="button" class="cat-slide-btn prev" @click="prev()" aria-label="Previous categories">‹</button>
 
-            {{-- The scrim is part of the background shorthand in the comp; it is
-                 what carries the white heading to AA contrast over photography. --}}
-            <article
-                class="category-card"
-                style="background-image: linear-gradient(0deg, rgba(5,39,72,.9), rgba(9,45,82,.05)), url('{{ $image }}')"
-            >
-                <div>
-                    <small>{{ $category['count'] }} Courses</small>
-                    <h3>{{ $category['name'] }}</h3>
-                    <button @click="showNotice('{{ $category['name'] }} courses opened')">View Courses</button>
-                </div>
-            </article>
-        @endforeach
-    </div>
+            {{-- data-lenis-prevent: this is a horizontal scroll-snap track, so
+                 Lenis must not hijack wheel/touch inside it. --}}
+            <div class="category-track" x-ref="track" tabindex="0" role="group" aria-label="Webinar categories" data-lenis-prevent>
+                @foreach ($categories as $category)
+                    @include('home.partials.category-card', ['category' => $category])
+                @endforeach
+            </div>
+
+            <button type="button" class="cat-slide-btn next" @click="next()" aria-label="Next categories">›</button>
+        </div>
+    @else
+        {{-- One row on desktop: the grid takes as many columns as there are
+             categories (capped at 4 so the cards never get too narrow), rather
+             than a fixed three that wraps a fourth onto its own row. --}}
+        <div class="category-grid" style="--cat-cols: {{ min(max(count($categories), 1), 4) }}">
+            @foreach ($categories as $category)
+                @include('home.partials.category-card', ['category' => $category])
+            @endforeach
+        </div>
+    @endif
 </section>

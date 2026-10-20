@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Enums\WebinarType;
+use App\Models\Accreditation;
 use App\Models\Industry;
 use App\Models\PageSection;
 use App\Models\Speaker;
@@ -55,7 +57,7 @@ class HomepageContent
                 'speaker_initials' => self::initials($w->speaker->name),
                 'accreditations' => $w->accreditations->pluck('code')->all(),
                 'starts_at' => $w->scheduled_at,
-                'time_label' => $w->scheduled_at?->timezone($w->timezone)->format('g:i A T') ?? '',
+                'time_label' => $w->scheduledTimeLabel() ?? '',
                 'duration' => $w->duration_minutes ? $w->duration_minutes.' Min' : '',
                 'url' => route('webinars.show', $w),
             ])
@@ -68,9 +70,79 @@ class HomepageContent
      *
      * @return array<int, array<string, mixed>>
      */
+    /**
+     * The next upcoming live-webinar dates, soonest first — for the hero's
+     * rotating "Live Webinars Weekly · Next:" badge.
+     *
+     * Real dates from the catalogue, so the badge is never stale: a live session
+     * that has passed drops off on the next page load, and a new one appears.
+     *
+     * @return list<string>
+     */
+    public static function liveWebinarDates(int $limit = 3): array
+    {
+        return Webinar::query()
+            ->public()
+            ->where('type', WebinarType::Live->value)
+            ->whereNotNull('scheduled_at')
+            ->where('scheduled_at', '>=', now())
+            ->orderBy('scheduled_at')
+            ->limit($limit)
+            ->get()
+            ->map(fn (Webinar $webinar): ?string => $webinar->scheduledDateLabel())
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Active accrediting bodies as homepage "Accreditation Partners" cards.
+     *
+     * Dynamic from the catalogue so the section shows the bodies the business
+     * actually works with, with each one's uploaded logo where it has one.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function accreditations(int $limit = 6): array
+    {
+        return Accreditation::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order')->orderBy('code')
+            ->limit($limit)
+            ->get()
+            ->map(fn (Accreditation $accreditation): array => [
+                'code' => $accreditation->code,
+                'badge' => $accreditation->description ?? '',
+                'name' => $accreditation->name,
+                'logo_url' => ($url = $accreditation->getFirstMediaUrl('logo')) !== '' ? $url : null,
+            ])
+            ->all();
+    }
+
+    /**
+     * The active accrediting bodies' codes, for the rotating hero "Approved"
+     * card — so it cycles through every body the business actually works with.
+     *
+     * @return list<string>
+     */
+    public static function accreditationCodes(int $limit = 6): array
+    {
+        return Accreditation::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order')->orderBy('code')
+            ->limit($limit)
+            ->pluck('code')
+            ->all();
+    }
+
+    /** @return array<int, array<string, mixed>> */
     public static function industries(PageSection $block): array
     {
-        $query = Industry::query()->where('is_active', true)->withCount('webinars');
+        // Count only the webinars a visitor can actually find in the catalogue,
+        // so "N Courses" matches the industry landing page rather than counting
+        // drafts and archived sessions.
+        $query = Industry::query()->where('is_active', true)
+            ->withCount(['webinars' => fn ($q) => $q->public()]);
 
         if (self::isManual($block)) {
             $ids = self::chosenIds($block);
@@ -84,6 +156,7 @@ class HomepageContent
         return $industries
             ->map(fn (Industry $i): array => [
                 'name' => $i->name,
+                'slug' => $i->slug,
                 'count' => (int) ($i->webinars_count ?? 0),
                 // A real card image if the industry has one, else the comp's
                 // default asset (the component falls back on a null url).
@@ -113,15 +186,42 @@ class HomepageContent
         }
 
         return $speakers
-            ->map(fn (Speaker $s): array => [
-                'name' => $s->name,
-                'credentials' => $s->credentials ?: ($s->title ?? ''),
-                'bodies' => $s->title ?? '',
-                'image_url' => ($url = $s->getFirstMediaUrl('portrait')) !== '' ? $url : null,
-                'image' => 'seminar',
-            ])
+            ->map(fn (Speaker $s): array => self::speakerCard($s))
             ->values()
             ->all();
+    }
+
+    /**
+     * Active speakers as faculty-card arrays, independent of a block.
+     *
+     * Lets the faculty section stay dynamic even on the fallback render path —
+     * when the homepage has no `home_faculty` block to resolve — so the cards are
+     * real speakers rather than the hardcoded demo wherever the catalogue has any.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function activeSpeakers(int $limit = 8): array
+    {
+        return Speaker::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->limit($limit)
+            ->get()
+            ->map(fn (Speaker $s): array => self::speakerCard($s))
+            ->all();
+    }
+
+    /** @return array<string, mixed> */
+    private static function speakerCard(Speaker $speaker): array
+    {
+        return [
+            'name' => $speaker->name,
+            'credentials' => $speaker->credentials ?: ($speaker->title ?? ''),
+            'bodies' => $speaker->title ?? '',
+            'image_url' => ($url = $speaker->getFirstMediaUrl('portrait')) !== '' ? $url : null,
+            'image' => 'seminar',
+            'url' => route('speakers.show', $speaker->slug),
+        ];
     }
 
     private static function isManual(PageSection $block): bool

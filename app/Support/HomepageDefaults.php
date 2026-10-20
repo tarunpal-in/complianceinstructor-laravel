@@ -55,6 +55,17 @@ class HomepageDefaults
                         ['label' => 'SHRM'],
                         ['label' => 'CPE'],
                     ],
+                    // The rotating "Certificate Ready" card on the hero image.
+                    'feature_cards' => [
+                        ['title' => 'Certificate Ready', 'subtitle' => 'Instant download'],
+                        ['title' => 'Expert-Led Sessions', 'subtitle' => 'Certified instructors'],
+                        ['title' => 'On-Demand Access', 'subtitle' => 'Watch anytime, anywhere'],
+                        ['title' => 'CEU Credits', 'subtitle' => 'Earn & maintain compliance'],
+                    ],
+                    // The rotating "Approved" card's wording; the codes are live
+                    // from the accrediting bodies.
+                    'accreditation_suffix' => 'Approved',
+                    'accreditation_note' => 'Industry Accredited',
                 ],
             ],
             [
@@ -116,9 +127,12 @@ class HomepageDefaults
                     'heading' => 'Upcoming Webinars',
                     'intro' => 'Expert-led sessions with recognized CEU credits. Register today.',
                     'link_label' => 'All Upcoming Webinars',
-                    'link_url' => '#webinars',
+                    // The live catalogue page, not an in-page anchor — "All
+                    // Upcoming Webinars" should leave the homepage for /webinars.
+                    'link_url' => '/webinars',
                     'source' => 'auto',
-                    'limit' => 3,
+                    // The grid is four columns wide (.webinar-grid), so show four.
+                    'limit' => 4,
                 ],
             ],
             [
@@ -127,8 +141,11 @@ class HomepageDefaults
                     'eyebrow' => 'BROWSE BY INDUSTRY',
                     'heading' => 'Webinar Categories',
                     'intro' => 'Built around the regulations you actually answer to',
+                    // 'grid' (one row) or 'slider'; admin-switchable.
+                    'layout' => 'grid',
+                    'autoplay' => false,
                     'source' => 'auto',
-                    'limit' => 3,
+                    'limit' => 4,
                 ],
             ],
             [
@@ -165,6 +182,7 @@ class HomepageDefaults
                     'callback_heading' => 'Not sure which plan is right for you?',
                     'callback_body' => 'Our team can help match you with the best training package for your goals and budget.',
                     'callback_button' => 'Request a Callback',
+                    'callback_url' => '/contact',
                 ],
             ],
         ];

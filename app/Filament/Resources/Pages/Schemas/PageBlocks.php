@@ -21,11 +21,12 @@ use Filament\Support\Icons\Heroicon;
  * resources/views/pages/blocks. No model, no table, no controller, no route —
  * which is the whole ~5-week saving, and §14 #14 bans going back on it.
  *
- * Six types, per §13's descope ladder: "block library trimmed to six types,
- * rest added on demand". These six cover the pages §7 names — about, training
- * landings, contact, FAQ and four policy pages. The testimonial slider, logo
- * wall and webinar carousel from the full list are the ones to add first when
- * a page actually needs them, rather than now on the chance it might.
+ * Started at six per §13's descope ladder ("block library trimmed to six
+ * types, rest added on demand"); `contact` is the first of the "on demand"
+ * ones, added when the contact page needed a form. Together they cover the
+ * pages §7 names — about, training landings, contact, FAQ and four policy
+ * pages. The testimonial slider, logo wall and webinar carousel from the full
+ * list are the ones to add next when a page actually needs them.
  *
  * Every block carries `is_visible`, because turning a block off beats deleting
  * it: seasonal copy comes back without being retyped.
@@ -42,6 +43,7 @@ class PageBlocks
             self::faq(),
             self::callToAction(),
             self::statBand(),
+            self::contact(),
         ];
     }
 
@@ -130,6 +132,7 @@ class PageBlocks
                     ->columns(2)
                     ->itemLabel(fn (array $state): ?string => is_string($state['title'] ?? null) ? $state['title'] : null)
                     ->schema([
+                        self::iconSelect(),
                         TextInput::make('title')->label('Title')->required()->maxLength(120),
                         Textarea::make('body')->label('Text')->rows(2)->maxLength(400)->columnSpanFull(),
                     ])
@@ -219,6 +222,94 @@ class PageBlocks
                 self::visibility(),
             ])
             ->columns(1);
+    }
+
+    /**
+     * A contact section — editable detail cards beside a working contact form.
+     *
+     * The form itself is the ContactForm Livewire component (it records an
+     * inquiry through RecordInquiry); everything a visitor reads here is editable
+     * copy, so a contact page assembled from this block is 100% client-editable.
+     */
+    private static function contact(): Builder\Block
+    {
+        return Builder\Block::make('contact')
+            ->label('Contact')
+            ->icon(Heroicon::OutlinedEnvelope)
+            ->schema([
+                TextInput::make('heading')->label('Heading')->maxLength(255)->default('Contact us'),
+
+                Textarea::make('intro')->label('Intro')->rows(2)->maxLength(500)->columnSpanFull(),
+
+                Repeater::make('details')
+                    ->label('Contact details')
+                    ->helperText('Shown as cards beside the form — email, phone, address, hours, and so on.')
+                    ->defaultItems(3)
+                    ->maxItems(8)
+                    ->itemLabel(fn (array $state): ?string => is_string($state['label'] ?? null) ? $state['label'] : null)
+                    ->schema([
+                        Select::make('icon')
+                            ->label('Icon')
+                            ->options([
+                                'mail' => 'Email',
+                                'phone' => 'Phone',
+                                'map-pin' => 'Address',
+                                'clock-3' => 'Hours',
+                                'info' => 'Info',
+                                'linkedin' => 'LinkedIn',
+                                'instagram' => 'Instagram',
+                                'youtube' => 'YouTube',
+                            ])
+                            ->default('mail')
+                            ->native(false),
+
+                        TextInput::make('label')->label('Label')->required()->maxLength(60)->placeholder('Email'),
+                        TextInput::make('value')->label('Value')->required()->maxLength(200)->placeholder('hello@complianceinstructor.com'),
+                        TextInput::make('url')->label('Link (optional)')->maxLength(255)->placeholder('mailto:hello@complianceinstructor.com'),
+                    ])
+                    ->columns(2)
+                    ->columnSpanFull(),
+
+                TextInput::make('form_heading')->label('Form heading')->maxLength(120)->default('Send us a message'),
+                TextInput::make('button_label')->label('Form button')->maxLength(60)->default('Send message'),
+                Textarea::make('success_message')
+                    ->label('Message shown after sending')
+                    ->rows(2)
+                    ->maxLength(300)
+                    ->default('Thanks — your message is on its way. We will be in touch shortly.')
+                    ->columnSpanFull(),
+
+                self::visibility(),
+            ])
+            ->columns(2);
+    }
+
+    /**
+     * A constrained icon picker — only names `x-ui.icon` can render. Optional on
+     * a feature card: left blank, the card simply shows no icon.
+     */
+    private static function iconSelect(): Select
+    {
+        return Select::make('icon')
+            ->label('Icon')
+            ->options([
+                'award' => 'Award / credit',
+                'shield-check' => 'Shield / trust',
+                'check' => 'Check',
+                'users-round' => 'People',
+                'user-round' => 'Person',
+                'star' => 'Star',
+                'zap' => 'Lightning',
+                'refresh-cw' => 'Refresh',
+                'clock-3' => 'Clock',
+                'calendar-days' => 'Calendar',
+                'monitor' => 'Screen',
+                'shopping-cart' => 'Cart',
+                'search' => 'Search',
+                'info' => 'Info',
+            ])
+            ->native(false)
+            ->placeholder('No icon');
     }
 
     /**

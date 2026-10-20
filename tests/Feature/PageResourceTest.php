@@ -420,17 +420,25 @@ it('seeds pages that exercise the block library', function (): void {
 
     $types = PageSection::query()->pluck('type')->unique();
 
-    expect(Page::query()->count())->toBe(2)
-        ->and($types)->toContain('hero', 'stat_band', 'feature_grid', 'cta', 'rich_text', 'faq');
+    expect(Page::query()->count())->toBe(3)
+        ->and($types)->toContain('hero', 'stat_band', 'feature_grid', 'cta', 'rich_text', 'faq', 'contact');
 
-    // And the published one actually renders.
-    $this->get('/about')->assertSuccessful();
+    // And the published ones actually render, with the richer About content.
+    $this->get('/about')
+        ->assertSuccessful()
+        ->assertSee('Our mission', escape: false)
+        ->assertSee('Why professionals choose us', escape: false)
+        ->assertSee('What every session includes', escape: false)
+        ->assertSee('Who we serve', escape: false)
+        ->assertSee('pb-feature-icon', escape: false);  // feature cards now carry icons
+    $this->get('/contact')->assertSuccessful();
 });
 
 it('seeds pages idempotently', function (): void {
     $this->seed(PageSeeder::class);
     $this->seed(PageSeeder::class);
 
-    expect(Page::query()->count())->toBe(2)
-        ->and(PageSection::query()->count())->toBe(6);
+    // About (7) + Contact (3) + Privacy (2).
+    expect(Page::query()->count())->toBe(3)
+        ->and(PageSection::query()->count())->toBe(12);
 });

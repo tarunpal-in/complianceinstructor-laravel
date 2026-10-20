@@ -37,6 +37,21 @@
         {{-- Matches the comp's transient confirmation toast. Every action on this
              page is inert until P2/P3 wire real routes. --}}
         <div class="toast" x-show="notice" x-cloak x-text="notice"></div>
+
+        {{-- Back to top — appears once the page is scrolled, eases to the top
+             through Lenis (native smooth as the fallback). --}}
+        <button type="button"
+                class="scroll-top"
+                x-data="scrollTop"
+                x-show="shown"
+                x-cloak
+                x-transition.opacity.duration.200ms
+                @click="toTop()"
+                aria-label="Back to top">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 19V5M5 12l7-7 7 7" />
+            </svg>
+        </button>
     </div>
 
     {{-- Livewire 3 on every public page so its Alpine is the single Alpine the

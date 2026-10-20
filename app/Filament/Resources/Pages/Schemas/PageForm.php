@@ -35,85 +35,90 @@ class PageForm
 {
     public static function configure(Schema $schema): Schema
     {
-        return $schema->components([
+        return $schema
+            // One column, so each section (and the block builder in particular)
+            // spans the full width instead of the sections tiling two-up — the
+            // builder's block fields need the room.
+            ->columns(1)
+            ->components([
 
-            Section::make()->columns(2)->schema([
-                TextInput::make('title')
-                    ->required()
-                    ->maxLength(255)
-                    ->live(onBlur: true)
-                    ->afterStateUpdated(function (string $operation, ?string $state, callable $set): void {
-                        if ($operation === 'create') {
-                            $set('slug', Str::slug((string) $state));
-                        }
-                    }),
+                Section::make()->columns(2)->schema([
+                    TextInput::make('title')
+                        ->required()
+                        ->maxLength(255)
+                        ->live(onBlur: true)
+                        ->afterStateUpdated(function (string $operation, ?string $state, callable $set): void {
+                            if ($operation === 'create') {
+                                $set('slug', Str::slug((string) $state));
+                            }
+                        }),
 
-                TextInput::make('slug')
-                    ->required()
-                    ->maxLength(255)
-                    ->prefix(config('app.url').'/')
-                    // No unique rule: a clash resolves to "{slug}-2" on save and
-                    // is reported, rather than refusing the save.
-                    ->rule(static function (): Closure {
-                        return static function (string $attribute, mixed $value, Closure $fail): void {
-                            /*
+                    TextInput::make('slug')
+                        ->required()
+                        ->maxLength(255)
+                        ->prefix(config('app.url').'/')
+                        // No unique rule: a clash resolves to "{slug}-2" on save and
+                        // is reported, rather than refusing the save.
+                        ->rule(static function (): Closure {
+                            return static function (string $attribute, mixed $value, Closure $fail): void {
+                                /*
                              * A page cannot take a path the application already
                              * answers on. It would be unreachable — the route
                              * that owns the path wins — and taking `admin`
                              * would make the panel look broken to whoever did
                              * it. Refused here rather than discovered later.
                              */
-                            if (in_array(Str::slug((string) $value), Page::RESERVED_SLUGS, true)) {
-                                $fail('That address is already used by the site itself. Pick another.');
-                            }
-                        };
-                    })
-                    ->helperText('The page\'s address. Changing it on a published page breaks existing links to it.'),
-            ]),
-
-            Section::make('Content')
-                ->description('Blocks are drawn top to bottom. Drag to reorder, and use the toggle inside a block to hide it without losing the copy.')
-                ->schema([
-                    Builder::make('sections')
-                        ->hiddenLabel()
-                        ->blocks(PageBlocks::all())
-                        ->addActionLabel('Add a block')
-                        ->collapsible()
-                        ->cloneable()
-                        ->blockNumbers(false),
+                                if (in_array(Str::slug((string) $value), Page::RESERVED_SLUGS, true)) {
+                                    $fail('That address is already used by the site itself. Pick another.');
+                                }
+                            };
+                        })
+                        ->helperText('The page\'s address. Changing it on a published page breaks existing links to it.'),
                 ]),
 
-            Section::make('Publishing')
-                ->columns(3)
-                ->schema([
-                    Select::make('status')
-                        ->options(PublishStatus::options())
-                        ->default(PublishStatus::Draft->value)
-                        ->required()
-                        ->live()
-                        // Publishing goes through the gated action on the edit
-                        // page, which checks the page is not empty first. This
-                        // is here so a published page can be taken down again.
-                        ->helperText('Use the Publish action rather than this — it checks the page has something on it.'),
+                Section::make('Content')
+                    ->description('Blocks are drawn top to bottom. Drag to reorder, and use the toggle inside a block to hide it without losing the copy.')
+                    ->schema([
+                        Builder::make('sections')
+                            ->hiddenLabel()
+                            ->blocks(PageBlocks::all())
+                            ->addActionLabel('Add a block')
+                            ->collapsible()
+                            ->cloneable()
+                            ->blockNumbers(false),
+                    ]),
 
-                    DateTimePicker::make('published_at')
-                        ->label('Live from')
-                        ->seconds(false)
-                        ->placeholder('Immediately')
-                        ->helperText('A future date holds the page back until then.'),
+                Section::make('Publishing')
+                    ->columns(3)
+                    ->schema([
+                        Select::make('status')
+                            ->options(PublishStatus::options())
+                            ->default(PublishStatus::Draft->value)
+                            ->required()
+                            ->live()
+                            // Publishing goes through the gated action on the edit
+                            // page, which checks the page is not empty first. This
+                            // is here so a published page can be taken down again.
+                            ->helperText('Use the Publish action rather than this — it checks the page has something on it.'),
 
-                    Select::make('layout')
-                        ->options(['standard' => 'Standard'])
-                        ->default('standard')
-                        ->required()
-                        // One value, and honestly labelled as such. A second
-                        // arrives with the first page that cannot use the
-                        // standard frame.
-                        ->helperText('Only one frame so far.'),
-                ]),
-            SeoFields::make(),
+                        DateTimePicker::make('published_at')
+                            ->label('Live from')
+                            ->seconds(false)
+                            ->placeholder('Immediately')
+                            ->helperText('A future date holds the page back until then.'),
 
-        ]);
+                        Select::make('layout')
+                            ->options(['standard' => 'Standard'])
+                            ->default('standard')
+                            ->required()
+                            // One value, and honestly labelled as such. A second
+                            // arrives with the first page that cannot use the
+                            // standard frame.
+                            ->helperText('Only one frame so far.'),
+                    ]),
+                SeoFields::make(),
+
+            ]);
     }
 
     /**

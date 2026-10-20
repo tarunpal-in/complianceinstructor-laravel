@@ -6,6 +6,7 @@
     'callbackHeading' => null,
     'callbackBody' => null,
     'callbackButton' => null,
+    'callbackUrl' => null,
 ])
 
 @php
@@ -77,6 +78,10 @@
             <strong>{{ $callbackHeading }}</strong>
             <span>{{ $callbackBody }}</span>
         </div>
-        <button @click="showNotice('We will be in touch soon')">{{ $callbackButton }}</button>
+        @if (filled($callbackUrl))
+            <a class="callback-btn" href="{{ $callbackUrl }}">{{ $callbackButton }}</a>
+        @else
+            <button @click="showNotice('We will be in touch soon')">{{ $callbackButton }}</button>
+        @endif
     </div>
 </section>

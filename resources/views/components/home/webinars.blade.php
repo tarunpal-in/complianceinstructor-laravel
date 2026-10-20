@@ -12,7 +12,7 @@
     $heading = $heading ?: 'Upcoming Webinars';
     $intro = $intro ?: 'Expert-led sessions with recognized CEU credits. Register today.';
     $linkLabel = $linkLabel ?: 'All Upcoming Webinars';
-    $linkUrl = $linkUrl ?: '#webinars';
+    $linkUrl = $linkUrl ?: route('webinars.index');
 
     // Default placeholders for the unseeded-install fallback. Dates derive the
     // badge and body from one Carbon instance, so they cannot drift.

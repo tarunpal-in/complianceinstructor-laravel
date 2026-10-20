@@ -2,7 +2,9 @@
 
 
 @section('content')
-    @include('partials.breadcrumbs')
+    <div class="blog-crumbs">
+        @include('partials.breadcrumbs')
+    </div>
     @if ($preview ?? false)
         {{-- Loud on purpose — see pages/show.blade.php for the reasoning. --}}
         <div class="page-preview-banner" role="status">

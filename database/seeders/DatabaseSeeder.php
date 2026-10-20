@@ -31,6 +31,9 @@ class DatabaseSeeder extends Seeder
             MediaLibrarySeeder::class,
             HomePageSeeder::class,
             PageSeeder::class,
+            // The header and footer menus (§5.6), after the pages so the footer
+            // can link to any that were seeded.
+            NavigationSeeder::class,
             // Before the coupon and order seeders, which scope to an industry and
             // need a catalogue to sell. Populates the homepage's live sections.
             DemoCatalogueSeeder::class,

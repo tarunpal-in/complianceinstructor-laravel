@@ -7,5 +7,7 @@
         :eyebrow="$block->value('eyebrow')"
         :heading="$block->value('heading')"
         :intro="$block->value('intro')"
+        :layout="$block->value('layout')"
+        :autoplay="(bool) $block->value('autoplay')"
     />
 @endif

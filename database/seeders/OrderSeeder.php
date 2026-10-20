@@ -39,6 +39,16 @@ class OrderSeeder extends Seeder
             return;
         }
 
+        // Idempotent: the order numbers are assigned by position, so re-running
+        // `db:seed` on an already-seeded database would collide on the unique
+        // number (e.g. CI-2026-0003). A fresh `migrate:fresh --seed` has no
+        // orders and seeds the full set; a re-seed is a no-op.
+        if (Order::query()->exists()) {
+            $this->command->warn('Orders already seeded — skipping.');
+
+            return;
+        }
+
         $customers = User::factory()->count(18)->create();
 
         for ($i = 0; $i < 60; $i++) {
