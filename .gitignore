@@ -38,3 +38,12 @@ Thumbs.db
 
 # Larastan / PHPStan
 /.phpstan.cache
+
+# Local WordPress migration data — DB dumps and the uploads backup. These are
+# large, contain live data, and are source material for the import, not source.
+/*.sql
+/*.zip
+/uploads/
+/CPE-logo.jpg
+/HRCI 2026.png
+/shrm-recertification-provider-2025.png
