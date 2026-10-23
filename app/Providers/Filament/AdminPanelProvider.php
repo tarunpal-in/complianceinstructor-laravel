@@ -117,7 +117,16 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make('Reports'),
                 NavigationGroup::make('System'),
             ])
-            ->navigationItems($this->placeholderNavigation())
+            ->navigationItems([
+                ...$this->placeholderNavigation(),
+                // A way back to the public site from the panel (the mirror of the
+                // storefront's staff bar). Same tab, so the frontend's own "Admin
+                // dashboard" bar brings them straight back.
+                NavigationItem::make('View site')
+                    ->url(fn (): string => route('home'))
+                    ->icon(Heroicon::OutlinedHome)
+                    ->sort(-100),
+            ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             // Clusters group related pages and resources under one sidebar item.

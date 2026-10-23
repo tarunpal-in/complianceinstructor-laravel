@@ -10,9 +10,12 @@ use App\Filament\Forms\Components\MediaPicker;
 use App\Filament\Forms\Components\SeoFields;
 use App\Models\Setting;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Callout;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
@@ -23,15 +26,19 @@ use Illuminate\Support\Str;
 use Throwable;
 
 /**
- * §5.3 gives a webinar nine long-text fields plus scheduling and relations. In
- * one column that is a scroll of death, so it is tabbed — Details, Content,
- * Schedule, Media.
+ * A webinar carries its metadata, a repeater of content sections, scheduling
+ * and relations. In one column that is a scroll of death, so it is tabbed —
+ * Details, Content, Schedule, Media. The Content tab's sections are rows in
+ * `webinar_sections` (edited through a relationship repeater), not fixed
+ * columns, so the admin can rename, reorder, add and remove them freely.
  */
 class WebinarForm
 {
     public static function configure(Schema $schema): Schema
     {
-        return $schema->components([
+        // One column, so each section stacks full-width down the page instead
+        // of tiling two-up. Field pairs inside a section are kept.
+        return $schema->columns(1)->components([
 
             // Purchase options, credits and deliverables are relation managers,
             // and a relation manager has nowhere to write until the webinar has
@@ -107,13 +114,44 @@ class WebinarForm
                 ])->columns(2),
 
                 Tab::make('Content')->schema([
-                    Textarea::make('overview')->label('Webinar Overview')->rows(8),
-                    Textarea::make('session_highlights')->label('Session Highlights')->rows(8),
-                    Textarea::make('why_attend')->label('Why You Should Attend')->rows(8),
-                    Textarea::make('who_should_attend')->label('Who Should Attend')->rows(8),
+                    Repeater::make('sections')
+                        ->relationship()
+                        ->label('Page sections')
+                        ->helperText('Each block appears on the detail page in this order. Leave the heading blank for a block with no title (e.g. a delivery notice).')
+                        ->schema([
+                            TextInput::make('heading')
+                                ->label('Section heading')
+                                ->placeholder('Leave blank for an untitled block')
+                                ->maxLength(255),
+                            // A WYSIWYG so the client never touches raw HTML.
+                            // Output is HTML, which is how a section is stored
+                            // and (sanitised again at render, §9) shown on the
+                            // page. Toolbar held to what the sanitiser allows.
+                            RichEditor::make('body')
+                                ->label('Content')
+                                ->toolbarButtons([
+                                    ['bold', 'italic', 'underline', 'strike', 'link'],
+                                    ['h2', 'h3'],
+                                    ['bulletList', 'orderedList'],
+                                    ['blockquote'],
+                                    ['undo', 'redo'],
+                                ])
+                                ->required(),
+                            Toggle::make('is_visible')
+                                ->label('Show on the page')
+                                ->default(true),
+                        ])
+                        ->orderColumn('sort_order')
+                        ->reorderable()
+                        ->collapsible()
+                        ->collapsed()
+                        ->cloneable()
+                        ->itemLabel(fn (array $state): string => filled($state['heading'] ?? null) ? $state['heading'] : 'Untitled block')
+                        ->addActionLabel('Add section')
+                        ->defaultItems(0),
+
                     Textarea::make('description')->label('Description')->rows(5)
                         ->helperText('Used for search results and social previews.'),
-                    Textarea::make('background')->label('Background')->rows(4),
                 ])->columns(1),
 
                 Tab::make('Schedule')

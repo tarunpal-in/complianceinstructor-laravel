@@ -199,8 +199,16 @@
     color: #ffffff;
 }
 
-/* A default scrollbar reads as a light gash down a dark panel. */
+/* A default scrollbar reads as a light gash down a dark panel — and make sure
+   the group list actually scrolls by wheel, not only by dragging the bar.
+   Filament already sets `overflow: hidden auto` here, but a flex child needs an
+   explicit min-height:0 to shrink below its content before overflow kicks in;
+   without it the nav grows to its full height and the wheel has nothing to
+   scroll. Reasserting both fixes wheel scrolling on a tall menu. */
 .fi-sidebar-nav {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     scrollbar-width: thin;
     scrollbar-color: rgb(255 255 255 / 0.16) transparent;
 }

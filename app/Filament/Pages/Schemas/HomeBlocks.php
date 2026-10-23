@@ -145,8 +145,13 @@ class HomeBlocks
                     TextInput::make('primary_label')
                         ->label('Main button')
                         ->maxLength(60)
-                        ->placeholder('Start Learning Now')
-                        ->columnSpanFull(),
+                        ->placeholder('Start Learning Now'),
+
+                    TextInput::make('primary_url')
+                        ->label('Main button links to')
+                        ->maxLength(255)
+                        ->placeholder('/webinars')
+                        ->helperText('Where the main button goes — e.g. /webinars or #pricing. Leave empty to send it to the webinars catalogue.'),
 
                     TextInput::make('secondary_label')
                         ->label('Second button')

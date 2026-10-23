@@ -152,7 +152,9 @@ class Settings extends Page implements HasForms
         $state = [];
 
         foreach (SettingRegistry::all() as $setting) {
-            if ($setting->group === SettingGroup::Brand || $setting->group === SettingGroup::Commerce) {
+            // Brand and Commerce draw their own tabs by hand; Payments lives on
+            // its own page (PaymentGateways) and has no tab here at all.
+            if (in_array($setting->group, [SettingGroup::Brand, SettingGroup::Commerce, SettingGroup::Payments], true)) {
                 continue;
             }
 

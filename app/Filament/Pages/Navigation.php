@@ -78,6 +78,8 @@ class Navigation extends FilamentPage implements HasForms
     {
         return $schema
             ->statePath('data')
+            // One column, so the two menu sections stack full-width.
+            ->columns(1)
             ->components([
                 Section::make('Header menu')
                     ->description('The top navigation. An item with sub-items becomes a dropdown.')

@@ -31,7 +31,9 @@ class InquiryForm
 {
     public static function configure(Schema $schema): Schema
     {
-        return $schema->components([
+        // One column, so each section stacks full-width down the page instead
+        // of tiling two-up. Field pairs inside a section are kept.
+        return $schema->columns(1)->components([
 
             Section::make('Who wrote')
                 ->columns(2)

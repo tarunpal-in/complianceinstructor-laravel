@@ -26,7 +26,9 @@ class PaymentOverview
 {
     public static function configure(Schema $schema): Schema
     {
-        return $schema->components([
+        // One column of cards, stacked — the admin's single-column convention.
+        // Field groupings inside a card keep their own columns.
+        return $schema->columns(1)->components([
 
             Section::make()->columns(4)->schema([
                 TextEntry::make('gateway')
@@ -47,8 +49,8 @@ class PaymentOverview
                     ->placeholder('Not yet'),
             ]),
 
-            Grid::make(2)->schema([
-                Section::make('Against')->schema([
+            Grid::make(1)->schema([
+                Section::make('Against')->columns(2)->schema([
                     TextEntry::make('order.number')
                         ->label('Order')
                         ->url(fn (Payment $record): string => OrderResource::getUrl('view', ['record' => $record->order_id]))
@@ -66,7 +68,7 @@ class PaymentOverview
                         )),
                 ]),
 
-                Section::make('Reconciliation')->schema([
+                Section::make('Reconciliation')->columns(2)->schema([
                     TextEntry::make('refunded')
                         ->label('Refunded so far')
                         ->state(fn (Payment $record): string => Money::format($record->refundedCents())),

@@ -25,7 +25,9 @@ class OrderOverview
 {
     public static function configure(Schema $schema): Schema
     {
-        return $schema->components([
+        // One column of cards, stacked — the admin's single-column convention.
+        // Field groupings inside a card keep their own columns.
+        return $schema->columns(1)->components([
 
             Section::make()->columns(4)->schema([
                 TextEntry::make('number')->label('Order number')->copyable()->weight('bold'),
@@ -72,8 +74,8 @@ class OrderOverview
                             : 'This disagrees with the stored status — a webhook was probably missed.'),
                 ]),
 
-            Grid::make(2)->schema([
-                Section::make('Customer')->schema([
+            Grid::make(1)->schema([
+                Section::make('Customer')->columns(2)->schema([
                     TextEntry::make('customer_name')
                         ->label('Name')
                         ->state(fn (Order $record): string => $record->customerName()),
@@ -97,7 +99,7 @@ class OrderOverview
                         ->columnSpanFull(),
                 ]),
 
-                Section::make('Totals')->schema([
+                Section::make('Totals')->columns(2)->schema([
                     TextEntry::make('subtotal_cents')->label('Subtotal')->money('USD', divideBy: 100),
                     TextEntry::make('discount_cents')->label('Discount')->money('USD', divideBy: 100),
                     TextEntry::make('tax_cents')->label('Tax')->money('USD', divideBy: 100),
@@ -128,16 +130,23 @@ class OrderOverview
             return new HtmlString('<span class="text-gray-400">Nothing captured</span>');
         }
 
-        $lines = [];
+        $cells = [];
 
         foreach ($snapshot as $key => $value) {
             if (blank($value) || is_array($value)) {
                 continue;
             }
 
-            $lines[] = '<strong>'.e(ucfirst(str_replace('_', ' ', (string) $key))).':</strong> '.e((string) $value);
+            $cells[] = '<div style="min-width:0;"><strong>'.e(ucfirst(str_replace('_', ' ', (string) $key))).':</strong> '.e((string) $value).'</div>';
         }
 
-        return new HtmlString(implode('<br>', $lines));
+        // A responsive grid, so the pairs fill the card width instead of stacking
+        // in one narrow column. Colours are inherited (nothing hardcoded) so it
+        // stays correct in dark mode.
+        return new HtmlString(
+            '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:6px 28px;">'
+            .implode('', $cells)
+            .'</div>'
+        );
     }
 }

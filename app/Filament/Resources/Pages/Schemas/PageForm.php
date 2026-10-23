@@ -82,6 +82,9 @@ class PageForm
                         Builder::make('sections')
                             ->hiddenLabel()
                             ->blocks(PageBlocks::all())
+                            // Turn a block into a compatible one without retyping
+                            // its copy — e.g. a Text block into Text with image.
+                            ->extraItemActions(PageBlocks::convertActions())
                             ->addActionLabel('Add a block')
                             ->collapsible()
                             ->cloneable()

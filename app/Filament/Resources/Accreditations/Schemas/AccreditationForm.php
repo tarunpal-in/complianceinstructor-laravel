@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Accreditations\Schemas;
 
+use App\Filament\Forms\Components\MediaPicker;
 use App\Support\CompletionRules;
-use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -16,7 +16,9 @@ class AccreditationForm
 {
     public static function configure(Schema $schema): Schema
     {
-        return $schema->components([
+        // One column, so each section stacks full-width down the page instead
+        // of tiling two-up. Field pairs inside a section are kept.
+        return $schema->columns(1)->components([
             Section::make()
                 ->columns(2)
                 ->schema([
@@ -35,13 +37,10 @@ class AccreditationForm
                         ->rows(3)
                         ->columnSpanFull(),
 
-                    SpatieMediaLibraryFileUpload::make('logo')
-                        ->collection('logo')
-                        ->image()
-                        ->imageEditor()
-                        ->maxSize(2048)
+                    MediaPicker::make('logo_media_id')
+                        ->label('Logo')
                         ->columnSpanFull()
-                        ->helperText('The body\'s logo, shown on the homepage "Accreditation Partners" section. Upload a licensed or official mark.'),
+                        ->helperText('The body\'s logo, shown on the homepage "Accreditation Partners" section. Pick a licensed or official mark from the Media library — upload it there first if it is not listed.'),
 
                     TextInput::make('sort_order')->numeric()->default(0),
 

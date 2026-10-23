@@ -85,11 +85,18 @@ served at `/account`). It is the cheapest and the most consistent, and decisivel
 it registers **no global `POST /login`**: each panel authenticates through its own
 page, so the two-factor bypass that kept Fortify out cannot exist.
 
-How the bypass stays closed: `User::canAccessPanel` lets only a non-staff account
-into `account`, and only a role-holder into `admin`. A staff member therefore
-cannot authenticate through the customer panel at all, so they can never reach a
-`web` session that skipped the admin two-factor challenge. `AuthRoutesTest`
-asserts both the separation and the absence of any `POST /login`.
+How the bypass stays closed: it is enforced at *login*, not by partitioning who
+may view which panel. `User::canAccessPanel` gates `admin` to the §8 role-holders;
+the `account` (learner) panel is open to any active account — see the 2026-10-22
+note below. A staff member still cannot *authenticate* through the customer side:
+the branded `/login` refuses staff accounts and there is no global `POST /login`,
+so their only `web` session is the one `/admin` issues behind two-factor.
+`AuthRoutesTest` asserts both the login refusal and the absence of any `POST /login`.
+
+> **Historical note.** Until 2026-10-22, `canAccessPanel` also blocked staff from
+> the `account` panel outright, and that block was described here as the line
+> preventing the bypass. It never was — the login refusal always was — and the
+> block was removed so an admin can open the learner dashboard (see below).
 
 What the panel owns: login, registration (customers get no role, so they are
 customers by construction), password reset (Laravel's broker still issues the
@@ -127,6 +134,29 @@ so the bypass that kept Fortify out has to be closed by hand, and is:
 its credentials, so a button shows only when that provider is set up; the OAuth
 round-trip itself is verified once real credentials are added, as with the
 payment gateways.
+
+## Admins may view the learner dashboard (2026-10-22)
+
+`canAccessPanel` now returns `true` for the `account` panel for **any active
+account, staff included** — previously it blocked staff (`! isStaff()`). So a
+signed-in admin can open the learner dashboard from the storefront (the navbar's
+"My Account" button points there for everyone; staff reach `/admin` from the
+staff bar at the top of the public page, `x-site.admin-bar`).
+
+This does **not** weaken the two-factor separation, because that was never what
+the block protected:
+
+- The only sign-in on the `account` side is the branded `/login` (`AuthPage`),
+  whose login action and the social callback both **refuse a staff account**. The
+  account panel declares no `->login()` of its own. So there is still no way for
+  a staff member to obtain a `web` session without going through `/admin` and its
+  two-factor challenge.
+- The admin panel stays gated to the four §8 roles; a customer is still refused.
+
+`AuthRoutesTest` covers all three: staff *and* customers can open `account`,
+customers cannot open `admin`, the branded `/login` still refuses staff, and a
+signed-in admin can load the learner dashboard. The change is small on purpose —
+an admin's learner view is simply their own (usually empty) entitlements.
 
 ## Known gap, not addressed here
 

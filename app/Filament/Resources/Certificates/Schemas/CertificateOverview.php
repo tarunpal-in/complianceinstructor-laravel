@@ -21,7 +21,9 @@ class CertificateOverview
 {
     public static function configure(Schema $schema): Schema
     {
-        return $schema->components([
+        // One column of cards, stacked — the admin's single-column convention.
+        // Field groupings inside a card keep their own columns.
+        return $schema->columns(1)->components([
 
             Section::make('The certificate')
                 ->description('As issued. None of this changes afterwards, whatever happens to the records behind it.')

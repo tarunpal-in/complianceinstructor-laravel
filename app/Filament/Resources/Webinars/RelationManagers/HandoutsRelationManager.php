@@ -105,11 +105,28 @@ class HandoutsRelationManager extends RelationManager
             ->headerActions([
                 CreateAction::make()
                     ->label('Add handout')
-                    ->visible(fn (): bool => auth()->user()?->can('update_webinar') ?? false),
+                    ->visible(fn (): bool => $this->canManage()),
             ])
-            ->recordActions([EditAction::make(), DeleteAction::make()])
-            ->toolbarActions([BulkActionGroup::make([DeleteBulkAction::make()])])
+            ->recordActions([
+                EditAction::make()->visible(fn (): bool => $this->canManage()),
+                DeleteAction::make()->visible(fn (): bool => $this->canManage()),
+            ])
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    DeleteBulkAction::make()->visible(fn (): bool => $this->canManage()),
+                ]),
+            ])
             ->emptyStateHeading('No handouts yet')
             ->emptyStateDescription('Add slides, worksheets or materials that accompany this webinar.');
+    }
+
+    /**
+     * Handouts belong to the webinar, so every mutating action is gated on
+     * `update_webinar` (§4 #4 / §9), not just create. A view-only role such as
+     * Support sees the list but no edit, delete or bulk-delete action.
+     */
+    private function canManage(): bool
+    {
+        return auth()->user()?->can('update_webinar') ?? false;
     }
 }

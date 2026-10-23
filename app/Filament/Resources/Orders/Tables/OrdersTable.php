@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Orders\Tables;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentGateway;
 use App\Models\Order;
+use App\Support\Period;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DatePicker;
@@ -126,6 +127,26 @@ class OrdersTable
                         false: fn (Builder $query): Builder => $query->whereNotNull('user_id'),
                         blank: fn (Builder $query): Builder => $query,
                     ),
+
+                // Quick presets over the order date, reusing the same ranges the
+                // revenue reports offer (App\Support\Period) so "This month" means
+                // the same thing on both screens, computed in the business
+                // timezone. For an exact span, the custom range below still works,
+                // and the two can be combined.
+                SelectFilter::make('period')
+                    ->label('Placed in')
+                    ->options(Period::options())
+                    ->query(function (Builder $query, array $data): Builder {
+                        $key = $data['value'] ?? null;
+
+                        if (! is_string($key) || ! array_key_exists($key, Period::options())) {
+                            return $query;
+                        }
+
+                        $period = Period::preset($key);
+
+                        return $query->whereBetween('placed_at', [$period->from, $period->to]);
+                    }),
 
                 Filter::make('placed_between')
                     ->schema([

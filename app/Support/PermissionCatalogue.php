@@ -55,6 +55,7 @@ final class PermissionCatalogue
         ],
         'Content' => [
             'page' => 'Pages',
+            'core_page' => 'Core pages',
             'post' => 'Blog articles',
             'comment' => 'Comments',
             'navigation' => 'Navigation',

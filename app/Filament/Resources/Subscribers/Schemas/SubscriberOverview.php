@@ -27,7 +27,9 @@ class SubscriberOverview
 {
     public static function configure(Schema $schema): Schema
     {
-        return $schema->components([
+        // One column of cards, stacked — the admin's single-column convention.
+        // Field groupings inside a card keep their own columns.
+        return $schema->columns(1)->components([
 
             Section::make()->columns(4)->schema([
                 TextEntry::make('email')

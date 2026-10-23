@@ -152,11 +152,29 @@ class AssetsRelationManager extends RelationManager
             ->headerActions([
                 CreateAction::make()
                     ->label('Add deliverable')
-                    ->visible(fn (): bool => auth()->user()?->can('update_webinar') ?? false),
+                    ->visible(fn (): bool => $this->canManage()),
             ])
-            ->recordActions([EditAction::make(), DeleteAction::make()])
-            ->toolbarActions([BulkActionGroup::make([DeleteBulkAction::make()])])
+            ->recordActions([
+                EditAction::make()->visible(fn (): bool => $this->canManage()),
+                DeleteAction::make()->visible(fn (): bool => $this->canManage()),
+            ])
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    DeleteBulkAction::make()->visible(fn (): bool => $this->canManage()),
+                ]),
+            ])
             ->emptyStateHeading('Nothing to deliver yet')
             ->emptyStateDescription('Add the join link, recording, transcript or materials that buyers receive.');
+    }
+
+    /**
+     * Changing a webinar's deliverables is changing the webinar, so every
+     * mutating action here — not just create — is gated on `update_webinar`
+     * (§4 #4 / §9). A role with only `view_webinar`, such as Support, reaches
+     * this panel to look but is handed no edit, delete or bulk-delete action.
+     */
+    private function canManage(): bool
+    {
+        return auth()->user()?->can('update_webinar') ?? false;
     }
 }

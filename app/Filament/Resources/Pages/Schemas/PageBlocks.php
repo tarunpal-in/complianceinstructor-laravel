@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Pages\Schemas;
 
+use Filament\Actions\Action;
 use Filament\Forms\Components\Builder;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
@@ -33,11 +35,30 @@ use Filament\Support\Icons\Heroicon;
  */
 class PageBlocks
 {
+    /**
+     * Which block types can be turned into which, without losing content.
+     *
+     * A conversion is lossless when the target block shares the source's field
+     * names: `media_text` is a deliberate superset of `rich_text` (same
+     * `heading` and `body`, plus an image), so the two convert either way. The
+     * whole data array is kept on convert — shared fields carry straight over,
+     * and any field the target does not use lies dormant rather than being
+     * dropped, so converting back restores it. Extend this map as more blocks
+     * grow compatible fields.
+     *
+     * @var array<string, array<string, string>> from => [to => menu label]
+     */
+    private const CONVERSIONS = [
+        'rich_text' => ['media_text' => 'Add an image (Text with image)'],
+        'media_text' => ['rich_text' => 'Remove the image (plain Text)'],
+    ];
+
     /** @return array<int, Builder\Block> */
     public static function all(): array
     {
         return [
             self::richText(),
+            self::mediaText(),
             self::hero(),
             self::featureGrid(),
             self::faq(),
@@ -45,6 +66,60 @@ class PageBlocks
             self::statBand(),
             self::contact(),
         ];
+    }
+
+    /**
+     * Per-block "convert to…" actions for the builder's item menu.
+     *
+     * Each pair in CONVERSIONS becomes one icon action that shows only on a
+     * block of the matching source type and swaps that one item's type in place,
+     * keeping its data. PageForm hands these to the Builder's extraItemActions().
+     *
+     * @return array<int, Action>
+     */
+    public static function convertActions(): array
+    {
+        $actions = [];
+
+        foreach (self::CONVERSIONS as $from => $targets) {
+            foreach ($targets as $to => $label) {
+                $actions[] = self::convertAction($from, $to, $label);
+            }
+        }
+
+        return $actions;
+    }
+
+    /**
+     * Swap one builder item's type, keeping its data — the lossless core, pure
+     * so it is unit-tested without the Livewire form around it.
+     *
+     * @param  array<int|string, mixed>  $items  the builder's raw state
+     * @return array<int|string, mixed>
+     */
+    public static function convertItem(array $items, int|string $key, string $to): array
+    {
+        if (isset($items[$key]) && is_array($items[$key])) {
+            $items[$key]['type'] = $to;
+        }
+
+        return $items;
+    }
+
+    private static function convertAction(string $from, string $to, string $label): Action
+    {
+        return Action::make('convert_'.$from.'_to_'.$to)
+            ->label($label)
+            ->tooltip($label)
+            ->icon($to === 'media_text' ? Heroicon::OutlinedPhoto : Heroicon::OutlinedBars3BottomLeft)
+            ->color('gray')
+            // Only on a block that is currently the source type.
+            ->visible(fn (array $arguments, Builder $component): bool => data_get($component->getRawState(), $arguments['item'].'.type') === $from)
+            ->action(function (array $arguments, Builder $component) use ($to): void {
+                $component->rawState(self::convertItem($component->getRawState(), $arguments['item'], $to));
+                $component->callAfterStateUpdated();
+                $component->partiallyRender();
+            });
     }
 
     /**
@@ -73,6 +148,59 @@ class PageBlocks
                 self::visibility(),
             ])
             ->columns(1);
+    }
+
+    /**
+     * Prose beside a picture — an "Our mission" or "Who we serve" section, a
+     * feature explained next to a photo. The image sits left or right of the
+     * text; with no image it falls back to full-width prose.
+     */
+    private static function mediaText(): Builder\Block
+    {
+        return Builder\Block::make('media_text')
+            ->label('Text with image')
+            ->icon(Heroicon::OutlinedPhoto)
+            ->schema([
+                TextInput::make('heading')
+                    ->label('Heading')
+                    ->maxLength(255)
+                    ->placeholder('Optional'),
+
+                RichEditor::make('body')
+                    ->label('Text')
+                    ->required()
+                    ->toolbarButtons(['bold', 'italic', 'link', 'bulletList', 'orderedList', 'h3', 'blockquote', 'undo', 'redo'])
+                    ->columnSpanFull(),
+
+                FileUpload::make('image')
+                    ->label('Image')
+                    ->image()
+                    ->disk('public')
+                    ->directory('pages')
+                    ->visibility('public')
+                    ->imageEditor()
+                    ->maxSize(5120)
+                    ->helperText('Shown beside the text. Recommended ~940×628. Leave empty for full-width text.'),
+
+                Select::make('image_position')
+                    ->label('Image position')
+                    ->options([
+                        'right' => 'Right of the text',
+                        'left' => 'Left of the text',
+                    ])
+                    ->default('right')
+                    ->native(false),
+
+                TextInput::make('image_alt')
+                    ->label('Image description')
+                    ->maxLength(255)
+                    // WCAG AA (§9): a marketing image still needs a text alternative
+                    // for screen readers and for when it fails to load.
+                    ->helperText('Describes the image for screen readers and if it cannot load.'),
+
+                self::visibility(),
+            ])
+            ->columns(2);
     }
 
     /** The band at the top of a landing page. */

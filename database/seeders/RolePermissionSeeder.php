@@ -72,6 +72,9 @@ class RolePermissionSeeder extends Seeder
                     'webinar', 'package', 'speaker', 'industry', 'accreditation',
                     'page', 'post', 'comment', 'navigation', 'redirect', 'seo_meta', 'media',
                 ]),
+                // Core pages are a fixed set — edited, never created or deleted,
+                // so view and update only.
+                ...PermissionCatalogue::readFor(['core_page']), 'update_core_page',
                 'moderate_comment',
                 // Brand and Catalogue settings: logos, the promo bar and the
                 // wording beside what is sold. Deliberately not Commerce or

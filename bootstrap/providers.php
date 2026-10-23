@@ -7,6 +7,7 @@ return [
     // Must come after the framework's RoutingServiceProvider so our url binding
     // is the last word; app providers always do.
     App\Providers\UrlServiceProvider::class,
+    App\Providers\MigrationServiceProvider::class,
     App\Providers\Filament\AdminPanelProvider::class,
     App\Providers\Filament\AccountPanelProvider::class,
 ];
