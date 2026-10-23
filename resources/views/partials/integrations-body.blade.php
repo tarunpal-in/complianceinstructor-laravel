@@ -11,11 +11,25 @@
     use App\Support\Integrations;
     $gtm = Integrations::gtmId();
     $tawk = Integrations::tawkToId();
+    $fbPixel = Integrations::facebookPixelId();
+    $linkedIn = Integrations::linkedInPartnerId();
 @endphp
 
 @if ($gtm)
     <noscript><iframe src="https://www.googletagmanager.com/ns.html?id={{ $gtm }}"
         height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+@endif
+
+@if ($fbPixel)
+    {{-- Meta Pixel no-script fallback --}}
+    <noscript><img height="1" width="1" style="display:none"
+        src="https://www.facebook.com/tr?id={{ $fbPixel }}&ev=PageView&noscript=1" alt=""></noscript>
+@endif
+
+@if ($linkedIn)
+    {{-- LinkedIn Insight Tag no-script fallback --}}
+    <noscript><img height="1" width="1" style="display:none;"
+        src="https://px.ads.linkedin.com/collect/?pid={{ $linkedIn }}&fmt=gif" alt=""></noscript>
 @endif
 
 @if ($tawk)

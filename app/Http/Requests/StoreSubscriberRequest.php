@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Rules\Recaptcha;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -25,13 +26,16 @@ class StoreSubscriberRequest extends FormRequest
         return true;
     }
 
-    /** @return array<string, array<int, string>|string> */
+    /** @return array<string, array<int, string|\Illuminate\Contracts\Validation\ValidationRule>|string> */
     public function rules(): array
     {
         return [
             'email' => ['required', 'email:rfc', 'max:255'],
             'name' => ['nullable', 'string', 'max:255'],
             self::TRAP_FIELD => ['nullable', 'prohibited'],
+            // Only enforced once the client sets reCAPTCHA keys — the rule passes
+            // through until then, and the field is absent when it is off.
+            'recaptcha_token' => [new Recaptcha('newsletter')],
         ];
     }
 

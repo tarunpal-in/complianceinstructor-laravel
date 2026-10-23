@@ -6,6 +6,7 @@ namespace App\Livewire;
 
 use App\Actions\Inquiries\RecordInquiry;
 use App\Enums\InquirySource;
+use App\Support\Recaptcha;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Component;
@@ -44,6 +45,9 @@ class ContactForm extends Component
 
     public bool $sent = false;
 
+    /** reCAPTCHA v3 token, kept fresh by the view when reCAPTCHA is configured. */
+    public string $recaptchaToken = '';
+
     public function mount(): void
     {
         $this->formHeading ??= 'Send us a message';
@@ -69,6 +73,14 @@ class ContactForm extends Component
             'subject' => ['nullable', 'string', 'max:255'],
             'message' => ['required', 'string', 'max:5000'],
         ]);
+
+        // Passes through until the client sets reCAPTCHA keys; then a low-scoring
+        // or missing token is refused here (on top of the rate limit above).
+        if (! Recaptcha::verify($this->recaptchaToken, 'contact')) {
+            $this->addError('message', 'We could not verify that you are human. Please try again.');
+
+            return;
+        }
 
         RateLimiter::hit($key, decaySeconds: 600);
 

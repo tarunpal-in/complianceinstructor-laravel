@@ -24,6 +24,7 @@
 
             <form method="POST" action="{{ route('newsletter.store') }}">
                 @csrf
+                <x-recaptcha-token action="newsletter" />
 
                 {{-- The honeypot. Hidden from people, filled in by scripts
                      walking the DOM — same trap as the comment form. --}}

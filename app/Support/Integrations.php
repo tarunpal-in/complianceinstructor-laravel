@@ -53,13 +53,57 @@ final class Integrations
         return preg_match('#^[A-Za-z0-9]+/[A-Za-z0-9]+$#', $value) === 1 ? $value : null;
     }
 
+    /** The numeric Meta (Facebook) Pixel id, or null. */
+    public static function facebookPixelId(): ?string
+    {
+        return self::matching('integrations.facebook_pixel_id', '/^[0-9]{8,20}$/');
+    }
+
+    /** AW-XXXXXXXXX Google Ads tag, or null. Ignored when GTM manages the tags. */
+    public static function googleAdsId(): ?string
+    {
+        if (self::gtmId() !== null) {
+            return null;
+        }
+
+        return self::matching('integrations.google_ads_id', '/^AW-[A-Z0-9]+$/i');
+    }
+
+    /** The numeric LinkedIn Insight Tag partner id, or null. */
+    public static function linkedInPartnerId(): ?string
+    {
+        return self::matching('integrations.linkedin_partner_id', '/^[0-9]{4,15}$/');
+    }
+
+    /** The reCAPTCHA v3 site key (public, loaded in the page), or null. */
+    public static function recaptchaSiteKey(): ?string
+    {
+        return self::matching('integrations.recaptcha_site_key', '/^[A-Za-z0-9_-]{20,100}$/');
+    }
+
+    /** The reCAPTCHA v3 secret key (server-side only), or null. */
+    public static function recaptchaSecretKey(): ?string
+    {
+        return self::matching('integrations.recaptcha_secret_key', '/^[A-Za-z0-9_-]{20,100}$/');
+    }
+
+    /** reCAPTCHA is active only when both keys are present and valid. */
+    public static function recaptchaConfigured(): bool
+    {
+        return self::recaptchaSiteKey() !== null && self::recaptchaSecretKey() !== null;
+    }
+
     /** Whether anything at all needs rendering, so the partials can bail early. */
     public static function any(): bool
     {
         return self::gtmId() !== null
             || self::ga4Id() !== null
             || self::searchConsoleCode() !== null
-            || self::tawkToId() !== null;
+            || self::tawkToId() !== null
+            || self::facebookPixelId() !== null
+            || self::googleAdsId() !== null
+            || self::linkedInPartnerId() !== null
+            || self::recaptchaSiteKey() !== null;
     }
 
     private static function matching(string $key, string $pattern): ?string

@@ -9,6 +9,24 @@
         <h3 class="pb-cf-heading">{{ $formHeading }}</h3>
 
         <form wire:submit="submit" class="pb-cf-form">
+            @if (\App\Support\Integrations::recaptchaSiteKey())
+                {{-- Keeps a fresh reCAPTCHA v3 token on the component, so submit()
+                     can verify it. Renders only when the client has set the key. --}}
+                <div x-data x-init="
+                    (function () {
+                        var site = @js(\App\Support\Integrations::recaptchaSiteKey());
+                        var refresh = function () {
+                            if (typeof grecaptcha === 'undefined') { return; }
+                            grecaptcha.ready(function () {
+                                grecaptcha.execute(site, { action: 'contact' }).then(function (t) { $wire.set('recaptchaToken', t, false); });
+                            });
+                        };
+                        refresh();
+                        setInterval(refresh, 110000);
+                    })()
+                "></div>
+            @endif
+
             <div class="pb-cf-row">
                 <label class="pb-cf-field">
                     <span>Name <i>*</i></span>

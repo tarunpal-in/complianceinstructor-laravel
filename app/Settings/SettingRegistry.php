@@ -130,6 +130,54 @@ final class SettingRegistry
                 default: '',
                 help: 'From Tawk.to → Administration → Channels → Chat Widget, the part of the embed URL after embed.tawk.to/ — e.g. 65f0…/1ab2…. The live-chat bubble appears once it is set.',
             ),
+
+            // Paid-marketing tracking. Each fires only once its id is set, so the
+            // client turns tracking on for a campaign by pasting an id — no code.
+            new SettingDefinition(
+                key: 'integrations.facebook_pixel_id',
+                group: SettingGroup::Integrations,
+                label: 'Meta (Facebook) Pixel ID',
+                type: 'string',
+                default: '',
+                help: 'The numeric Pixel ID from Meta Events Manager. Fires page-view events for Facebook and Instagram ad tracking once it is set.',
+                maxLength: 32,
+            ),
+            new SettingDefinition(
+                key: 'integrations.google_ads_id',
+                group: SettingGroup::Integrations,
+                label: 'Google Ads tag ID',
+                type: 'string',
+                default: '',
+                help: 'Begins with AW-. From Google Ads → Tools → Google tag. Enables conversion tracking for Google Ads. Leave blank if you manage tags through Tag Manager above.',
+                maxLength: 20,
+            ),
+            new SettingDefinition(
+                key: 'integrations.linkedin_partner_id',
+                group: SettingGroup::Integrations,
+                label: 'LinkedIn Insight Tag partner ID',
+                type: 'string',
+                default: '',
+                help: 'The numeric Partner ID from LinkedIn Campaign Manager → Insight Tag. Tracks conversions and builds audiences for LinkedIn ads once it is set.',
+                maxLength: 20,
+            ),
+            new SettingDefinition(
+                key: 'integrations.recaptcha_site_key',
+                group: SettingGroup::Integrations,
+                label: 'reCAPTCHA v3 site key',
+                type: 'string',
+                default: '',
+                help: 'From the Google reCAPTCHA admin (v3). The public key, loaded in the page to protect the public forms (contact, newsletter) from spam. Set both keys to turn it on.',
+                maxLength: 100,
+            ),
+            new SettingDefinition(
+                key: 'integrations.recaptcha_secret_key',
+                group: SettingGroup::Integrations,
+                label: 'reCAPTCHA v3 secret key',
+                type: 'string',
+                default: '',
+                help: 'From the Google reCAPTCHA admin (v3). The secret key — used only on the server to verify submissions, never sent to the browser.',
+                maxLength: 100,
+            ),
         ];
     }
 
