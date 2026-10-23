@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\CorePageKey;
+use App\Models\CorePage;
 use App\Models\Industry;
 use App\Seo\Seo;
 use Illuminate\View\View;
@@ -19,6 +21,38 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
  */
 class IndustryController extends Controller
 {
+    /**
+     * The industries listing — a hero (editable via Core Pages) over a grid of
+     * active industries, each linking to its own landing page.
+     */
+    public function index(): View
+    {
+        $corePage = CorePage::for(CorePageKey::Industries);
+
+        $industries = Industry::query()
+            ->where('is_active', true)
+            ->withCount(['webinars' => fn ($query) => $query->public()])
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (Industry $industry): array => [
+                'name' => $industry->name,
+                'slug' => $industry->slug,
+                'count' => (int) ($industry->webinars_count ?? 0),
+                // A real card image if the industry has one, else the component
+                // falls back to the comp's default asset.
+                'image_url' => ($url = $industry->getFirstMediaUrl('card')) !== '' ? $url : null,
+                'image' => 'seminar',
+            ])
+            ->all();
+
+        return view('industries.index', [
+            'seo' => $corePage ? Seo::for($corePage) : Seo::site('Industries'),
+            'corePage' => $corePage,
+            'industries' => $industries,
+        ]);
+    }
+
     public function show(Industry $industry): View
     {
         if (! $industry->is_active) {

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\CorePageKey;
 use App\Models\Accreditation;
+use App\Models\CorePage;
 use App\Models\Industry;
 use App\Models\Speaker;
 use App\Seo\Seo;
@@ -60,12 +62,13 @@ class SpeakerController extends Controller
                 ->orderByDesc('webinars_count')->orderBy('name'))
             ->get();
 
+        $corePage = CorePage::for(CorePageKey::Speakers);
+
         return view('speakers.index', [
-            'seo' => Seo::site(
-                'Speakers',
-                'Every Compliance Instructor speaker is a working practitioner — an attorney, CPA, '
-                .'certified HR professional or regulatory specialist with real-world authority in their field.',
-            ),
+            // SEO from the editable core page (hero fallbacks when the SEO fields
+            // are blank); a site default only if the row is somehow missing.
+            'seo' => $corePage ? Seo::for($corePage) : Seo::site('Speakers'),
+            'corePage' => $corePage,
             'speakers' => $speakers,
             'topics' => Industry::query()->where('is_active', true)->orderBy('name')->get(),
             'credits' => Accreditation::query()->where('is_active', true)->orderBy('code')->get(),

@@ -44,6 +44,7 @@ Route::get('/sitemap.xml', App\Http\Controllers\SitemapController::class)->name(
  */
 Route::get('/webinars', [App\Http\Controllers\CatalogueController::class, 'index'])->name('webinars.index');
 Route::get('/webinars/{webinar:slug}', WebinarController::class)->name('webinars.show');
+Route::get('/industries', [App\Http\Controllers\IndustryController::class, 'index'])->name('industries.index');
 Route::get('/industry/{industry:slug}', [App\Http\Controllers\IndustryController::class, 'show'])->name('industries.show');
 
 /*
@@ -53,6 +54,10 @@ Route::get('/industry/{industry:slug}', [App\Http\Controllers\IndustryController
  * so a marketing page cannot shadow it. The profile route sits after the index
  * so `/speakers` is the list, not a profile whose slug happens to be empty.
  */
+// Contact is a core page (§6), so it has an explicit route above the /{slug}
+// page catch-all rather than being a page-builder page.
+Route::get('/contact', App\Http\Controllers\ContactController::class)->name('contact');
+
 Route::get('/speakers', [SpeakerController::class, 'index'])->name('speakers.index');
 Route::get('/speakers/{speaker:slug}', [SpeakerController::class, 'show'])->name('speakers.show');
 
@@ -169,6 +174,12 @@ Route::get('/learning/{webinar:slug}/{format}', [App\Http\Controllers\LearningAc
 Route::get('/learning/{webinar:slug}/{format}/watch', [App\Http\Controllers\LearningAccessController::class, 'watch'])
     ->middleware('auth')->name('learning.watch');
 
+// Playback-progress reports from that player, so a recorded webinar's
+// watch-through certificate issues the moment the rule is met (§8). Throttled,
+// and access-checked inside the action, not trusted from the player.
+Route::post('/learning/{webinar:slug}/watch/progress', [App\Http\Controllers\LearningAccessController::class, 'progress'])
+    ->middleware(['auth', 'throttle:cart'])->name('learning.watch.progress');
+
 /*
  * The invoice PDF — §8 / §9. `signed` is the whole gate: a guest buyer has no
  * login, so an unexpired signed link (handed out only by the confirmation email
@@ -255,6 +266,13 @@ Route::get('/preview/{page}', PagePreviewController::class)
 Route::post('/newsletter', [MailingListController::class, 'store'])
     ->middleware('throttle:comments')
     ->name('newsletter.store');
+
+// Self-service opt-out from the footer. Does not unsubscribe on the spot — it
+// emails the address its signed unsubscribe link — so typing a stranger's
+// address can neither take them off the list nor reveal whether they are on it.
+Route::post('/mailing-list/unsubscribe-request', [MailingListController::class, 'requestUnsubscribe'])
+    ->middleware('throttle:comments')
+    ->name('mailing-list.unsubscribe.request');
 
 Route::get('/mailing-list/confirm/{subscriber}', [MailingListController::class, 'confirm'])
     ->middleware('signed')

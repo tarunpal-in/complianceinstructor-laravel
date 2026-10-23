@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire;
 
+use App\Enums\OrderStatus;
 use App\Enums\WebinarStatus;
 use App\Enums\WebinarType;
 use App\Models\Accreditation;
@@ -11,8 +12,10 @@ use App\Models\Industry;
 use App\Models\Webinar;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Livewire\Attributes\Url;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 /**
  * The public webinar catalogue — CLAUDE.md §6 / §7 P2 ("catalogue with Livewire
@@ -28,6 +31,11 @@ use Livewire\Component;
  */
 class WebinarCatalogue extends Component
 {
+    use WithPagination;
+
+    /** Cards per page — three full rows of the four-column grid. */
+    private const PER_PAGE = 12;
+
     /** Preset by the industry page; its topic is checked on first load. */
     public ?string $industrySlug = null;
 
@@ -49,7 +57,7 @@ class WebinarCatalogue extends Component
     public ?int $maxPrice = null;
 
     #[Url(as: 'sort')]
-    public string $sort = 'popular';
+    public string $sort = 'newest';
 
     /** Free-text search, set from the header search box (?q=…). */
     #[Url(as: 'q')]
@@ -62,9 +70,31 @@ class WebinarCatalogue extends Component
         }
     }
 
+    /**
+     * Our own high-contrast pager instead of livewire::tailwind, whose `dark:`
+     * variants render dark pills on this fixed-light site under OS dark-mode.
+     */
+    public function paginationView(): string
+    {
+        return 'pagination.catalogue';
+    }
+
     public function clearFilters(): void
     {
         $this->reset(['type', 'topics', 'credits', 'duration', 'maxPrice', 'sort', 'q']);
+        $this->resetPage();
+    }
+
+    /**
+     * Any filter or sort change returns to page one — otherwise a narrower
+     * result set could leave the viewer stranded on a page that no longer
+     * exists, staring at an empty grid.
+     */
+    public function updated(string $property): void
+    {
+        if ($property !== 'page') {
+            $this->resetPage();
+        }
     }
 
     public function render(): View
@@ -86,12 +116,12 @@ class WebinarCatalogue extends Component
             'industries' => $industries,
             'accreditations' => $accreditations,
             'webinars' => $webinars,
-            'total' => $webinars->count(),
+            'total' => $webinars->total(),
         ]);
     }
 
-    /** @return \Illuminate\Database\Eloquent\Collection<int, Webinar> */
-    private function results()
+    /** @return LengthAwarePaginator<int, Webinar> */
+    private function results(): LengthAwarePaginator
     {
         $query = Webinar::query()
             ->public()
@@ -144,7 +174,7 @@ class WebinarCatalogue extends Component
 
         $this->applySort($query);
 
-        return $query->limit(60)->get();
+        return $query->paginate(self::PER_PAGE);
     }
 
     /** @param  Builder<Webinar>  $query */
@@ -152,10 +182,21 @@ class WebinarCatalogue extends Component
     {
         match ($this->sort) {
             'soonest' => $query->orderByRaw('scheduled_at is null, scheduled_at asc'),
-            'newest' => $query->orderByDesc('created_at'),
-            // "Most popular" has no metric yet, so it is the sensible default:
-            // upcoming sessions first, then the rest by recency.
-            default => $query->orderByRaw('scheduled_at is null, scheduled_at asc')->orderByDesc('id'),
+            // Most popular by real sales: how many times the webinar has been
+            // bought on a settled order — the same Paid/PartiallyRefunded set as
+            // Order::scopeSettled, inlined here because the scope cannot be typed
+            // through a nested whereHas closure. Most first; ties and never-sold
+            // webinars fall back to newest session first.
+            'popular' => $query
+                ->withCount(['orderItems as purchases_count' => fn (Builder $items) => $items->whereHas('order', fn (Builder $order) => $order->whereIn('status', [OrderStatus::Paid->value, OrderStatus::PartiallyRefunded->value]))])
+                ->orderByDesc('purchases_count')
+                ->orderByRaw('scheduled_at is null, scheduled_at desc')
+                ->orderByDesc('id'),
+            // "Newest" and the default both order by the session date, not
+            // created_at: every imported webinar shares one import timestamp, so
+            // created_at cannot order them — the session date is the real measure
+            // of how recent one is. The catalogue must not open on 2021.
+            default => $query->orderByRaw('scheduled_at is null, scheduled_at desc')->orderByDesc('id'),
         };
     }
 }

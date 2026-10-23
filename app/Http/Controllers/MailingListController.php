@@ -7,11 +7,14 @@ namespace App\Http\Controllers;
 use App\Actions\Subscribers\ConfirmSubscription;
 use App\Actions\Subscribers\Subscribe;
 use App\Actions\Subscribers\Unsubscribe;
+use App\Email\Dispatcher;
 use App\Enums\SubscriberSource;
 use App\Http\Requests\StoreSubscriberRequest;
+use App\Mail\UnsubscribeLink;
 use App\Models\Subscriber;
 use App\Seo\Seo;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 /**
@@ -43,6 +46,27 @@ class MailingListController extends Controller
         return back()->with('mailing_list_status', $subscriber->isAwaitingConfirmation()
             ? 'Almost there — check your inbox for a confirmation link.'
             : 'Thanks. You are on the list.');
+    }
+
+    /**
+     * The footer "Unsubscribe" button.
+     *
+     * Emails the address its own signed opt-out link rather than removing it on
+     * sight — mirroring the double opt-in on the way in. Typing a stranger's
+     * address therefore cannot take them off the list, and the answer is the
+     * same whether or not the address is on it, so the box never reveals who is
+     * subscribed (the enumeration guard that store() carries too).
+     */
+    public function requestUnsubscribe(StoreSubscriberRequest $request, Dispatcher $dispatcher): RedirectResponse
+    {
+        $email = Str::lower(trim((string) $request->validated('email')));
+        $subscriber = Subscriber::query()->where('email', $email)->first();
+
+        if ($subscriber !== null && $subscriber->isMailable()) {
+            $dispatcher->send(new UnsubscribeLink($subscriber));
+        }
+
+        return back()->with('mailing_list_status', 'If that address is on our list, we have emailed you a link to confirm unsubscribing.');
     }
 
     /** The double opt-in link. */

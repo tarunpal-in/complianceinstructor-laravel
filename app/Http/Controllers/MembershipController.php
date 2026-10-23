@@ -8,7 +8,9 @@ use App\Actions\Memberships\CancelSubscription;
 use App\Actions\Memberships\ChangePlan;
 use App\Actions\Memberships\ResumeSubscription;
 use App\Actions\Memberships\StartSubscription;
+use App\Enums\CorePageKey;
 use App\Enums\Format;
+use App\Models\CorePage;
 use App\Models\MembershipPlan;
 use App\Models\Subscription;
 use App\Models\User;
@@ -34,11 +36,11 @@ class MembershipController extends Controller
     /** The pricing page: every active plan, with the allowances it grants. */
     public function index(): View
     {
+        $corePage = CorePage::for(CorePageKey::Membership);
+
         return view('membership.index', [
-            'seo' => Seo::site(
-                'Membership Plans',
-                'Join a Compliance Instructor membership and get continuing-education webinars, recordings and transcripts at a plan price that fits your team.',
-            ),
+            'seo' => $corePage ? Seo::for($corePage) : Seo::site('Membership Plans'),
+            'corePage' => $corePage,
             'plans' => MembershipPlan::query()->active()->with('entitlements')->get(),
         ]);
     }

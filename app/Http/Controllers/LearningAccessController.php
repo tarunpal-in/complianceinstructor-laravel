@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Actions\Certificates\GenerateCertificatePdf;
+use App\Actions\Webinars\RecordWatchProgress;
 use App\Enums\Format;
 use App\Models\Certificate;
 use App\Models\Entitlement;
@@ -12,8 +14,12 @@ use App\Models\Webinar;
 use App\Models\WebinarAsset;
 use App\Models\WebinarHandout;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
+use Spatie\LaravelPdf\PdfBuilder;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
@@ -81,6 +87,34 @@ class LearningAccessController extends Controller
     }
 
     /**
+     * A playback-progress report from the in-site recording player.
+     *
+     * Posted every ~30 seconds and on finish, so a recorded webinar's
+     * watch-through certificate issues the moment the rule is met (§8). The
+     * action owns the only access check — an entitlement to watch — so a report
+     * aimed straight at this endpoint for a webinar the learner never bought is
+     * refused there, never trusted from the page that rendered the player.
+     */
+    public function progress(Request $request, Webinar $webinar, RecordWatchProgress $record): JsonResponse
+    {
+        $data = $request->validate([
+            'position' => ['required', 'integer', 'min:0'],
+            'watched' => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        /** @var User $learner */
+        $learner = $request->user();
+
+        try {
+            $view = $record($learner, $webinar, (int) $data['position'], (int) ($data['watched'] ?? 0));
+        } catch (RuntimeException) {
+            abort(403);
+        }
+
+        return response()->json(['completed' => $view->completed_at !== null]);
+    }
+
+    /**
      * A study-material file. Handouts accompany every format, so any active
      * entitlement for the webinar — live, recorded, transcript or download —
      * opens them. Served through a signed, expiring URL (§9), never the path.
@@ -112,25 +146,25 @@ class LearningAccessController extends Controller
      * A learner's own CEU certificate PDF — §8 #4 / §9.
      *
      * Owner-scoped: a certificate is personal, so another member's is a 403, not
-     * a 404 that leaks that it exists. Revoked, or not yet rendered (PDF
-     * generation is P8), there is nothing to hand over — a 404. Served through a
-     * signed, expiring URL on the private disk, never the stored path.
+     * a 404 that leaks that it exists; a revoked one is a 404, there being
+     * nothing to hand over. Rendered on demand from the frozen record, like the
+     * invoice, so there is no stored file to guess at. The auth checks run before
+     * the render, so they are exercised in tests while Browsershot is not (§10).
      */
-    public function certificate(Certificate $certificate): RedirectResponse
+    public function certificate(Certificate $certificate): PdfBuilder
     {
         /** @var User $user */
         $user = auth()->user();
 
         abort_unless($certificate->user_id === $user->getKey(), 403);
 
-        if ($certificate->isRevoked() || ! $certificate->hasPdf()) {
+        if ($certificate->isRevoked()) {
             throw new NotFoundHttpException;
         }
 
-        return redirect()->to(
-            Storage::disk(config('filesystems.webinar_assets'))
-                ->temporaryUrl((string) $certificate->pdf_path, now()->addMinutes(10)),
-        );
+        $certificates = app(GenerateCertificatePdf::class);
+
+        return $certificates->pdf($certificate)->download($certificates->filename($certificate));
     }
 
     /**

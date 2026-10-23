@@ -84,6 +84,9 @@ trait AuthenticatesCustomers
             'password' => ['required', 'string', 'confirmed', PasswordRule::defaults()],
         ]);
 
+        // Sign-up stays short on purpose: just the account. The buyer's company,
+        // phone and billing address are captured at checkout (BillingDetails) and
+        // frozen onto the order, so nothing extra is asked of them to register.
         $user = new User([
             'name' => $data['name'],
             'email' => $data['email'],

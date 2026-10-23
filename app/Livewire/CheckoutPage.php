@@ -8,6 +8,7 @@ use App\Actions\Coupons\ValidateCoupon;
 use App\Actions\Orders\PlaceOrder;
 use App\Cart\CartManager;
 use App\Checkout\BillingDetails;
+use App\Enums\PaymentGateway;
 use App\Models\Cart;
 use App\Models\Coupon;
 use App\Models\Order;
@@ -15,6 +16,7 @@ use App\Models\OrderItem;
 use App\Models\OrderItemFormat;
 use App\Models\Webinar;
 use App\Support\Countries;
+use App\Support\PaymentGateways;
 use Illuminate\Contracts\View\View;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
@@ -38,6 +40,8 @@ class CheckoutPage extends Component
 
     public string $email = '';
 
+    public string $phone = '';
+
     public string $jobTitle = '';
 
     public string $company = '';
@@ -56,6 +60,9 @@ class CheckoutPage extends Component
 
     /** @var array<int, array{name: string, email: string}> */
     public array $attendees = [];
+
+    /** The most attendees the order can have — total seats across its lines. */
+    public int $maxAttendees = 1;
 
     public string $couponCode = '';
 
@@ -89,6 +96,12 @@ class CheckoutPage extends Component
 
         $this->name = (string) $user->name;
         $this->email = (string) $user->email;
+
+        // Default to the first payment option actually offered, so a disabled
+        // option (e.g. a turned-off gateway) never starts selected.
+        if (($default = PaymentGateways::defaultOption()) !== null) {
+            $this->gateway = $default;
+        }
 
         $this->seedAttendees($cart);
     }
@@ -148,6 +161,7 @@ class CheckoutPage extends Component
         $this->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
+            'phone' => ['required', 'string', 'max:50'],
             'jobTitle' => ['required', 'string', 'max:255'],
             'company' => ['nullable', 'string', 'max:255'],
             'addressLine1' => ['required', 'string', 'max:255'],
@@ -158,7 +172,9 @@ class CheckoutPage extends Component
             'country' => ['required', 'string', Rule::in(Countries::names())],
             'attendees.*.name' => ['required', 'string', 'max:255'],
             'attendees.*.email' => ['required', 'email', 'max:255'],
-            'gateway' => ['required', 'in:paypal,stripe'],
+            // Only a gateway that is switched on may be posted — a disabled
+            // gateway cannot be selected in the form or smuggled past it.
+            'gateway' => ['required', Rule::in(PaymentGateways::enabledValues())],
         ], attributes: [
             'jobTitle' => 'job title',
             'addressLine1' => 'address',
@@ -185,6 +201,7 @@ class CheckoutPage extends Component
                     city: $this->blankToNull($this->city),
                     region: $this->blankToNull($this->region),
                     postalCode: $this->blankToNull($this->postalCode),
+                    phone: $this->blankToNull($this->phone),
                 ),
                 auth()->user(),
                 $this->appliedCoupon,
@@ -201,8 +218,17 @@ class CheckoutPage extends Component
         }
 
         // The order is Pending; the cart stays until payment succeeds, so a
-        // visitor who abandons payment keeps their cart. On to the gateway.
-        session(['recent_order_id' => $order->getKey(), 'checkout_gateway' => $this->gateway]);
+        // visitor who abandons payment keeps their cart. On to the gateway —
+        // resolve the chosen option to the gateway that captures it (both the
+        // card and PayPal options run through PayPal) plus the funding source
+        // the pay page renders.
+        $gateway = PaymentGateways::optionGateway($this->gateway) ?? PaymentGateway::PayPal;
+
+        session([
+            'recent_order_id' => $order->getKey(),
+            'checkout_gateway' => $gateway->value,
+            'checkout_funding' => PaymentGateways::optionFunding($this->gateway),
+        ]);
 
         return $this->redirectRoute('checkout.pay', ['order' => $order], navigate: true);
     }
@@ -210,6 +236,18 @@ class CheckoutPage extends Component
     public function render(): View
     {
         $cart = app(CartManager::class)->current();
+
+        // Eager-load the summary line images (a webinar's card). Only webinar
+        // lines carry one, and eager so Model::shouldBeStrict() does not trip.
+        $cart->loadMissing(['items.offering.formats', 'items.offering.offerable']);
+        foreach ($cart->items as $item) {
+            $offerable = $item->offering?->offerable;
+
+            if ($offerable instanceof Webinar) {
+                $offerable->loadMissing('cardMedia');
+            }
+        }
+
         $subtotal = $cart->subtotalCents();
         $discount = $this->appliedCoupon !== null ? min($this->couponDiscount, $subtotal) : 0;
         $tax = 0;
@@ -240,17 +278,30 @@ class CheckoutPage extends Component
 
     private function seedAttendees(Cart $cart): void
     {
-        $seats = (int) $cart->items
+        // Total seats the order will create (quantity × seats per unit) — the cap
+        // on how many attendees may be named. PlaceOrder falls any unnamed seat
+        // back to the buyer, so only the buyer's own seat is shown up front and
+        // the rest are added on demand.
+        $this->maxAttendees = max(1, (int) $cart->items
             ->filter(fn ($item): bool => $item->isAvailable())
-            ->sum(fn ($item): int => $item->quantity * (int) $item->offering->seats_per_unit);
+            ->sum(fn ($item): int => $item->quantity * (int) $item->offering->seats_per_unit));
 
-        $this->attendees = [];
+        $this->attendees = [['name' => $this->name, 'email' => $this->email]];
+    }
 
-        for ($seat = 0; $seat < $seats; $seat++) {
-            // The first seat is the buyer's by default; the rest are captured.
-            $this->attendees[$seat] = $seat === 0
-                ? ['name' => $this->name, 'email' => $this->email]
-                : ['name' => '', 'email' => ''];
+    public function addAttendee(): void
+    {
+        if (count($this->attendees) < $this->maxAttendees) {
+            $this->attendees[] = ['name' => '', 'email' => ''];
+        }
+    }
+
+    public function removeAttendee(int $index): void
+    {
+        // Seat 1 is the buyer's and always stays; only added seats can go.
+        if ($index > 0 && isset($this->attendees[$index])) {
+            unset($this->attendees[$index]);
+            $this->attendees = array_values($this->attendees);
         }
     }
 
@@ -262,14 +313,20 @@ class CheckoutPage extends Component
     {
         $cart = app(CartManager::class)->current();
 
+        // Add-on-adjusted unit prices — the same basis Cart::subtotalCents() and
+        // PlaceOrder use — so a coupon previews against the amount actually
+        // charged, not the higher standalone prices (which would show a discount
+        // and total that disagree with the order).
+        $prices = $cart->effectiveUnitPrices();
+
         $order = new Order(['currency' => $cart->currency, 'user_id' => auth()->id()]);
 
         $items = $cart->items
             ->filter(fn ($item): bool => $item->isAvailable())
-            ->map(function ($item): OrderItem {
+            ->map(function ($item) use ($prices): OrderItem {
                 $offering = $item->offering;
                 $webinar = $offering->offerable instanceof Webinar ? $offering->offerable : null;
-                $price = $offering->priceCents();
+                $price = $prices[$item->id] ?? $offering->priceCents();
 
                 $orderItem = new OrderItem([
                     'offering_id' => $offering->getKey(),

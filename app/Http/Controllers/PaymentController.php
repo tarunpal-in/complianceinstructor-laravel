@@ -44,6 +44,9 @@ class PaymentController extends Controller
             'seo' => Seo::site('Payment', robots: 'noindex, nofollow'),
             'order' => $order,
             'gateway' => $this->chosenGateway(),
+            // 'card' or 'paypal' for the PayPal flow — which PayPal button the
+            // pay page renders. Empty for a direct visit or the Stripe backup.
+            'funding' => (string) session('checkout_funding', ''),
         ]);
     }
 
@@ -53,6 +56,13 @@ class PaymentController extends Controller
         $this->authorizeOrder($order);
 
         $gateway = $this->gatewayFrom($request);
+
+        // Switched off in admin (or never on): refused server-side, not only
+        // hidden from the checkout form.
+        if (! \App\Support\PaymentGateways::isEnabled($gateway)) {
+            return response()->json(['error' => $gateway->label().' is not available right now.'], 422);
+        }
+
         $driver = app(\App\Payments\PaymentGatewayManager::class)->driver($gateway);
 
         if (! $driver->isConfigured()) {
@@ -80,6 +90,16 @@ class PaymentController extends Controller
         }
 
         $gateway = $this->gatewayFrom($request);
+
+        // Same server-side gate as start(): never capture through a gateway that
+        // is switched off. This is what stops a request selecting `manual` —
+        // which has no enabled key and whose driver would otherwise report a
+        // free capture as succeeded — to fake a paid order (§9 free-order
+        // bypass / §14 #2: fulfilment must follow a real gateway payment).
+        if (! \App\Support\PaymentGateways::isEnabled($gateway)) {
+            return response()->json(['error' => 'That payment method is not available.'], 422);
+        }
+
         $driver = app(\App\Payments\PaymentGatewayManager::class)->driver($gateway);
 
         $payment = $record($order, $gateway, $driver->capture($order, $reference));
@@ -111,11 +131,19 @@ class PaymentController extends Controller
     private function gatewayFrom(Request $request): PaymentGateway
     {
         return PaymentGateway::tryFrom((string) $request->input('gateway', $this->chosenGateway()->value))
-            ?? PaymentGateway::PayPal;
+            ?? $this->chosenGateway();
     }
 
     private function chosenGateway(): PaymentGateway
     {
-        return PaymentGateway::tryFrom((string) session('checkout_gateway', 'paypal')) ?? PaymentGateway::PayPal;
+        $chosen = PaymentGateway::tryFrom((string) session('checkout_gateway'));
+
+        // Honour the buyer's choice only while it is still switched on — an admin
+        // may have disabled it between placing and paying.
+        if ($chosen !== null && \App\Support\PaymentGateways::isEnabled($chosen)) {
+            return $chosen;
+        }
+
+        return \App\Support\PaymentGateways::defaultGateway() ?? PaymentGateway::PayPal;
     }
 }
