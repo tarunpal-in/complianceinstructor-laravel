@@ -1,674 +1,340 @@
-# Deploying to staging — GitHub → Ubuntu 24.04 + CloudPanel
+# Deployment — CloudPanel VPS
 
-Runbook for getting this repository onto a staging server. Written against the
-state of the project at the first staging deploy: Laravel 13, PHP 8.3+,
-Filament 5, Vite 8, Horizon, Redis.
+> **Audience:** the developer deploying Compliance Instructor to a Linux VPS running
+> CloudPanel. Two workflows: **Part A** is a first-time (fresh) deploy; **Part B**
+> is pulling updates onto a VPS that already runs the app.
 
-Read §0 before starting. Steps assume you are the server's root user unless a
-step says otherwise.
+## Stack this app needs on the server
 
----
-
-## 0. Before you start
-
-**What you need**
-
-| | |
+| Component | Version / note |
 |---|---|
-| VPS | Ubuntu 24.04 LTS, 4 vCPU / 8 GB to start (CLAUDE.md §11). CloudPanel needs 2 GB minimum; 8 GB gives Redis, MySQL and Horizon room |
-| Domain | A subdomain pointed at the VPS, e.g. `staging.complianceinstructor.com`, A record → server IP |
-| GitHub | An account, and an **empty private repository** |
-| Local | This repo, all work committed |
+| OS | Ubuntu 24.04 LTS (CloudPanel's supported base) |
+| Web / PHP | Nginx + **PHP 8.3** FPM (CloudPanel manages both) |
+| PHP extensions | bcmath, ctype, curl, dom, fileinfo, gd (or imagick), intl, mbstring, pdo_mysql, openssl, zip, exif, **redis** |
+| Database | MySQL 8 (CloudPanel default) |
+| Cache / session / queue | **Redis** (installed via apt, not CloudPanel) |
+| Queue worker | **Horizon** under **Supervisor** |
+| Asset build | **Node 22 LTS** (Vite 8 + Tailwind 4) + Composer 2 |
+| PDFs (certificates/invoices) | Headless **Chromium** for `spatie/laravel-pdf` (Browsershot); `dompdf` is the fallback |
+| Object storage | Cloudflare **R2** (S3-compatible) for media + generated PDFs |
 
-**Two things specific to this project**
-
-1. **`public/build` is git-ignored**, so compiled CSS/JS is not in the
-   repository. Assets are built on the server, which means Node must be
-   installed there. §8 covers moving that into CI later.
-2. **Staging is the first time these migrations run on MySQL 8.** Local
-   development uses XAMPP's MariaDB 10.4; CI runs MySQL 8.4. Any engine
-   difference — JSON column handling, collation, strict-mode rejections — will
-   surface here first. Run §5.6 with the output visible rather than piping it
-   away.
-
-**Never commit `.env`.** It is git-ignored (CLAUDE.md §9) and stays that way.
-Secrets are typed on the server, not pushed.
+Placeholders used below — substitute your own:
+`<domain>` (e.g. `app.complianceinstructor.com`) · `<site-user>` (the CloudPanel site's Linux user) · `<app-dir>` = `/home/<site-user>/htdocs/<domain>` · `<db-name>` / `<db-user>` / `<db-pass>`.
 
 ---
 
-## 1. Push to GitHub
+# Part A — Fresh deployment
 
-### 1.1 Create the repository
+### 1. Create the site in CloudPanel (web UI)
 
-On GitHub: **New repository** → name it `complianceinstructor` → **Private** →
-do **not** add a README, .gitignore or licence. An empty repo avoids a merge on
-first push.
+1. Log in to CloudPanel (`https://<server-ip>:8443`).
+2. **Sites → Add Site → Create a PHP Site.** Domain `<domain>`, **PHP version 8.3**, application `Generic` (we set the Laravel vhost in step 6). CloudPanel creates the Linux user `<site-user>` and the directory `<app-dir>`.
+3. **Databases → Add Database.** Note the generated `<db-name>`, `<db-user>`, `<db-pass>` (host `127.0.0.1`, port `3306`).
+4. **Site → SSL/TLS → Let's Encrypt → Issue** (do this after DNS points at the server; can be done at the end).
 
-### 1.2 Confirm no secrets are staged
-
-`composer ci` now runs this check for you — `app:production-check` fails if `.env`
-is tracked, which is §9's "CI fails on a committed secret". To check by hand:
+### 2. Install server-level dependencies (SSH as root/sudo, once per server)
 
 ```bash
-php artisan app:production-check
-```
-
-Or look directly. It should print nothing:
-
-```bash
-git ls-files | grep -E '^\.env$|\.pem$|\.key$'
-```
-
-If `.env` appears, stop and remove it from tracking:
-
-```bash
-git rm --cached .env && git commit -m "Stop tracking .env"
-```
-
-### 1.3 Add the remote and push
-
-```bash
-git remote add origin git@github.com:<your-account>/complianceinstructor.git
-git push -u origin main
-```
-
-Using SSH (`git@github.com:`) rather than HTTPS means no password prompts on the
-server later. If you do not have an SSH key on GitHub yet, use the HTTPS URL for
-this push and set up a deploy key in §5.2.
-
-### 1.4 Verify
-
-```bash
-git remote -v
-git log origin/main --oneline -1
-```
-
----
-
-## 2. Install CloudPanel
-
-SSH to the server as root.
-
-```bash
-apt update && apt -y upgrade
-```
-
-Install CloudPanel with **MySQL 8** — CLAUDE.md §3 specifies MySQL 8 to match
-the client's hosting, and the default engine differs by installer version, so
-state it explicitly:
-
-```bash
-curl -sS https://installer.cloudpanel.io/ce/v2/install.sh -o install.sh
-echo "a3ba15c8b9c4f1a5e1f1e0e9b0d5ec9a5d1f0b1a2c3d4e5f6a7b8c9d0e1f2a3b  install.sh" | sha256sum -c
-bash install.sh --db-engine=MYSQL_8.0
-```
-
-> The checksum above is illustrative. Take the current one from
-> <https://www.cloudpanel.io/docs/v2/getting-started/installation/> and verify
-> before running — you are piping an installer to a shell as root.
-
-The installer takes a few minutes and reboots nothing. When it finishes it
-prints an admin URL:
-
-```
-https://<server-ip>:8443
-```
-
-Open it, accept the self-signed certificate warning, and create the admin user.
-
-### 2.1 Point the firewall at the right ports
-
-CloudPanel manages its own firewall rules. Confirm 22, 80, 443 and 8443 are
-open:
-
-```bash
-clpctl cloudflare:update:ips   # only if you front the site with Cloudflare
-ufw status
-```
-
----
-
-## 3. Create the site
-
-### 3.1 Add a PHP site
-
-In CloudPanel: **Sites → Add Site → Create a PHP Site**.
-
-| Field | Value |
-|---|---|
-| Domain Name | `staging.complianceinstructor.com` |
-| Vhost Template | **Laravel 12** (or the newest Laravel entry) |
-| PHP Version | **8.3** |
-| Site User | `ci-staging` |
-| Site User Password | generate and store it |
-
-Picking the Laravel template matters: it sets the document root to `public/` and
-adds the `try_files` rule Laravel needs. CLAUDE.md §11 calls out the predecessor
-serving its whole project tree from the web root — the template is what prevents
-that.
-
-Equivalent CLI:
-
-```bash
-clpctl site:add:php \
-  --domainName='staging.complianceinstructor.com' \
-  --phpVersion='8.3' \
-  --vhostTemplate='Laravel 12' \
-  --siteUser='ci-staging' \
-  --siteUserPassword='<generated>'
-```
-
-The site root is now `/home/ci-staging/htdocs/staging.complianceinstructor.com`.
-
-### 3.2 Create the database
-
-**Databases → Add Database**, or:
-
-```bash
-clpctl db:add \
-  --domainName='staging.complianceinstructor.com' \
-  --databaseName='ci_staging' \
-  --databaseUserName='ci_staging' \
-  --databaseUserPassword='<generated>'
-```
-
-Store the name, user and password — §5.3 needs them.
-
-### 3.3 Issue a TLS certificate
-
-DNS must already resolve to the server:
-
-```bash
-clpctl lets-encrypt:install:certificate --domainName='staging.complianceinstructor.com'
-```
-
----
-
-## 4. Server dependencies
-
-CloudPanel gives you Nginx, PHP-FPM and MySQL. Four things this project needs
-that it does not install.
-
-### 4.1 Redis
-
-`.env.example` sets cache, session and queue to Redis (CLAUDE.md §3 — the
-predecessor ran all three on MySQL and hit write contention on launch spikes).
-
-```bash
-apt -y install redis-server
+# Redis
+apt update && apt install -y redis-server
 systemctl enable --now redis-server
-redis-cli ping          # expect: PONG
+
+# PHP 8.3 redis extension (if CloudPanel didn't include it) + verify others
+apt install -y php8.3-redis
+# gd/intl/zip/mbstring/curl/xml/bcmath usually ship with CloudPanel's php8.3; verify:
+php8.3 -m | grep -E 'redis|gd|intl|zip|mbstring|bcmath|exif|pdo_mysql'
+
+# Composer (system-wide)
+curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+
+# Supervisor (runs Horizon)
+apt install -y supervisor && systemctl enable --now supervisor
+
+# Chromium for PDF generation (Browsershot). Skip if you rely on the dompdf fallback.
+apt install -y chromium-browser fonts-liberation
 ```
 
-Bind Redis to localhost only — it must never be reachable from the internet:
+### 3. Install Node 22 for the site user (SSH as `<site-user>`)
+
+CloudPanel does not manage Node, so install it per-user with nvm:
 
 ```bash
-grep -E '^bind|^protected-mode' /etc/redis/redis.conf
-# want: bind 127.0.0.1 -::1
-#       protected-mode yes
+# as <site-user> (CloudPanel → Site → open the SSH/terminal, or: su - <site-user>)
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+source ~/.bashrc
+nvm install 22
+nvm alias default 22
+node -v   # v22.x
 ```
 
-### 4.2 The PHP Redis extension
+### 4. Give the server read access to the private repo
+
+The repo is private, so generate a **deploy key** on the server and add it to GitHub (read-only):
 
 ```bash
-apt -y install php8.3-redis
-systemctl restart php8.3-fpm
-php8.3 -m | grep -x redis     # expect: redis
-```
-
-### 4.3 Supervisor, for Horizon
-
-```bash
-apt -y install supervisor
-systemctl enable --now supervisor
-```
-
-### 4.4 Node, to build assets
-
-Vite 8 needs Node 20.19+ or 22.12+. Node 22 LTS:
-
-```bash
-curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-apt -y install nodejs
-node -v && npm -v
-```
-
-### 4.5 Confirm the PHP extensions Laravel needs
-
-```bash
-php8.3 -m | grep -E '^(pdo_mysql|mbstring|openssl|tokenizer|xml|ctype|bcmath|curl|fileinfo|zip|gd|intl|exif|sodium|redis|pcntl|posix)$' | sort
-```
-
-All sixteen should list. `pcntl` and `posix` are what Horizon needs and what
-Windows cannot provide — this is the first environment where Horizon actually
-runs. Install anything missing with `apt -y install php8.3-<name>`.
-
----
-
-## 5. Deploy the application
-
-**Everything in this section runs as the site user, not root.** Files owned by
-root break PHP-FPM, which runs as `ci-staging`.
-
-```bash
-su - ci-staging
-cd ~/htdocs/staging.complianceinstructor.com
-```
-
-### 5.1 Clear the directory
-
-CloudPanel leaves a placeholder `index.php`:
-
-```bash
-rm -rf ./* ./.??*
-```
-
-### 5.2 Clone
-
-If you pushed over SSH, give the server a deploy key first:
-
-```bash
-ssh-keygen -t ed25519 -C "ci-staging@staging" -f ~/.ssh/id_ed25519 -N ""
+# as <site-user>
+ssh-keygen -t ed25519 -C "cloudpanel-<domain>" -f ~/.ssh/id_ed25519 -N ""
 cat ~/.ssh/id_ed25519.pub
 ```
 
-Add that key to GitHub under **Settings → Deploy keys** on the repository, read-only.
-Then:
+Copy the printed key into **GitHub → repo → Settings → Deploy keys → Add deploy key** (leave *Allow write access* unchecked). Then:
 
 ```bash
-git clone git@github.com:<your-account>/complianceinstructor.git .
+ssh -o StrictHostKeyChecking=accept-new -T git@github.com   # should greet you by username
 ```
 
-(HTTPS with a personal access token also works, but a read-only deploy key is
-narrower — it grants one repository, not your whole account.)
+### 5. Clone the app
 
-### 5.3 Configure the environment
+CloudPanel created `<app-dir>` with an empty web root. Clone into it:
 
 ```bash
+# as <site-user>
+cd /home/<site-user>/htdocs
+rm -rf <domain>            # remove the empty placeholder dir CloudPanel made
+git clone git@github.com:tarunpal-in/complianceinstructor-laravel.git <domain>
+cd <domain>
+git checkout main
+```
+
+### 6. Point the vhost at `public/` (CloudPanel UI → Site → Vhost)
+
+Laravel is served from the `public/` subfolder. In **Site → Vhost**, make sure the `root` and the Laravel rewrite are set:
+
+```nginx
+server {
+  ...
+  root /home/<site-user>/htdocs/<domain>/public;     # <-- the public subfolder
+  index index.php index.html;
+
+  location / {
+    try_files $uri $uri/ /index.php?$query_string;
+  }
+  # CloudPanel's generated PHP-FPM location block (handler, fastcgi_pass) stays as-is.
+  ...
+}
+```
+
+Save — CloudPanel reloads Nginx.
+
+### 7. Environment file
+
+```bash
+# as <site-user>, in <app-dir>
 cp .env.example .env
-nano .env
+chmod 600 .env
+php8.3 artisan key:generate
+nano .env     # fill in the values — see "Appendix A: .env essentials"
 ```
 
-Set at minimum:
-
-```dotenv
-APP_NAME="Compliance Instructor"
-APP_ENV=staging
-APP_DEBUG=false
-APP_URL=https://staging.complianceinstructor.com
-
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=ci_staging
-DB_USERNAME=ci_staging
-DB_PASSWORD=<from 3.2>
-
-CACHE_STORE=redis
-SESSION_DRIVER=redis
-QUEUE_CONNECTION=redis
-REDIS_HOST=127.0.0.1
-REDIS_PORT=6379
-
-MAIL_MAILER=log
-```
-
-`APP_DEBUG=false` is not optional. CLAUDE.md §9 lists the predecessor shipping
-`APP_DEBUG=true` with live credentials as a Critical finding, and §14 #16 bans
-returning exception messages as responses.
-
-`DB_CONNECTION=mysql`, not `mariadb` — local development uses the MariaDB
-driver; the server is MySQL 8.
-
-Leave Stripe, PayPal and Sentry blank until those accounts exist. The setup
-checklist on the admin dashboard tracks them.
-
-### 5.4 Install dependencies
+### 8. Install dependencies and build assets
 
 ```bash
 composer install --no-dev --optimize-autoloader --no-interaction
-```
-
-`--no-dev` omits Pest, Larastan, Pint and Debugbar — none belong on a server.
-
-### 5.5 Generate the application key
-
-```bash
-php artisan key:generate --force
-```
-
-One key per environment. Never copy the local one: it decrypts sessions and any
-encrypted column.
-
-### 5.6 Migrate and seed
-
-This is the step to watch. It is the first run of these migrations on MySQL 8:
-
-```bash
-php artisan migrate --force --seed
-```
-
-CLAUDE.md §11 wants staging carrying seeded data for client review, so `--seed`
-is deliberate. It creates the four roles, the permission set, an admin user and
-the promo bar defaults.
-
-If a migration fails on a MySQL/MariaDB difference, capture the full error — it
-is a real schema bug that would otherwise have surfaced in production.
-
-### 5.7 Build assets
-
-```bash
 npm ci
-npm run build
+npm run build          # compiles public/build (gitignored, so built on the server)
 ```
 
-`npm ci` rather than `npm install`, so the lockfile is honoured exactly.
-
-The build writes `public/build/`, which is git-ignored — so this step is
-required on every deploy that touches CSS or JS.
-
-### 5.8 Link storage
+### 9. Database, storage, and caches
 
 ```bash
-php artisan storage:link
+php8.3 artisan migrate --force
+php8.3 artisan db:seed --force            # FIRST deploy only — seeds roles, settings, demo data
+php8.3 artisan storage:link
+
+# Production caches (APP_ENV=production also turns OFF strict lazy-load guards)
+php8.3 artisan optimize                   # config + routes + views + events
+php8.3 artisan icons:cache
+php8.3 artisan filament:optimize
 ```
 
-### 5.9 Permissions
+> If this is a client-facing launch (not a demo), **do not run the demo catalogue seeders**. Seed only what you need (e.g. `php artisan db:seed --class=RolePermissionSeeder`, `SettingSeeder`, `LegalPagesSeeder`). `db:seed --force` runs the full `DatabaseSeeder`, which includes demo webinars/orders.
+
+### 10. Permissions
+
+PHP-FPM runs as `<site-user>`, and you cloned as `<site-user>`, so ownership is already correct. Just make sure the writable dirs are:
 
 ```bash
 chmod -R ug+rwX storage bootstrap/cache
 ```
 
-Do not `chown www-data`. CloudPanel runs PHP-FPM as the site user, so files
-already have the right owner — changing it breaks writes.
+### 11. Queue worker (Horizon under Supervisor)
 
-### 5.10 Cache for production
-
-```bash
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
-php artisan filament:optimize
-```
-
-`filament:optimize` caches Filament's component discovery. Worth knowing: a
-stale version of that cache makes new admin pages return 404 while the class
-loads fine — if that happens, `php artisan filament:optimize-clear`.
-
-### 5.11 Check it
-
-Visit `https://staging.complianceinstructor.com`. Then the admin at `/admin`,
-signing in with the seeded credentials.
-
----
-
-## 6. Queue worker and scheduler
-
-### 6.1 Horizon under Supervisor
-
-As **root**, create `/etc/supervisor/conf.d/ci-staging-horizon.conf`:
+Create `/etc/supervisor/conf.d/horizon-<domain>.conf` (as root):
 
 ```ini
-[program:ci-staging-horizon]
+[program:horizon-<domain>]
 process_name=%(program_name)s
-command=php /home/ci-staging/htdocs/staging.complianceinstructor.com/artisan horizon
+command=php8.3 /home/<site-user>/htdocs/<domain>/artisan horizon
 autostart=true
 autorestart=true
-user=ci-staging
+user=<site-user>
 redirect_stderr=true
-stdout_logfile=/home/ci-staging/logs/horizon.log
+stdout_logfile=/home/<site-user>/htdocs/<domain>/storage/logs/horizon.log
 stopwaitsecs=3600
 ```
 
-`stopwaitsecs=3600` lets a long job — a PDF, an export — finish rather than
-being killed mid-write.
-
 ```bash
-mkdir -p /home/ci-staging/logs && chown ci-staging:ci-staging /home/ci-staging/logs
-supervisorctl reread && supervisorctl update
-supervisorctl status ci-staging-horizon
+supervisorctl reread && supervisorctl update && supervisorctl start horizon-<domain>:*
 ```
 
-The dashboard is at `/horizon`, and is gated by the `HorizonServiceProvider`
-gate — it should not be publicly reachable.
+### 12. Scheduler (CloudPanel UI → Site → Cron Jobs)
 
-### 6.2 The scheduler
+Add one cron job (CloudPanel runs it as `<site-user>`):
 
-As the **site user**, `crontab -e`:
-
-```cron
-* * * * * cd /home/ci-staging/htdocs/staging.complianceinstructor.com && php artisan schedule:run >> /dev/null 2>&1
+```
+* * * * * php8.3 /home/<site-user>/htdocs/<domain>/artisan schedule:run >> /dev/null 2>&1
 ```
 
-One line covers everything scheduled. Two things depend on it, and both fail
-silently — which is why this gets its own section rather than a footnote.
+### 13. Go live
 
-**Refunds never reach the gateway.** They sit out a cooling-off window, and
-`refunds:release-due` — every minute — is what ends it. Without cron a refund is
-agreed, every administrator is emailed to say it is going out, and then it never
-does. The customer chases it days later and the record says it was issued.
-
-**Certificates are never issued.** `certificates:issue-due` — hourly — certifies
-everyone holding live access 24 hours after their session. Without cron nobody
-is certified, nothing errors, and the first anyone hears of it is a customer
-asking where theirs is. That one is worse than it sounds: the credits are what
-customers are buying, and the delay makes it look like normal processing time
-for days before anybody suspects a fault.
-
-Check it is running after any server move:
-
-```bash
-php artisan schedule:list          # both commands should be listed with a next-due time
-php artisan refunds:release-due    # safe to run by hand; idempotent
-php artisan certificates:issue-due # likewise — it skips anyone already certified
-```
-
-### 6.3 Running the scheduler in local development
-
-Windows has no cron. While testing anything that depends on the scheduler, run
-it in a terminal of its own:
-
-```bash
-php artisan schedule:work
-```
-
-That stays in the foreground and invokes the scheduler every minute, so it is
-the local equivalent of the crontab line. Stop it with Ctrl+C. Neither command
-needs it to be running to be tested — both are safe to invoke directly, and the
-test suite calls them without a scheduler at all.
+- Confirm DNS → server IP, then issue the **Let's Encrypt** cert (step 1.4) if not done.
+- Point external webhooks at the live URLs: **PayPal** webhook → `https://<domain>/webhooks/paypal` (and Stripe if enabled). Set the matching `PAYPAL_WEBHOOK_ID` / `STRIPE_WEBHOOK_SECRET` in `.env`, then `php8.3 artisan config:cache`.
+- Smoke-test: home page, a webinar, add-to-cart → checkout, `/admin` login, and a queued job (e.g. an invoice PDF) processing in Horizon (`https://<domain>/horizon`).
 
 ---
 
-## 7. Lock staging down
+# Part B — Pull updates onto an existing deployment
 
-**This matters more than usual here.** CLAUDE.md §3 notes the business "lives
-on" SEO. An indexable staging site is duplicate content competing with the real
-one, and it is how unfinished pages end up in search results.
-
-### 7.1 HTTP basic auth
-
-CloudPanel: **Sites → your site → Security → Basic Auth** → add a user.
-
-That single switch also keeps crawlers out entirely, which is the most reliable
-protection.
-
-### 7.2 Tell crawlers anyway
-
-Belt and braces, in case basic auth is ever lifted for a client review. Add to
-the site's Nginx vhost (**Sites → Vhost** in CloudPanel), inside `server { }`:
-
-```nginx
-add_header X-Robots-Tag "noindex, nofollow" always;
-```
-
-A header rather than `robots.txt`, because a header applies to every response
-including ones a crawler reaches directly.
-
----
-
-## 8. Subsequent deploys
-
-Create `~/deploy.sh` as the site user:
+Everything below assumes the server was set up via Part A. Put this script at `<app-dir>/deploy.sh`, make it executable (`chmod +x deploy.sh`), and run it as `<site-user>` for each release.
 
 ```bash
 #!/usr/bin/env bash
+# Deploy the latest main onto this CloudPanel VPS. Run as the site user.
 set -euo pipefail
 
-cd /home/ci-staging/htdocs/staging.complianceinstructor.com
+cd /home/<site-user>/htdocs/<domain>
 
-php artisan down --render="errors::503" || true
+echo "→ Maintenance mode on"
+php8.3 artisan down --retry=15 || true
 
-git pull origin main
+echo "→ Pull latest code"
+git fetch origin
+git reset --hard origin/main        # exact match to the pushed main (no local drift)
 
+echo "→ PHP deps"
 composer install --no-dev --optimize-autoloader --no-interaction
 
-php artisan migrate --force
-
+echo "→ Front-end build"
 npm ci
 npm run build
 
-php artisan optimize:clear
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
-php artisan filament:optimize
+echo "→ Migrations (safe, no seeding)"
+php8.3 artisan migrate --force
 
-php artisan up
+echo "→ Rebuild caches"
+php8.3 artisan optimize:clear
+php8.3 artisan optimize
+php8.3 artisan icons:cache
+php8.3 artisan filament:optimize
 
-# Horizon must be restarted, not reloaded: workers hold the old code in memory
-# until they are told to quit.
-php artisan horizon:terminate
+echo "→ Restart workers (Horizon picks up new code)"
+php8.3 artisan horizon:terminate
+php8.3 artisan queue:restart
 
-echo "Deployed $(git rev-parse --short HEAD)"
+echo "→ Maintenance mode off"
+php8.3 artisan up
+
+echo "✓ Deployed $(git rev-parse --short HEAD)"
 ```
+
+Run it:
 
 ```bash
-chmod +x ~/deploy.sh
-~/deploy.sh
+cd /home/<site-user>/htdocs/<domain>
+./deploy.sh
 ```
 
-`horizon:terminate` is the line people forget. Without it, queued jobs keep
-running the previous release's code until the workers happen to restart.
+### Notes for updates
 
-### What this is not
-
-This is a **staging** deploy: `git pull` in place, with a maintenance window of
-a few seconds. CLAUDE.md §11 specifies something stronger for production — a
-GitHub Actions pipeline running Pint, Larastan and Pest, then building an atomic
-release directory and switching a symlink, so a rollback is a symlink switch and
-there is no downtime. Build that before the first production deploy, not before
-the first staging one.
+- **Never run `db:seed` on an update** — it would re-seed/overwrite content. Run a *specific* idempotent seeder only when a release adds one, e.g. the legal pages:
+  ```bash
+  php8.3 artisan db:seed --class=LegalPagesSeeder --force
+  ```
+- **`git reset --hard origin/main`** is used instead of `git pull` so the server always matches the pushed `main` exactly. It discards any local edits on the server — which is what you want (never edit code on the server). `.env`, `storage/`, and the gitignored `public/build`/`uploads` are untouched.
+- If a release changes `.env.example` with a new required variable, add it to the server's `.env` **before** running the script, then let the script's `optimize` re-cache config.
+- Horizon **must** be restarted every deploy (`horizon:terminate` → Supervisor relaunches it) or queued jobs keep running the old code.
 
 ---
 
-## 9. Optional — deploy on push
+# Appendix A — `.env` essentials (production)
 
-Once staging is stable, a workflow can run `deploy.sh` on every push to `main`.
+Fill these in `<app-dir>/.env`. The full list is in `.env.example`; these are the ones that matter in production:
 
-Add these repository secrets (**Settings → Secrets and variables → Actions**):
+```ini
+APP_NAME="Compliance Instructor"
+APP_ENV=production            # turns off strict lazy-load guards + debug
+APP_DEBUG=false               # NEVER true in production (§9)
+APP_URL=https://<domain>
 
-| Secret | Value |
-|---|---|
-| `SSH_HOST` | server IP |
-| `SSH_USER` | `ci-staging` |
-| `SSH_KEY` | a private key whose public half is in `~/.ssh/authorized_keys` on the server |
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=<db-name>
+DB_USERNAME=<db-user>
+DB_PASSWORD=<db-pass>
 
-`.github/workflows/deploy-staging.yml`:
+# Redis for cache / session / queue
+CACHE_STORE=redis
+SESSION_DRIVER=redis
+QUEUE_CONNECTION=redis
+REDIS_CLIENT=phpredis
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+REDIS_PASSWORD=null           # set one if you configured Redis auth
 
-```yaml
-name: Deploy staging
+SESSION_SECURE_COOKIE=true    # HTTPS only
+SESSION_DOMAIN=<domain>
 
-on:
-  push:
-    branches: [main]
+# Object storage (Cloudflare R2) for media + generated PDFs
+FILESYSTEM_DISK=r2
+R2_ACCESS_KEY_ID=...
+R2_SECRET_ACCESS_KEY=...
+R2_BUCKET=...
+R2_ENDPOINT=https://<account>.r2.cloudflarestorage.com
+R2_URL=https://<your-public-r2-domain>
+R2_USE_PATH_STYLE_ENDPOINT=true
 
-jobs:
-  deploy:
-    # Only deploy what already passed. `ci` is the workflow name in ci.yml.
-    needs: []
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          script: ~/deploy.sh
+# Transactional mail (Postmark/SES — not shared SMTP)
+MAIL_MAILER=smtp
+MAIL_HOST=...
+MAIL_PORT=587
+MAIL_USERNAME=...
+MAIL_PASSWORD=...
+MAIL_FROM_ADDRESS=...
+MAIL_FROM_NAME="${APP_NAME}"
+
+# Payments (PayPal is the default gateway; Stripe held disabled)
+PAYPAL_MODE=live
+PAYPAL_CLIENT_ID=...
+PAYPAL_CLIENT_SECRET=...
+PAYPAL_WEBHOOK_ID=...
+# STRIPE_* only if/when Stripe is enabled in admin
+
+# Error tracking
+SENTRY_LARAVEL_DSN=...
 ```
 
-Gate it behind CI passing before you rely on it — deploying a red build to a
-server the client is reviewing is worse than deploying nothing.
+> reCAPTCHA keys and the marketing pixel IDs are **not** env vars — the client sets them in **admin → Settings → Integrations**.
 
 ---
 
-## Troubleshooting
+# Appendix B — Troubleshooting & rollback
 
-**500 with a blank page**
-`tail -50 storage/logs/laravel.log`. With `APP_DEBUG=false` the error is in the
-log, not the response — which is the point.
-
-**419 on any form**
-Session driver cannot reach Redis. `redis-cli ping`, then check `REDIS_HOST` is
-`127.0.0.1`.
-
-**A new admin page 404s but the class loads**
-Stale Filament component cache. `php artisan filament:optimize-clear`.
-
-**Unstyled site, or 404s on `/build/...`**
-`npm run build` did not run, or ran as root and the site user cannot read the
-output. Rebuild as the site user.
-
-**`MissingAttributeException` on a column that exists**
-A migration has not run. `php artisan migrate --force`.
-
-**Changes to `.env` do nothing**
-`config:cache` froze the old values. `php artisan config:clear`, then re-cache.
-
-**Horizon shows nothing**
-`supervisorctl status ci-staging-horizon`, then
-`tail -50 /home/ci-staging/logs/horizon.log`.
-
----
-
-## Deferred
-
-Not needed for the first staging deploy; note them so they are not forgotten.
-
-| Item | When |
-|---|---|
-| Headless Chrome for `spatie/laravel-pdf` — invoices, certificates. Install Chromium, set `BROWSERSHOT_CHROME_PATH` | P3 (invoices) |
-| Transactional mail — Postmark or SES with SPF, DKIM, DMARC. `MAIL_MAILER=log` until then | P3 |
-| Sentry — set `SENTRY_LARAVEL_DSN` | P9, or sooner |
-| `spatie/laravel-backup` to off-site storage, with a rehearsed restore | P9 (§11) |
-| Atomic zero-downtime releases and rollback by symlink | before first production deploy (§11) |
-| S3-compatible object storage for uploads and generated PDFs | P5 |
-
----
-
-## Before switching traffic on: the production check
-
+**Rollback a bad release** (git deploys aren't atomic):
 ```bash
-php artisan app:production-check
+cd /home/<site-user>/htdocs/<domain>
+git reset --hard <previous-good-commit>
+composer install --no-dev --optimize-autoloader
+npm ci && npm run build
+php8.3 artisan migrate --force      # only if the bad release's migration is safe to keep; otherwise restore DB from backup
+php8.3 artisan optimize:clear && php8.3 artisan optimize
+php8.3 artisan horizon:terminate
 ```
 
-Run it on the server **after** the `.env` is in place and **before** traffic is
-switched over. A non-zero exit means do not go live.
-
-It checks only things that are silent when wrong — a broken route announces
-itself on the first page load, whereas `MAIL_MAILER=log` looks exactly like a
-working site until a customer asks where their certificate went:
-
-| Check | Why it is in the list |
-|---|---|
-| `APP_DEBUG` is false | §9's named finding. A debug page prints the environment, which is the database password |
-| `APP_KEY` is set | Generating it later makes everything already encrypted unreadable, including the two-factor secrets |
-| `APP_URL` is `https://` | Every link in every email and every signed download URL is built from it |
-| `MAIL_MAILER` is not `log`/`array`/`null` | Those accept a message and discard it, and the email log would record it as sent |
-| SMTP has a username | Otherwise every send fails authentication |
-| `QUEUE_CONNECTION` is not `sync` | §4 rule 7 — PDFs, mail and certificates would run inside the web request |
-| `.env` is not tracked by git | §9: the predecessor committed live credentials |
-| Session and cache are not `array` | A warning, not a failure: the site works, but nobody stays logged in |
-
-`AppServiceProvider` also forces `app.debug` off at runtime if it is ever true in
-production, and logs that as critical. That covers a `.env` edited after the
-deploy; this command is what stops the deploy in the first place.
+**Common issues**
+- *500 after deploy* → check `storage/logs/laravel.log`; usually a missing `.env` var or stale cache. Run `php8.3 artisan optimize:clear` then re-`optimize`.
+- *Blank/old assets* → `npm run build` didn't run or browser cache; confirm `public/build/manifest.json` updated.
+- *Uploads fail in admin* → confirm Redis + the Livewire temp disk are writable and R2 creds are valid.
+- *Queued jobs not running* → `supervisorctl status`; `php8.3 artisan horizon:status`.
+- *PDFs blank/failing* → Chromium not installed or not found by Browsershot; either install `chromium-browser` (step 2) or confirm the dompdf fallback is active.
+- *Permissions* → `chmod -R ug+rwX storage bootstrap/cache` as `<site-user>`.
