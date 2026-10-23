@@ -6,23 +6,37 @@ use App\Enums\InquirySource;
 use App\Enums\InquiryStatus;
 use App\Livewire\ContactForm;
 use App\Models\Inquiry;
-use Database\Seeders\PageSeeder;
+use App\Models\Setting;
+use Database\Seeders\CorePageSeeder;
 use Livewire\Livewire;
 
 /*
- * The public contact page (§7). It is a page built from the editable `contact`
- * block; the form records an inquiry through the single RecordInquiry intake,
- * fixing the source in code and never trusting a status from the request.
+ * The public contact page (§6/§7). It is a core page now — an editable hero over
+ * contact details (from the business settings) and the shared Livewire form,
+ * which records an inquiry through the single RecordInquiry intake, fixing the
+ * source in code and never trusting a status from the request.
  */
 
-it('serves the seeded contact page with the form and details', function (): void {
-    $this->seed(PageSeeder::class);
+it('serves the contact core page with the hero, details and form', function (): void {
+    $this->seed(CorePageSeeder::class);
+    Setting::set('business.email', 'support@complianceinstructor.com', 'string');
+    Setting::set('business.phone', '(800) 555-0142', 'string');
 
     $this->get('/contact')
         ->assertSuccessful()
-        ->assertSee('Get in touch', escape: false)                    // hero copy
-        ->assertSee('Send us a message', escape: false)               // form heading
-        ->assertSee('support@complianceinstructor.com', escape: false); // a detail card
+        ->assertSee('Get in touch', escape: false)                      // core-page hero
+        ->assertSee('Send us a message', escape: false)                 // form heading
+        ->assertSee('support@complianceinstructor.com', escape: false)  // detail from settings
+        ->assertSee('(800) 555-0142', escape: false);
+});
+
+it('renders the seeded contact FAQ as a native-details accordion', function (): void {
+    $this->seed(CorePageSeeder::class); // seeds the structured FAQ
+
+    $this->get('/contact')
+        ->assertSee('Before you write')
+        ->assertSee('How do I access a webinar I bought?')
+        ->assertSee('<details class="pb-faq-item">', escape: false); // the accordion markup
 });
 
 it('records an inquiry from the contact form', function (): void {

@@ -61,14 +61,31 @@ it('renders checkout once the cart has items', function (): void {
 
 // The component --------------------------------------------------------------
 
-it('seeds one attendee field per seat', function (): void {
+it('shows just the buyer by default and adds attendees up to the number of seats', function (): void {
     $user = User::factory()->create();
     $offering = Offering::factory()->live()->create(['seats_per_unit' => 2]);
-    seedCart($user, 2, $offering); // 2 units × 2 seats
+    seedCart($user, 2, $offering); // 2 units × 2 seats = 4 seats
 
     $component = Livewire::actingAs($user)->test(CheckoutPage::class);
 
+    // Only the buyer's own seat up front; the rest are added on demand, capped
+    // at the seats bought. Unnamed seats fall back to the buyer in PlaceOrder.
+    expect($component->get('attendees'))->toHaveCount(1)
+        ->and($component->get('maxAttendees'))->toBe(4);
+
+    $component->call('addAttendee')->call('addAttendee')->call('addAttendee');
     expect($component->get('attendees'))->toHaveCount(4);
+
+    // No more than the cap.
+    $component->call('addAttendee');
+    expect($component->get('attendees'))->toHaveCount(4);
+
+    // An added seat can be removed; the buyer's seat (0) cannot.
+    $component->call('removeAttendee', 2);
+    expect($component->get('attendees'))->toHaveCount(3);
+
+    $component->call('removeAttendee', 0);
+    expect($component->get('attendees'))->toHaveCount(3);
 });
 
 it('previews a valid coupon discount and clears it on removal', function (): void {
@@ -111,7 +128,7 @@ it('validates the billing and attendee fields', function (): void {
         ->set('attendees.0.email', '')
         ->call('place')
         ->assertHasErrors([
-            'name', 'email', 'jobTitle', 'addressLine1', 'city', 'postalCode',
+            'name', 'email', 'phone', 'jobTitle', 'addressLine1', 'city', 'postalCode',
             'attendees.0.name', 'attendees.0.email',
         ]);
 
@@ -149,6 +166,7 @@ it('places a pending order and redirects to the pay page', function (): void {
     Livewire::actingAs($user)->test(CheckoutPage::class)
         ->set('name', 'Buyer')
         ->set('email', 'buyer@example.test')
+        ->set('phone', '(800) 555-0142')
         ->set('jobTitle', 'HR Manager')
         ->set('addressLine1', '100 Market St')
         ->set('city', 'Austin')
@@ -164,6 +182,7 @@ it('places a pending order and redirects to the pay page', function (): void {
         ->and($order->user_id)->toBe($user->id)
         ->and($order->total_cents)->toBe(20000)
         // The billing snapshot froze the new fields (§5.4).
+        ->and($order->billing_snapshot['phone'])->toBe('(800) 555-0142')
         ->and($order->billing_snapshot['job_title'])->toBe('HR Manager')
         ->and($order->billing_snapshot['address_line1'])->toBe('100 Market St')
         ->and($order->billing_snapshot['country'])->toBe('United States');
@@ -176,6 +195,7 @@ it('applies a coupon when placing', function (): void {
 
     Livewire::actingAs($user)->test(CheckoutPage::class)
         ->set('name', 'Buyer')->set('email', 'buyer@example.test')
+        ->set('phone', '(800) 555-0142')
         ->set('jobTitle', 'HR Manager')->set('addressLine1', '100 Market St')
         ->set('city', 'Austin')->set('postalCode', '78701')->set('country', 'United States')
         ->set('attendees.0.name', 'Buyer')->set('attendees.0.email', 'buyer@example.test')
@@ -183,6 +203,51 @@ it('applies a coupon when placing', function (): void {
         ->call('place');
 
     expect(Order::query()->sole()->total_cents)->toBe(15000);
+});
+
+// Payment gateways -----------------------------------------------------------
+
+it('offers the two PayPal-backed options and not the disabled Stripe one', function (): void {
+    $user = User::factory()->create();
+    seedCart($user);
+
+    // Stripe ships disabled; PayPal on → the card and wallet options, both via
+    // PayPal, and no Stripe option.
+    $this->actingAs($user)->get('/checkout')
+        ->assertSuccessful()
+        ->assertSee('Credit or Debit Card')
+        ->assertSee('PayPal')
+        ->assertDontSee('Card (Stripe)');
+});
+
+it('refuses to place with a gateway that is switched off', function (): void {
+    $user = User::factory()->create();
+    seedCart($user);
+
+    Livewire::actingAs($user)->test(CheckoutPage::class)
+        ->set('gateway', 'stripe')      // disabled by default
+        ->call('place')
+        ->assertHasErrors('gateway');
+
+    expect(Order::query()->count())->toBe(0);
+});
+
+it('routes the card option through PayPal and remembers the funding source', function (): void {
+    $user = User::factory()->create(['email' => 'buyer@example.test']);
+    seedCart($user, 1, Offering::factory()->live()->create(['price_cents' => 20000]));
+
+    Livewire::actingAs($user)->test(CheckoutPage::class)
+        ->set('gateway', 'card')        // "Credit or Debit Card" — captured via PayPal
+        ->set('name', 'Buyer')->set('email', 'buyer@example.test')
+        ->set('phone', '(800) 555-0142')
+        ->set('jobTitle', 'HR Manager')->set('addressLine1', '100 Market St')
+        ->set('city', 'Austin')->set('postalCode', '78701')->set('country', 'United States')
+        ->set('attendees.0.name', 'Buyer')->set('attendees.0.email', 'buyer@example.test')
+        ->call('place')
+        ->assertRedirect(route('checkout.pay', Order::query()->sole()));
+
+    expect(session('checkout_gateway'))->toBe('paypal')
+        ->and(session('checkout_funding'))->toBe('card');
 });
 
 // Received page --------------------------------------------------------------

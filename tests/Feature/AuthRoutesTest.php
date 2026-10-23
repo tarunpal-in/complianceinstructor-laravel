@@ -127,7 +127,7 @@ it('serves an admin login and a separate branded customer login', function (): v
     expect(Route::has('filament.admin.auth.login'))->toBeTrue();
 });
 
-it('keeps staff out of the customer panel and customers out of admin', function (): void {
+it('keeps customers out of admin, and lets staff view the learner panel too', function (): void {
     $accountPanel = Filament\Facades\Filament::getPanel('account');
     $adminPanel = Filament\Facades\Filament::getPanel('admin');
 
@@ -137,10 +137,37 @@ it('keeps staff out of the customer panel and customers out of admin', function 
 
     expect($customer->canAccessPanel($accountPanel))->toBeTrue()
         ->and($customer->canAccessPanel($adminPanel))->toBeFalse()
-        // A staff member cannot authenticate through the customer panel at all —
-        // this is the line that prevents the two-factor bypass.
-        ->and($staff->canAccessPanel($accountPanel))->toBeFalse()
-        ->and($staff->canAccessPanel($adminPanel))->toBeTrue();
+        // Admin panel stays gated to the §8 roles — a customer is refused.
+        ->and($staff->canAccessPanel($adminPanel))->toBeTrue()
+        // Staff may now also open the learner panel (an admin opening the learner
+        // dashboard from the storefront). The two-factor separation is enforced
+        // at login — the branded /login refuses staff, so they authenticate only
+        // at /admin — not by blocking the panel here.
+        ->and($staff->canAccessPanel($accountPanel))->toBeTrue();
+});
+
+it('lets a signed-in admin open the learner dashboard', function (): void {
+    $staff = User::factory()->create();
+    $staff->assignRole(UserRole::SuperAdmin->value);
+
+    $this->actingAs($staff)
+        ->get(route('filament.account.pages.upcoming-webinars'))
+        ->assertSuccessful();
+});
+
+it('still refuses a staff account at the customer login', function (): void {
+    // The line that actually prevents the two-factor bypass: staff cannot sign
+    // in through the branded /login, so their only session comes from /admin.
+    $staff = User::factory()->create(['password' => 'Str0ng-Passw0rd!']);
+    $staff->assignRole(UserRole::Support->value);
+
+    Livewire\Livewire::test(App\Livewire\Auth\AuthPage::class)
+        ->set('email', $staff->email)
+        ->set('password', 'Str0ng-Passw0rd!')
+        ->call('login')
+        ->assertHasErrors('email');
+
+    expect(auth()->check())->toBeFalse();
 });
 
 it('registers no Fortify service provider', function (): void {

@@ -149,6 +149,60 @@ it('lists handouts on every learning page, Upcoming included', function (): void
         ->assertSee('Study materials', escape: false);
 });
 
+// Expired access --------------------------------------------------------------
+
+it('tells a member their access expired rather than that they have none', function (): void {
+    $user = User::factory()->create();
+    $webinar = Webinar::factory()->create();
+    // Not revoked, just past its expiry — a lapsed membership window.
+    Entitlement::factory()->for($webinar)->expired()->create([
+        'user_id' => $user->getKey(),
+        'format' => Format::Recorded,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('filament.account.pages.recorded-videos'))
+        ->assertSuccessful()
+        ->assertSee('Your access has expired')
+        ->assertSee(route('membership.index'), escape: false)
+        ->assertDontSee('no recorded webinars yet');
+});
+
+it('warns about expired access even when some access remains', function (): void {
+    $user = User::factory()->create();
+
+    $active = Webinar::factory()->create(['title' => 'Still Active Session']);
+    WebinarAsset::factory()->for($active)->format(Format::Recorded)->create();
+    entitle($user, $active, Format::Recorded);
+
+    $expired = Webinar::factory()->create();
+    Entitlement::factory()->for($expired)->expired()->create([
+        'user_id' => $user->getKey(),
+        'format' => Format::Recorded,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('filament.account.pages.recorded-videos'))
+        ->assertSuccessful()
+        ->assertSee('Still Active Session')
+        ->assertSee('Some of your access has expired');
+});
+
+it('does not show an expired-access notice on Upcoming', function (): void {
+    $user = User::factory()->create();
+    $webinar = Webinar::factory()->create(['scheduled_at' => now()->subMonth()]);
+    // A past live grant is history, not a lapsed subscription to renew.
+    Entitlement::factory()->for($webinar)->expired()->create([
+        'user_id' => $user->getKey(),
+        'format' => Format::Live,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('filament.account.pages.upcoming-webinars'))
+        ->assertSuccessful()
+        ->assertDontSee('expired');
+});
+
 // The in-site player ----------------------------------------------------------
 
 it('plays a file recording in the in-site player', function (): void {

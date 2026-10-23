@@ -62,16 +62,38 @@ function userWithRole(UserRole $role): User
 
 // Catalogue -------------------------------------------------------------------
 
-/** A webinar the public detail page will actually render. */
-function publishedWebinar(array $attributes = []): Webinar
+/**
+ * A webinar the public detail page will actually render.
+ *
+ * Content lives in `webinar_sections` now, so pass `$sections` to control the
+ * blocks; the default is an overview plus a highlights block.
+ *
+ * @param  array<string, mixed>  $attributes
+ * @param  array<int, array<string, mixed>>|null  $sections
+ */
+function publishedWebinar(array $attributes = [], ?array $sections = null): Webinar
 {
-    return Webinar::factory()->scheduled()->create([
+    $webinar = Webinar::factory()->scheduled()->create([
         'title' => 'FMLA Compliance 2026: Avoiding Costly Mistakes',
         'summary' => 'Discover how the H.O.P.E. framework reshapes leadership culture.',
-        'overview' => "First overview paragraph.\n\nSecond overview paragraph.",
-        'session_highlights' => 'What the session covers.',
         ...$attributes,
     ]);
+
+    $sections ??= [
+        ['heading' => 'Webinar Overview', 'body' => "First overview paragraph.\n\nSecond overview paragraph."],
+        ['heading' => 'Session Highlights', 'body' => 'What the session covers.'],
+    ];
+
+    foreach ($sections as $order => $section) {
+        $webinar->sections()->create([
+            'heading' => $section['heading'] ?? null,
+            'body' => $section['body'] ?? '',
+            'sort_order' => $order,
+            'is_visible' => $section['is_visible'] ?? true,
+        ]);
+    }
+
+    return $webinar;
 }
 
 /** A single-format offering of a webinar, with an optional add-on price (§5.3). */

@@ -5,6 +5,8 @@ declare(strict_types=1);
 use App\Livewire\WebinarCatalogue;
 use App\Models\Accreditation;
 use App\Models\Industry;
+use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Webinar;
 use Illuminate\Support\Facades\Blade;
 use Livewire\Livewire;
@@ -131,6 +133,62 @@ it('offers to clear filters when nothing matches', function (): void {
         ->assertSee('No webinars match these filters')
         ->call('clearFilters')
         ->assertSee('The Only Webinar');
+});
+
+it('shows the newest webinars first by default', function (): void {
+    $hr = Industry::factory()->create(['slug' => 'hr', 'is_active' => true]);
+    $old = publicWebinar($hr, 'Old 2021 Session', ['scheduled_at' => now()->subYears(4)]);
+    $recent = publicWebinar($hr, 'Recent Session', ['scheduled_at' => now()->subWeek()]);
+    $upcoming = publicWebinar($hr, 'Upcoming Session', ['scheduled_at' => now()->addMonth()]);
+
+    Livewire::test(WebinarCatalogue::class)
+        ->assertViewHas('webinars', fn ($p) => $p->pluck('id')->all() === [$upcoming->id, $recent->id, $old->id]);
+});
+
+it('sorts by real sales when Most Popular is selected, counting settled orders only', function (): void {
+    $hr = Industry::factory()->create(['slug' => 'hr', 'is_active' => true]);
+    $popular = publicWebinar($hr, 'Best Seller');
+    $quiet = publicWebinar($hr, 'Rarely Bought');
+
+    // Two settled purchases for the best seller.
+    $paid = Order::factory()->paid()->create();
+    OrderItem::factory()->count(2)->create(['order_id' => $paid->id, 'webinar_id' => $popular->id]);
+
+    // Five lines on an unpaid order must NOT count towards popularity.
+    $pending = Order::factory()->pending()->create();
+    OrderItem::factory()->count(5)->create(['order_id' => $pending->id, 'webinar_id' => $quiet->id]);
+
+    Livewire::test(WebinarCatalogue::class)
+        ->set('sort', 'popular')
+        ->assertViewHas('webinars', fn ($p) => $p->first()->id === $popular->id);
+});
+
+it('paginates the grid after twelve cards', function (): void {
+    $hr = Industry::factory()->create(['slug' => 'hr', 'is_active' => true]);
+    foreach (range(1, 15) as $n) {
+        publicWebinar($hr, "Paginated Webinar {$n}");
+    }
+
+    Livewire::test(WebinarCatalogue::class)
+        ->assertViewHas('total', 15)                                   // count is the whole result set
+        ->assertViewHas('webinars', fn ($p) => $p->count() === 12)     // first page holds twelve
+        ->assertSeeHtml('cat-pagination')                              // the pager renders
+        ->call('nextPage')
+        ->assertSet('paginators.page', 2)
+        ->assertViewHas('webinars', fn ($p) => $p->count() === 3);     // the remainder
+});
+
+it('returns to page one when a filter changes', function (): void {
+    $hr = Industry::factory()->create(['slug' => 'hr', 'is_active' => true]);
+    foreach (range(1, 15) as $n) {
+        publicWebinar($hr, "Bulk Webinar {$n}");
+    }
+
+    Livewire::test(WebinarCatalogue::class)
+        ->call('nextPage')
+        ->assertSet('paginators.page', 2)
+        ->set('q', 'Bulk Webinar 1')   // a filter change must not strand the viewer on page 2
+        ->assertSet('paginators.page', 1);
 });
 
 it('shows the scheduled time in both PT and ET, never the raw IANA zone', function (): void {

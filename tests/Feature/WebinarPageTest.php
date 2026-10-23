@@ -133,21 +133,40 @@ it('shows the site-wide format description in the tooltip', function (): void {
 
 // Content ---------------------------------------------------------------------
 
-it('renders each populated content section and skips the empty ones', function (): void {
-    $webinar = publishedWebinar(['why_attend' => '', 'who_should_attend' => '']);
+it('renders each section in order and skips the invisible ones', function (): void {
+    $webinar = publishedWebinar(sections: [
+        ['heading' => 'Webinar Overview', 'body' => 'First overview paragraph.'],
+        ['heading' => 'Session Highlights', 'body' => 'What the session covers.'],
+        ['heading' => 'Why You Should Attend', 'body' => 'Hidden reasons.', 'is_visible' => false],
+    ]);
 
     $this->get(route('webinars.show', $webinar))
         ->assertSee('Webinar Overview')
         ->assertSee('Session Highlights')
         ->assertSee('First overview paragraph.')
         ->assertDontSee('Why You Should Attend')
-        ->assertDontSee('Who Should Attend');
+        ->assertDontSee('Hidden reasons.');
 });
 
-it('escapes content rather than rendering markup from the database', function (): void {
-    $webinar = publishedWebinar(['overview' => '<script>alert(1)</script>']);
+it('renders a section with no heading as body only', function (): void {
+    $webinar = publishedWebinar(sections: [
+        ['heading' => 'Webinar Overview', 'body' => 'The overview.'],
+        ['heading' => null, 'body' => 'You will get the recording link within 24-48 hours.'],
+    ]);
+
+    // The notice body shows, but a heading-less section earns no tab link.
+    $this->get(route('webinars.show', $webinar))
+        ->assertSee('You will get the recording link within 24-48 hours.')
+        ->assertSee('The overview.');
+});
+
+it('sanitizes dangerous markup out of a section rather than rendering it', function (): void {
+    $webinar = publishedWebinar(sections: [
+        ['heading' => 'Webinar Overview', 'body' => '<p>Safe copy.</p><script>alert(1)</script>'],
+    ]);
 
     $this->get(route('webinars.show', $webinar))
+        ->assertSee('Safe copy.')
         ->assertDontSee('<script>alert(1)</script>', escape: false);
 });
 

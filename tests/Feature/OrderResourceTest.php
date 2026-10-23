@@ -122,6 +122,20 @@ it('filters orders to those awaiting payment', function (): void {
         ->assertCanNotSeeTableRecords([$paid]);
 });
 
+it('filters orders to a preset period (this month)', function (): void {
+    // Frozen mid-month so the preset boundaries are deterministic.
+    $this->travelTo(Illuminate\Support\Carbon::create(2026, 6, 15, 12));
+
+    $thisMonth = Order::factory()->create(['placed_at' => now()->subDays(3)]);  // 12 Jun
+    $earlier = Order::factory()->create(['placed_at' => now()->subMonths(2)]);  // 15 Apr
+
+    Livewire\Livewire::actingAs(userWithRole(UserRole::Finance))
+        ->test(ListOrders::class)
+        ->filterTable('period', 'mtd')
+        ->assertCanSeeTableRecords([$thisMonth])
+        ->assertCanNotSeeTableRecords([$earlier]);
+});
+
 // Money -----------------------------------------------------------------------
 
 /**

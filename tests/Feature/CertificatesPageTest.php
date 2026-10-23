@@ -2,20 +2,23 @@
 
 declare(strict_types=1);
 
+use App\Actions\Certificates\GenerateCertificatePdf;
 use App\Models\Certificate;
 use App\Models\User;
 
 /*
  * The learner's certificates page and its download — §8 #4 / §6 / §9. Scoped to
- * the signed-in member, and the PDF is reached only through a signed, expiring,
- * owner-checked link.
+ * the signed-in member; the PDF is rendered on demand from the frozen record,
+ * owner-checked, like the invoice. The Browsershot render itself is verified by
+ * eye (§10), so the tests exercise the document data and the auth branches that
+ * run before any render.
  */
 
 // The page -------------------------------------------------------------------
 
-it('lists the member their own certificate with its details', function (): void {
+it('lists the member their own certificate with a download', function (): void {
     $user = User::factory()->create();
-    Certificate::factory()->create([
+    $certificate = Certificate::factory()->create([
         'user_id' => $user->getKey(),
         'webinar_title' => 'Advanced Payroll Compliance',
         'serial' => 'CERT-TEST-0001',
@@ -29,23 +32,12 @@ it('lists the member their own certificate with its details', function (): void 
         ->assertSee('Advanced Payroll Compliance')
         ->assertSee('2.00 HRCI credits')
         ->assertSee('CERT-TEST-0001')
-        ->assertSee('Being prepared'); // no PDF rendered yet (P8)
-});
-
-it('offers a download once the certificate PDF exists', function (): void {
-    $user = User::factory()->create();
-    $certificate = Certificate::factory()->withPdf()->create(['user_id' => $user->getKey()]);
-
-    $this->actingAs($user)
-        ->get(route('filament.account.pages.certificates'))
-        ->assertSuccessful()
-        ->assertSee(route('learning.certificate', $certificate), escape: false)
-        ->assertDontSee('Being prepared');
+        ->assertSee(route('learning.certificate', $certificate), escape: false);
 });
 
 it('shows a revoked certificate as revoked with no download', function (): void {
     $user = User::factory()->create();
-    $certificate = Certificate::factory()->revoked()->withPdf()->create(['user_id' => $user->getKey()]);
+    $certificate = Certificate::factory()->revoked()->create(['user_id' => $user->getKey()]);
 
     $this->actingAs($user)
         ->get(route('filament.account.pages.certificates'))
@@ -74,38 +66,42 @@ it('tells a member with no certificates there are none yet', function (): void {
         ->assertSee('no certificates yet');
 });
 
-// The download ----------------------------------------------------------------
+// The document (rendered from the frozen record, not Browsershot) --------------
 
-it('hands the owner a signed URL for their certificate PDF', function (): void {
-    $user = User::factory()->create();
-    $certificate = Certificate::factory()->withPdf()->create(['user_id' => $user->getKey()]);
+it('builds the certificate document from the frozen record', function (): void {
+    $certificate = Certificate::factory()->create([
+        'learner_name' => 'Dana Holloway',
+        'webinar_title' => 'FMLA Essentials 2026',
+        'serial' => 'CERT-DOC-0007',
+        'accreditation_code' => 'SHRM',
+        'credits' => '1.50',
+    ]);
 
-    $this->actingAs($user)
-        ->get(route('learning.certificate', $certificate))
-        ->assertStatus(302); // a redirect to a minted URL, never the raw path
+    $html = app(GenerateCertificatePdf::class)->view($certificate)->render();
+
+    expect($html)
+        ->toContain('Dana Holloway')
+        ->toContain('FMLA Essentials 2026')
+        ->toContain('CERT-DOC-0007')
+        ->toContain('1.50 SHRM credits');
+
+    expect(app(GenerateCertificatePdf::class)->filename($certificate))->toBe('certificate-CERT-DOC-0007.pdf');
 });
+
+// The download route (auth branches run before any render) ---------------------
 
 it('forbids downloading another member\'s certificate', function (): void {
     $owner = User::factory()->create();
-    $certificate = Certificate::factory()->withPdf()->create(['user_id' => $owner->getKey()]);
+    $certificate = Certificate::factory()->create(['user_id' => $owner->getKey()]);
 
     $this->actingAs(User::factory()->create())
         ->get(route('learning.certificate', $certificate))
         ->assertForbidden();
 });
 
-it('404s a certificate with no PDF yet', function (): void {
-    $user = User::factory()->create();
-    $certificate = Certificate::factory()->create(['user_id' => $user->getKey()]); // no pdf
-
-    $this->actingAs($user)
-        ->get(route('learning.certificate', $certificate))
-        ->assertNotFound();
-});
-
 it('404s a revoked certificate', function (): void {
     $user = User::factory()->create();
-    $certificate = Certificate::factory()->revoked()->withPdf()->create(['user_id' => $user->getKey()]);
+    $certificate = Certificate::factory()->revoked()->create(['user_id' => $user->getKey()]);
 
     $this->actingAs($user)
         ->get(route('learning.certificate', $certificate))
@@ -113,7 +109,7 @@ it('404s a revoked certificate', function (): void {
 });
 
 it('sends a guest to log in', function (): void {
-    $certificate = Certificate::factory()->withPdf()->create();
+    $certificate = Certificate::factory()->create();
 
     $this->get(route('learning.certificate', $certificate))
         ->assertRedirect(route('login'));

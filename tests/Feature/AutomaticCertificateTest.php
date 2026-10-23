@@ -344,3 +344,32 @@ it('never reports more than all of it', function (): void {
 
     expect(WebinarView::factory()->reached(70 * 60)->make()->percentOf($webinar))->toBe(100);
 });
+
+// The watch-progress endpoint ------------------------------------------------
+// Wires the in-site player to RecordWatchProgress so recorded watch-through
+// certificates actually issue from the UI, not just from a direct action call.
+
+it('records progress through the watch endpoint and issues the certificate', function (): void {
+    [$webinar] = finishedWebinar(hoursAgo: 1, minutes: 60);
+    $learner = attendee($webinar, Format::Recorded);
+
+    $this->actingAs($learner)
+        ->postJson(route('learning.watch.progress', $webinar), ['position' => 60 * 60])
+        ->assertSuccessful()
+        ->assertJson(['completed' => true]);
+
+    expect(Certificate::query()->where('user_id', $learner->id)->count())->toBe(1)
+        ->and(WebinarView::query()->first()?->furthest_seconds)->toBe(60 * 60);
+});
+
+it('refuses a watch-progress report from a learner with no access (403)', function (): void {
+    [$webinar] = finishedWebinar();
+    $stranger = User::factory()->create();
+
+    $this->actingAs($stranger)
+        ->postJson(route('learning.watch.progress', $webinar), ['position' => 90 * 60])
+        ->assertForbidden();
+
+    expect(WebinarView::query()->count())->toBe(0)
+        ->and(Certificate::query()->count())->toBe(0);
+});

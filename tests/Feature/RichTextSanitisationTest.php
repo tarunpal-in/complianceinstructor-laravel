@@ -216,6 +216,9 @@ it('echoes no rich text without sanitising it', function (): void {
         // nl2br over an e()-escaped badge, so the line-break markup is the only
         // HTML and the client's copy can never inject its own.
         'components/home/accreditation.blade.php' => 'e() before nl2br, so the badge is escaped.',
+        // Same pattern: nl2br over the e()-escaped business address, so the only
+        // HTML is the line breaks and the setting's value cannot inject its own.
+        'contact/index.blade.php' => 'e() before nl2br, so the address is escaped.',
         // A map of Lucide SVG paths written in the file itself, looked up by a
         // template-supplied name with '' for an unknown key. Nothing stored
         // reaches it.
@@ -260,6 +263,7 @@ it('has no stale entries in the list of raw echoes held on purpose', function (s
 })->with([
     'components/blog/comments.blade.php',
     'components/home/accreditation.blade.php',
+    'contact/index.blade.php',
     'components/ui/icon.blade.php',
     'partials/schema.blade.php',
 ]);

@@ -38,6 +38,8 @@ it('sends an unauthenticated visitor from the account area to the branded login'
 // Email + password -------------------------------------------------------------
 
 it('registers a new customer and signs them in', function (): void {
+    // Sign-up stays short: just the account. Company, phone and billing are
+    // captured at checkout, not here.
     Livewire::test(AuthPage::class)
         ->set('mode', 'register')
         ->set('name', 'Dana Rivera')

@@ -11,6 +11,7 @@ use App\Filament\Resources\Subscribers\Pages\CreateSubscriber;
 use App\Filament\Resources\Subscribers\Pages\ListSubscribers;
 use App\Filament\Resources\Subscribers\Pages\ViewSubscriber;
 use App\Http\Requests\StoreSubscriberRequest;
+use App\Models\EmailSend;
 use App\Models\Setting;
 use App\Models\Subscriber;
 use App\Models\User;
@@ -417,4 +418,50 @@ it('does not let a seeded customer address duplicate', function (): void {
 
     expect(Subscriber::query()->where('email', 'buyer@example.com')->count())
         ->toBeLessThanOrEqual(1);
+});
+
+// Unsubscribe request (footer) ------------------------------------------------
+
+/** Posting the footer "Unsubscribe" button, honeypot left alone. */
+function requestUnsubscribe(array $overrides = []): Illuminate\Testing\TestResponse
+{
+    return test()->post('/mailing-list/unsubscribe-request', ['email' => 'dana@example.com', ...$overrides]);
+}
+
+it('emails a signed unsubscribe link to an address that is on the list', function (): void {
+    Subscriber::factory()->withAddress('dana@example.com')->create();
+
+    requestUnsubscribe()
+        ->assertRedirect()
+        ->assertSessionHas('mailing_list_status');
+
+    expect(EmailSend::query()
+        ->where('email_key', 'marketing.list_unsubscribe')
+        ->where('to_email', 'dana@example.com')
+        ->count())->toBe(1);
+});
+
+it('says the same thing and sends nothing for an address not on the list', function (): void {
+    requestUnsubscribe(['email' => 'stranger@example.com'])
+        ->assertRedirect()
+        ->assertSessionHas('mailing_list_status');
+
+    expect(EmailSend::query()->count())->toBe(0);
+});
+
+it('does not email an address that already unsubscribed', function (): void {
+    Subscriber::factory()->withAddress('dana@example.com')->unsubscribed()->create();
+
+    requestUnsubscribe();
+
+    expect(EmailSend::query()->count())->toBe(0);
+});
+
+it('rejects a footer unsubscribe request that trips the honeypot', function (): void {
+    Subscriber::factory()->withAddress('dana@example.com')->create();
+
+    requestUnsubscribe([StoreSubscriberRequest::TRAP_FIELD => 'bot'])
+        ->assertSessionHasErrors(StoreSubscriberRequest::TRAP_FIELD);
+
+    expect(EmailSend::query()->count())->toBe(0);
 });

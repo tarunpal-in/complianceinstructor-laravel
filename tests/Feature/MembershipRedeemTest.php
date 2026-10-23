@@ -98,7 +98,8 @@ it('offers the member a redeem button on a webinar their plan covers', function 
     $this->actingAs($user)
         ->get(route('webinars.show', $webinar))
         ->assertSuccessful()
-        ->assertSee('Watch with your membership');
+        ->assertSee('Included with your membership')
+        ->assertSee('Add to my account');
 });
 
 it('shows an open link once the member has redeemed', function (): void {
@@ -109,10 +110,10 @@ it('shows an open link once the member has redeemed', function (): void {
         ->get(route('webinars.show', $webinar))
         ->assertSuccessful()
         ->assertSee(route('learning.access', [$webinar->slug, 'recorded']), escape: false)
-        ->assertDontSee('Watch with your membership');
+        ->assertDontSee('Add to my account');
 });
 
-it('shows no membership panel to a guest', function (): void {
+it('shows no membership section to a guest', function (): void {
     [, $webinar] = memberAndWebinar(Format::Recorded);
 
     $this->get(route('webinars.show', $webinar))

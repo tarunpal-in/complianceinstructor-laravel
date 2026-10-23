@@ -6,6 +6,7 @@ use App\Models\Accreditation;
 use App\Models\Industry;
 use App\Models\Speaker;
 use App\Models\Webinar;
+use Database\Seeders\CorePageSeeder;
 use Illuminate\Support\Facades\Storage;
 
 /*
@@ -14,7 +15,11 @@ use Illuminate\Support\Facades\Storage;
  * reason to exist.
  */
 
-beforeEach(fn () => Storage::fake('public'));
+beforeEach(function (): void {
+    Storage::fake('public');
+    // The hero now comes from the editable Speakers core page.
+    $this->seed(CorePageSeeder::class);
+});
 
 /** A speaker with one webinar carrying the given accreditation + industry. */
 function facultyMember(string $name, string $code = 'HRCI', ?Industry $industry = null, bool $active = true): Speaker

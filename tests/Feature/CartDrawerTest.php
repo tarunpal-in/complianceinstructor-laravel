@@ -7,6 +7,7 @@ use App\Cart\CrossSell;
 use App\Enums\Format;
 use App\Livewire\CartDrawer;
 use App\Livewire\PurchasePanel;
+use App\Models\Offering;
 use App\Models\Webinar;
 use Livewire\Livewire;
 
@@ -23,6 +24,23 @@ it('cross-sells the other add-on formats of a webinar in the cart', function ():
 
     expect($suggestions)->toHaveCount(1)
         ->and($suggestions[0]['offering']->id)->toBe($transcript->id)
+        ->and($suggestions[0]['price_cents'])->toBe(6500);
+});
+
+it('cross-sells bundles too, labelled by the full offering, at the add-on price', function (): void {
+    $webinar = Webinar::factory()->create();
+    $live = fmtOffering($webinar, Format::Live, 17900, 6500);
+    $bundle = Offering::factory()->withFormats(Format::Recorded, Format::Transcript)->create([
+        'offerable_type' => Webinar::class, 'offerable_id' => $webinar->getKey(),
+        'price_cents' => 17900, 'addon_price_cents' => 6500, 'is_active' => true,
+    ]);
+
+    $cart = cartOf([[$live, 1]]);
+    $suggestions = app(CrossSell::class)->forCart($cart);
+
+    expect($suggestions)->toHaveCount(1)
+        ->and($suggestions[0]['offering']->id)->toBe($bundle->id)
+        ->and($suggestions[0]['format_label'])->toBe('Recorded + Transcript (PDF)')
         ->and($suggestions[0]['price_cents'])->toBe(6500);
 });
 

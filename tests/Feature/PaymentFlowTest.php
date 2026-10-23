@@ -130,6 +130,17 @@ it('refuses to start when the gateway is not configured', function (): void {
         ->assertStatus(422);
 });
 
+it('refuses to start a payment for a gateway that is switched off', function (): void {
+    // Stripe ships disabled; no driver is even resolved, the enabled check
+    // refuses it first.
+    $buyer = User::factory()->create();
+    $order = payableOrder($buyer);
+
+    $this->actingAs($buyer)
+        ->postJson(route('checkout.pay.start', $order), ['gateway' => 'stripe'])
+        ->assertStatus(422);
+});
+
 // complete ------------------------------------------------------------------
 
 it('captures, marks paid, grants access, clears the cart and redirects', function (): void {
@@ -168,4 +179,21 @@ it('refuses to complete without a payment reference', function (): void {
     $this->actingAs($buyer)
         ->postJson(route('checkout.pay.complete', $order), ['gateway' => 'paypal'])
         ->assertStatus(422);
+});
+
+it('refuses to complete through the manual gateway — the free-order bypass guard', function (): void {
+    // The manual gateway has no admin enable toggle, so it must never be
+    // selectable on the public capture endpoint. Without this guard a buyer could
+    // POST gateway=manual and ManualDriver would report a free capture as
+    // succeeded, granting access for $0 (§9 free-order bypass / §14 #2).
+    $buyer = User::factory()->create();
+    $order = payableOrder($buyer);
+
+    $this->actingAs($buyer)
+        ->postJson(route('checkout.pay.complete', $order), ['gateway' => 'manual', 'reference' => 'FREE'])
+        ->assertStatus(422);
+
+    expect($order->fresh()->derivedStatus())->not->toBe(OrderStatus::Paid)
+        ->and(Payment::query()->count())->toBe(0)
+        ->and(Entitlement::query()->count())->toBe(0);
 });

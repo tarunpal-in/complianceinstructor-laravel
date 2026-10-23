@@ -3,14 +3,27 @@
 declare(strict_types=1);
 
 use App\Models\Accreditation;
+use App\Models\Media;
+use App\Models\MediaFolder;
 use App\Support\HomepageContent;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Blade;
 
 /*
  * The homepage "Accreditation Partners" section pulls active accrediting bodies
- * and shows each one's uploaded logo — §5.3.
+ * and shows each one's logo — §5.3. The logo is a library file picked with
+ * MediaPicker (logo_media_id), the same reference model webinar images use.
  */
+
+/** Give a body a logo by picking a library file, as the admin would. */
+function giveBodyLogo(Accreditation $body): void
+{
+    $media = MediaFolder::uncategorised()
+        ->addMedia(UploadedFile::fake()->image('hrci.png', 240, 120))
+        ->toMediaCollection(Media::LIBRARY_COLLECTION);
+
+    $body->update(['logo_media_id' => $media->getKey()]);
+}
 
 it('lists active accrediting bodies, excluding inactive ones', function (): void {
     Accreditation::factory()->create(['code' => 'HRCI', 'is_active' => true]);
@@ -21,9 +34,9 @@ it('lists active accrediting bodies, excluding inactive ones', function (): void
         ->not->toContain('OLD');
 });
 
-it('carries the uploaded logo url when a body has one', function (): void {
+it('carries the logo url when a body has one', function (): void {
     $body = Accreditation::factory()->create(['code' => 'HRCI', 'name' => 'HR Certification Institute', 'is_active' => true]);
-    $body->addMedia(UploadedFile::fake()->image('hrci.png', 240, 120))->toMediaCollection('logo');
+    giveBodyLogo($body);
 
     $partner = collect(HomepageContent::accreditations())->firstWhere('code', 'HRCI');
 
@@ -41,7 +54,7 @@ it('renders real accrediting bodies in the section', function (): void {
 
 it('shows the logo image when a body has one', function (): void {
     $body = Accreditation::factory()->create(['code' => 'HRCI', 'name' => 'HR Certification Institute', 'is_active' => true]);
-    $body->addMedia(UploadedFile::fake()->image('hrci.png', 240, 120))->toMediaCollection('logo');
+    giveBodyLogo($body);
 
     $html = Blade::render('<x-home.accreditation />');
 

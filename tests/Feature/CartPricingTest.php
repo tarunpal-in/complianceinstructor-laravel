@@ -9,8 +9,8 @@ use App\Models\Webinar;
 
 /*
  * The add-on cross-sell pricing rule (§5.3 / §14 #1). Per webinar, the most
- * expensive single format is the primary at full price; every other single
- * format of that webinar is charged at its add-on price. Bundles and packages
+ * expensive offering is the primary at full price; every other offering of that
+ * webinar — single format or bundle — is charged at its add-on price. Packages
  * are always standalone.
  *
  * fmtOffering() and cartOf() are shared helpers in tests/Pest.php.
@@ -57,17 +57,30 @@ it('multiplies the add-on price by quantity', function (): void {
     expect(cartOf([[$live, 1], [$transcript, 2]])->subtotalCents())->toBe(30900);
 });
 
-it('never add-on-prices a multi-format bundle', function (): void {
+it('add-on-prices a multi-format bundle when it is not the primary', function (): void {
     $webinar = Webinar::factory()->create();
     $bundle = Offering::factory()->withFormats(Format::Live, Format::Recorded)->create([
         'offerable_type' => Webinar::class, 'offerable_id' => $webinar->getKey(),
-        'price_cents' => 25000, 'addon_price_cents' => 5000, 'is_active' => true,
+        'price_cents' => 15000, 'addon_price_cents' => 6500, 'is_active' => true,
     ]);
-    $transcript = fmtOffering($webinar, Format::Transcript, 7900, 6500);
+    $live = fmtOffering($webinar, Format::Live, 19900, 6500);
 
-    // Bundle standalone (25000); transcript is the only single format, so it is
-    // the primary at full price (7900).
-    expect(cartOf([[$bundle, 1], [$transcript, 1]])->subtotalCents())->toBe(32900);
+    // Live (19900) is the most expensive → primary at full price; the cheaper
+    // bundle is charged its add-on price (6500). 19900 + 6500.
+    expect(cartOf([[$bundle, 1], [$live, 1]])->subtotalCents())->toBe(26400);
+});
+
+it('keeps the most expensive offering as primary even when it is a bundle', function (): void {
+    $webinar = Webinar::factory()->create();
+    $bundle = Offering::factory()->withFormats(Format::Live, Format::Recorded, Format::Transcript)->create([
+        'offerable_type' => Webinar::class, 'offerable_id' => $webinar->getKey(),
+        'price_cents' => 22900, 'addon_price_cents' => 6500, 'is_active' => true,
+    ]);
+    $recorded = fmtOffering($webinar, Format::Recorded, 15900, 6500);
+
+    // Bundle (22900) is the most expensive → primary at full price; the single
+    // recorded is the add-on (6500). 22900 + 6500.
+    expect(cartOf([[$bundle, 1], [$recorded, 1]])->subtotalCents())->toBe(29400);
 });
 
 it('freezes the add-on prices onto the placed order', function (): void {

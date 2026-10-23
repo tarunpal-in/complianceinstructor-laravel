@@ -420,8 +420,8 @@ it('seeds pages that exercise the block library', function (): void {
 
     $types = PageSection::query()->pluck('type')->unique();
 
-    expect(Page::query()->count())->toBe(3)
-        ->and($types)->toContain('hero', 'stat_band', 'feature_grid', 'cta', 'rich_text', 'faq', 'contact');
+    expect(Page::query()->count())->toBe(2)
+        ->and($types)->toContain('hero', 'stat_band', 'feature_grid', 'cta', 'rich_text', 'faq');
 
     // And the published ones actually render, with the richer About content.
     $this->get('/about')
@@ -438,7 +438,7 @@ it('seeds pages idempotently', function (): void {
     $this->seed(PageSeeder::class);
     $this->seed(PageSeeder::class);
 
-    // About (7) + Contact (3) + Privacy (2).
-    expect(Page::query()->count())->toBe(3)
-        ->and(PageSection::query()->count())->toBe(12);
+    // About (7) + Privacy (2). Contact is a core page now, not a page-builder page.
+    expect(Page::query()->count())->toBe(2)
+        ->and(PageSection::query()->count())->toBe(9);
 });
