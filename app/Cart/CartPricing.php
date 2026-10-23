@@ -10,15 +10,15 @@ use App\Models\Webinar;
 /**
  * The add-on cross-sell pricing rule — CLAUDE.md §5.3 / §14 #1.
  *
- * A webinar's formats are sold both on their own and as cheaper add-ons bought
- * alongside another format of the same webinar (the `addon_price_cents` the data
- * model already carries). This decides, from the cart as a whole, which lines
- * get which price:
+ * A webinar's offerings are sold both on their own and as cheaper add-ons
+ * bought alongside another offering of the same webinar (the `addon_price_cents`
+ * the data model already carries). This decides, from the cart as a whole, which
+ * lines get which price:
  *
- *   For each webinar, its most-expensive single-format offering is the PRIMARY
- *   and keeps its full price; every other single-format offering of that same
- *   webinar is charged at its add-on price. Multi-format bundles and packages
- *   are always their own standalone price.
+ *   For each webinar, its most-expensive offering is the PRIMARY and keeps its
+ *   full price; every other offering of that same webinar — a single format or a
+ *   multi-format bundle alike — is charged at its add-on price. Packages are
+ *   always their own standalone price.
  *
  * Deterministic and order-independent — the primary is chosen by price, not by
  * what was added first — so the checkout recomputes exactly the cart's totals
@@ -49,9 +49,9 @@ class CartPricing
                 continue;
             }
 
-            // An add-on only when it is a single-format webinar offering that is
-            // not the primary for its webinar.
-            $asAddon = $this->isSingleFormatWebinar($item) && ! isset($primaryIds[$item->getKey()]);
+            // An add-on only when it is a webinar offering that is not the
+            // primary for its webinar — bundles included.
+            $asAddon = $this->isWebinarOffering($item) && ! isset($primaryIds[$item->getKey()]);
 
             $prices[$item->getKey()] = $offering->priceCents($asAddon);
         }
@@ -92,7 +92,7 @@ class CartPricing
         $byWebinar = [];
 
         foreach ($items as $item) {
-            if (! $this->isSingleFormatWebinar($item)) {
+            if (! $this->isWebinarOffering($item)) {
                 continue;
             }
 
@@ -128,12 +128,11 @@ class CartPricing
         return (int) $candidate->offering->getKey() < (int) $current->offering->getKey();
     }
 
-    private function isSingleFormatWebinar(CartItem $item): bool
+    private function isWebinarOffering(CartItem $item): bool
     {
         $offering = $item->offering;
 
         return $offering !== null
-            && $offering->offerable instanceof Webinar
-            && $offering->formatEnums()->count() === 1;
+            && $offering->offerable instanceof Webinar;
     }
 }

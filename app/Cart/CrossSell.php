@@ -11,9 +11,10 @@ use App\Models\Webinar;
 /**
  * The "You might also like" add-on offers for a cart — §5.3 cross-sell.
  *
- * For each webinar already in the cart, its *other* single-format offerings that
- * carry an add-on price and are not in the cart yet. These are shown in the
- * mini-cart drawer at their add-on price, so adding one is the order bump.
+ * For each webinar already in the cart, its *other* offerings — single formats
+ * and multi-format bundles alike — that carry an add-on price and are not in the
+ * cart yet. These are shown in the mini-cart drawer at their add-on price, so
+ * adding one is the order bump.
  */
 class CrossSell
 {
@@ -59,17 +60,17 @@ class CrossSell
 
         foreach ($candidates as $offering) {
             $webinar = $offering->offerable;
-            $format = $offering->formatEnums()->first();
 
-            // Single-format webinar offerings only — a bundle is not an add-on.
-            if (! $webinar instanceof Webinar || $format === null || $offering->formatEnums()->count() !== 1) {
+            // Any offering of a webinar in the cart, single format or bundle;
+            // the label is the offering's own ("Live Webinar + Recorded").
+            if (! $webinar instanceof Webinar || $offering->formatEnums()->isEmpty()) {
                 continue;
             }
 
             $suggestions[] = [
                 'offering' => $offering,
                 'webinar' => $webinar,
-                'format_label' => $format->label(),
+                'format_label' => $offering->label(),
                 'price_cents' => $offering->priceCents(true),
             ];
         }

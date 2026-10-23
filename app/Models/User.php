@@ -134,17 +134,23 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
             return false;
         }
 
-        // Staff and customers are kept to separate panels, and this is the line
-        // that enforces it. The admin panel enforces two-factor on its login;
-        // the customer panel does not. If a staff member could authenticate
-        // through the customer login, they would reach an authenticated `web`
-        // session that never faced the two-factor challenge — the exact bypass
-        // docs/auth.md refused Fortify's global POST /login over. So staff may
-        // not use the account panel at all, and a customer (no roles) may not
-        // use the admin panel.
-        return $panel->getId() === 'account'
-            ? ! $this->isStaff()
-            : $this->hasAnyRole(UserRole::values());
+        // The account (learner) panel is open to any active account — customers
+        // and staff alike — so an admin can open the learner dashboard from the
+        // storefront. This does NOT carry the two-factor separation; that is
+        // enforced at *login*, not here. The account panel has no Filament login
+        // of its own (AccountPanelProvider declares none); its only sign-in is
+        // the branded /login, whose action refuses a staff account, so staff
+        // authenticate only at /admin behind two-factor. Letting an already-
+        // authenticated admin view the learner area therefore adds no login path
+        // and no bypass. The admin panel stays gated to the four §8 roles.
+        if ($panel->getId() === 'account') {
+            return true;
+        }
+
+        // Any staff role reaches the admin panel — the four §8 system roles and
+        // any custom role a Super Admin creates (§8: "the client can create as
+        // many roles as they like"). A customer holds no role, so stays out.
+        return $this->isStaff();
     }
 
     /**

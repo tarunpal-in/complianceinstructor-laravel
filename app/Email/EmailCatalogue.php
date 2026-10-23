@@ -448,6 +448,19 @@ final class EmailCatalogue
                  */
                 owedToRecipient: false,
             ),
+            new EmailDefinition(
+                key: 'marketing.list_unsubscribe',
+                name: 'Confirm you want to unsubscribe',
+                category: EmailCategory::Marketing,
+                tier: EmailTier::Required,
+                trigger: 'Somebody uses the "Unsubscribe" button in the site footer.',
+                mailable: \App\Mail\UnsubscribeLink::class,
+                // Required so an admin cannot switch off the opt-out path: with
+                // this disabled, the footer Unsubscribe button would accept a
+                // request and silently send nothing. Owed to the recipient
+                // (the default) — asking to leave is always honoured.
+                lockReason: 'Without it the footer "Unsubscribe" button has nowhere to send people, and self-service opt-out silently stops working.',
+            ),
             // Resendable, unlike the other signed-link emails: the confirmation
             // route is signed but not single-use, and "I never got the
             // confirmation" is the most common reason anybody opens this log.

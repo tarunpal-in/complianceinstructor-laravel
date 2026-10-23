@@ -8,14 +8,12 @@ use App\Support\CompletionRules;
 use Database\Factories\AccreditationFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Spatie\Image\Enums\Fit;
-use Spatie\MediaLibrary\HasMedia;
-use Spatie\MediaLibrary\InteractsWithMedia;
-use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
  * @property-read \Illuminate\Database\Eloquent\Relations\Pivot|null $pivot
+ * @property int|null $logo_media_id
  *
  * CLAUDE.md §5.3 — an accrediting body: HRCI, SHRM, CPE, APA.
  *
@@ -23,38 +21,43 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * on the pivot per webinar rather than here — the same body awards different
  * amounts for different sessions.
  */
-class Accreditation extends Model implements HasMedia
+class Accreditation extends Model
 {
     /** @use HasFactory<AccreditationFactory> */
-    use HasFactory, InteractsWithMedia;
-
-    public function registerMediaCollections(): void
-    {
-        // The accrediting body's own logo, shown on the homepage "Accreditation
-        // Partners" section and wherever the body is credited. The admin uploads
-        // it on the accreditation screen.
-        $this->addMediaCollection('logo')->singleFile();
-    }
-
-    public function registerMediaConversions(?Media $media = null): void
-    {
-        $this->addMediaConversion('logo')
-            ->fit(Fit::Contain, 240, 120);
-    }
+    use HasFactory;
 
     protected $fillable = [
-        'code', 'name', 'description', 'is_active', 'sort_order',
+        'code', 'name', 'description', 'logo_media_id', 'is_active', 'sort_order',
         'live_delay_hours', 'watch_tolerance_minutes',
     ];
 
     protected function casts(): array
     {
         return [
+            'logo_media_id' => 'integer',
             'is_active' => 'boolean',
             'sort_order' => 'integer',
             'live_delay_hours' => 'integer',
             'watch_tolerance_minutes' => 'integer',
         ];
+    }
+
+    /**
+     * The body's logo — a library file picked with MediaPicker (§5.3), the same
+     * reference model webinar images use, so replacing the file in the library
+     * updates it everywhere.
+     *
+     * @return BelongsTo<Media, $this>
+     */
+    public function logoMedia(): BelongsTo
+    {
+        return $this->belongsTo(Media::class, 'logo_media_id');
+    }
+
+    /** The logo's URL, or null when none is picked — for the homepage and schema. */
+    public function logoUrl(): ?string
+    {
+        return $this->logoMedia?->detailImageUrl();
     }
 
     /**

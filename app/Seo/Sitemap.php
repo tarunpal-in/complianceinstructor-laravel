@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Seo;
 
+use App\Models\CorePage;
 use App\Models\Page;
 use App\Models\Post;
 use App\Models\Webinar;
@@ -70,6 +71,14 @@ final class Sitemap
             ->filter->isIndexable()
             ->each(fn (Page $page) => $sitemap->add(
                 self::url(Seo::absoluteUrl($page->path()), $page->updated_at),
+            ));
+
+        // The fixed core pages (Speakers, Membership, Industries, Contact) — §6.
+        // Always live; each sits at its key's own path.
+        CorePage::query()->with('seo')->get()
+            ->filter->isIndexable()
+            ->each(fn (CorePage $page) => $sitemap->add(
+                self::url(Seo::absoluteUrl($page->key->path()), $page->updated_at),
             ));
 
         return $sitemap;

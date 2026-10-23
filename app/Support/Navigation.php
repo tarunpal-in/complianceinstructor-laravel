@@ -106,7 +106,7 @@ final class Navigation
             ['label' => 'Home', 'url' => '/', 'new_tab' => false, 'children' => []],
             ['label' => 'About', 'url' => '/about', 'new_tab' => false, 'children' => []],
             ['label' => 'Training', 'url' => '/webinars', 'new_tab' => false, 'children' => []],
-            ['label' => 'Industry', 'url' => '/webinars', 'new_tab' => false, 'children' => []],
+            ['label' => 'Industry', 'url' => '/industries', 'new_tab' => false, 'children' => []],
             ['label' => 'Speakers', 'url' => '/speakers', 'new_tab' => false, 'children' => []],
             ['label' => 'Memberships', 'url' => '/membership', 'new_tab' => false, 'children' => []],
             ['label' => 'Blog', 'url' => '/blog', 'new_tab' => false, 'children' => []],

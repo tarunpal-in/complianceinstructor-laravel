@@ -43,8 +43,7 @@ class Webinar extends Model implements ReferencesMedia, Seoable
 
     protected $fillable = [
         'type', 'status', 'title', 'slug', 'summary',
-        'description', 'overview', 'background',
-        'who_should_attend', 'why_attend', 'session_highlights',
+        'description',
         'attendee_instructions',
         'speaker_id', 'industry_id',
         'scheduled_at', 'timezone', 'duration_minutes', 'seats_total',
@@ -93,6 +92,31 @@ class Webinar extends Model implements ReferencesMedia, Seoable
     public function handouts(): HasMany
     {
         return $this->hasMany(WebinarHandout::class)->orderBy('sort_order');
+    }
+
+    /**
+     * The ordered content blocks on the detail page — §6. Replaces the fixed
+     * overview/highlights/why/who columns; ordered here so every reader gets
+     * them in sequence without re-sorting.
+     *
+     * @return HasMany<WebinarSection, $this>
+     */
+    public function sections(): HasMany
+    {
+        return $this->hasMany(WebinarSection::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    /**
+     * Order lines for this webinar — the basis of the "Most Popular" sort.
+     *
+     * Only settled orders are counted there (Order::scopeSettled), so a cart
+     * that was never paid for cannot inflate a webinar's popularity.
+     *
+     * @return HasMany<OrderItem, $this>
+     */
+    public function orderItems(): HasMany
+    {
+        return $this->hasMany(OrderItem::class);
     }
 
     /**
@@ -194,30 +218,28 @@ class Webinar extends Model implements ReferencesMedia, Seoable
     // Behaviour -------------------------------------------------------------
 
     /**
-     * The long-form sections, in the order the comp stacks them.
+     * The visible content sections, in their saved order, as the view and tab
+     * bar consume them.
      *
-     * Empty ones are dropped rather than rendered as a heading with nothing
-     * under it — the client will not always have four sections of copy, and a
-     * bare heading reads as a fault.
-     *
-     * The anchors are what the tab bar scrolls to, so they are stable strings
-     * and not derived from the heading text.
+     * Sections empty of both heading and body are dropped — a bare heading
+     * reads as a fault. A section with a body but no heading is kept: it renders
+     * its body and simply earns no tab. Anchors are derived from the row id, so
+     * they stay stable as headings are renamed.
      *
      * @return array<int, array{id: string, heading: string, body: string}>
      */
     public function contentSections(): array
     {
-        $candidates = [
-            ['id' => 'overview', 'heading' => 'Webinar Overview', 'body' => $this->overview],
-            ['id' => 'highlights', 'heading' => 'Session Highlights', 'body' => $this->session_highlights],
-            ['id' => 'why-attend', 'heading' => 'Why You Should Attend', 'body' => $this->why_attend],
-            ['id' => 'who-attends', 'heading' => 'Who Should Attend', 'body' => $this->who_should_attend],
-        ];
-
-        return array_values(array_filter(
-            $candidates,
-            static fn (array $section): bool => trim((string) $section['body']) !== '',
-        ));
+        return $this->sections
+            ->where('is_visible', true)
+            ->map(static fn (WebinarSection $section): array => [
+                'id' => 'section-'.$section->getKey(),
+                'heading' => (string) $section->heading,
+                'body' => (string) $section->body,
+            ])
+            ->filter(static fn (array $section): bool => trim($section['body']) !== '' || trim($section['heading']) !== '')
+            ->values()
+            ->all();
     }
 
     /**

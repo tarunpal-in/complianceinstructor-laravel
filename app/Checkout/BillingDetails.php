@@ -13,9 +13,9 @@ namespace App\Checkout;
  *
  * `company` and `country` keep their original positions so the existing
  * positional callers (and the money-path tests) are untouched; the fuller
- * billing address and the required job title are appended. "Required" is a form
- * concern enforced at checkout — this DTO stays permissive so a snapshot can be
- * rebuilt from whatever an order actually froze.
+ * billing address, the required job title and the phone are appended. "Required"
+ * is a form concern enforced at checkout — this DTO stays permissive so a
+ * snapshot can be rebuilt from whatever an order actually froze.
  */
 final readonly class BillingDetails
 {
@@ -30,6 +30,7 @@ final readonly class BillingDetails
         public ?string $city = null,
         public ?string $region = null,
         public ?string $postalCode = null,
+        public ?string $phone = null,
     ) {}
 
     /** @return array<string, string> */
@@ -38,6 +39,7 @@ final readonly class BillingDetails
         return array_filter([
             'name' => $this->name,
             'email' => $this->email,
+            'phone' => (string) $this->phone,
             'job_title' => (string) $this->jobTitle,
             'company' => (string) $this->company,
             'address_line1' => (string) $this->addressLine1,

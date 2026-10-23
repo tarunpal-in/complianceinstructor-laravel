@@ -35,7 +35,7 @@ class HomepageContent
      */
     public static function webinars(PageSection $block): array
     {
-        $query = Webinar::query()->public()->with(['speaker', 'accreditations']);
+        $query = Webinar::query()->public()->with(['speaker', 'accreditations', 'cardMedia']);
 
         if (self::isManual($block)) {
             $ids = self::chosenIds($block);
@@ -52,10 +52,15 @@ class HomepageContent
             ->filter(fn (Webinar $w): bool => $w->scheduled_at !== null)
             ->map(fn (Webinar $w): array => [
                 'title' => $w->title,
-                'speaker' => $w->speaker->name ?: 'To be announced',
-                'speaker_title' => $w->speaker->title ?? '',
-                'speaker_initials' => self::initials($w->speaker->name),
+                // speaker_id is nullable (nullOnDelete), so a published webinar
+                // can outlive its speaker — null-safe so the home page never 500s.
+                'speaker' => $w->speaker?->name ?: 'To be announced',
+                'speaker_title' => $w->speaker?->title ?: '',
+                'speaker_initials' => self::initials($w->speaker?->name),
                 'accreditations' => $w->accreditations->pluck('code')->all(),
+                // The webinar's own card image once one is set (import:media or
+                // the admin); the component falls back to the comp placeholder.
+                'image_url' => $w->cardImageUrl(),
                 'starts_at' => $w->scheduled_at,
                 'time_label' => $w->scheduledTimeLabel() ?? '',
                 'duration' => $w->duration_minutes ? $w->duration_minutes.' Min' : '',
@@ -107,6 +112,7 @@ class HomepageContent
     {
         return Accreditation::query()
             ->where('is_active', true)
+            ->with('logoMedia')
             ->orderBy('sort_order')->orderBy('code')
             ->limit($limit)
             ->get()
@@ -114,7 +120,7 @@ class HomepageContent
                 'code' => $accreditation->code,
                 'badge' => $accreditation->description ?? '',
                 'name' => $accreditation->name,
-                'logo_url' => ($url = $accreditation->getFirstMediaUrl('logo')) !== '' ? $url : null,
+                'logo_url' => $accreditation->logoUrl(),
             ])
             ->all();
     }

@@ -15,7 +15,9 @@ use App\Support\Money as MoneyHelper;
 use Illuminate\Support\Facades\Log;
 use PaypalServerSdkLib\Authentication\ClientCredentialsAuthCredentialsBuilder;
 use PaypalServerSdkLib\Environment;
+use PaypalServerSdkLib\Models\Builders\AmountBreakdownBuilder;
 use PaypalServerSdkLib\Models\Builders\AmountWithBreakdownBuilder;
+use PaypalServerSdkLib\Models\Builders\ItemRequestBuilder;
 use PaypalServerSdkLib\Models\Builders\MoneyBuilder;
 use PaypalServerSdkLib\Models\Builders\OrderRequestBuilder;
 use PaypalServerSdkLib\Models\Builders\PurchaseUnitRequestBuilder;
@@ -50,21 +52,16 @@ class PayPalDriver implements PaymentGatewayDriver
      * Create a PayPal order the Buttons can approve, for the order total.
      *
      * The amount is the order's own total (PlaceOrder computed it from the
-     * offerings, §14 #1); PayPal is never handed a figure from the request.
+     * offerings, §14 #1); PayPal is never handed a figure from the request. The
+     * order lines are itemised too, so each one shows on the PayPal transaction
+     * the way the old WooCommerce site did — see purchaseUnit().
      */
     public function createCheckout(Order $order): CheckoutIntent
     {
         $response = $this->client()->getOrdersController()->createOrder([
             'body' => OrderRequestBuilder::init(
                 CheckoutPaymentIntent::CAPTURE,
-                [
-                    PurchaseUnitRequestBuilder::init(
-                        AmountWithBreakdownBuilder::init(
-                            strtoupper($order->currency),
-                            MoneyHelper::toDecimal($order->total_cents),
-                        )->build(),
-                    )->customId((string) $order->getKey())->build(),
-                ],
+                [$this->purchaseUnit($order)],
             )->build(),
             'prefer' => 'return=representation',
         ]);
@@ -156,6 +153,84 @@ class PayPalDriver implements PaymentGatewayDriver
 
             return RefundResult::failed($this->readableMessage($e));
         }
+    }
+
+    /**
+     * The purchase unit for the order — itemised when the figures reconcile.
+     *
+     * PayPal shows `items[]` on the transaction (the WooCommerce parity the
+     * client asked for), but it rejects the whole order if the breakdown does
+     * not add up to the amount. So the lines are only sent when
+     * `item_total − discount + tax` equals the order's own total to the cent;
+     * otherwise this falls back to the plain total, so a stray rounding never
+     * blocks a payment. Either way the amount handed to PayPal is the order's
+     * computed total, never a recomputed one (§14 #1).
+     */
+    private function purchaseUnit(Order $order): \PaypalServerSdkLib\Models\PurchaseUnitRequest
+    {
+        $order->loadMissing('items');
+        $currency = strtoupper($order->currency);
+
+        $items = [];
+        $itemTotal = 0;
+
+        foreach ($order->items as $item) {
+            $quantity = max(1, (int) $item->quantity);
+            $unitCents = (int) $item->unit_price_cents;
+            $itemTotal += $unitCents * $quantity;
+
+            $items[] = ItemRequestBuilder::init(
+                $this->itemName($item),
+                MoneyBuilder::init($currency, MoneyHelper::toDecimal($unitCents))->build(),
+                (string) $quantity,
+            )->sku($this->itemSku($item))->build();
+        }
+
+        $discount = (int) $order->discount_cents;
+        $tax = (int) $order->tax_cents;
+        $itemised = $items !== [] && ($itemTotal - $discount + $tax) === (int) $order->total_cents;
+
+        $amount = AmountWithBreakdownBuilder::init($currency, MoneyHelper::toDecimal($order->total_cents));
+
+        if ($itemised) {
+            $breakdown = AmountBreakdownBuilder::init()
+                ->itemTotal(MoneyBuilder::init($currency, MoneyHelper::toDecimal($itemTotal))->build());
+
+            if ($tax > 0) {
+                $breakdown = $breakdown->taxTotal(MoneyBuilder::init($currency, MoneyHelper::toDecimal($tax))->build());
+            }
+
+            if ($discount > 0) {
+                $breakdown = $breakdown->discount(MoneyBuilder::init($currency, MoneyHelper::toDecimal($discount))->build());
+            }
+
+            $amount = $amount->breakdown($breakdown->build());
+        }
+
+        $unit = PurchaseUnitRequestBuilder::init($amount->build())
+            ->customId((string) $order->getKey())
+            ->description(mb_substr('Order '.$order->number, 0, 127));
+
+        if ($itemised) {
+            $unit = $unit->items($items);
+        }
+
+        return $unit->build();
+    }
+
+    /** The line's name for PayPal — its description, capped at PayPal's 127. */
+    private function itemName(\App\Models\OrderItem $item): string
+    {
+        $name = trim((string) $item->description);
+
+        return mb_substr($name === '' ? 'Webinar access' : $name, 0, 127);
+    }
+
+    private function itemSku(\App\Models\OrderItem $item): ?string
+    {
+        $sku = trim((string) $item->sku);
+
+        return $sku === '' ? null : mb_substr($sku, 0, 127);
     }
 
     private function client(): \PaypalServerSdkLib\PaypalServerSdkClient

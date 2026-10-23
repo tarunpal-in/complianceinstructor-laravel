@@ -71,6 +71,23 @@ enum Format: string
     }
 
     /**
+     * The x-ui.icon name shown beside this format in the purchase panel when an
+     * offering sells a single format. One per format so the row reads at a
+     * glance: a video camera for a live session, a play button for a recording,
+     * a document, a download. A multi-format bundle shows a single generic
+     * `monitor` instead (Offering::iconName).
+     */
+    public function iconName(): string
+    {
+        return match ($this) {
+            self::Live => 'video',
+            self::Recorded => 'circle-play',
+            self::Transcript => 'file-text',
+            self::Download => 'download',
+        };
+    }
+
+    /**
      * Whether buying this format grants access to something released on a
      * schedule rather than immediately — which is what `webinar_assets`
      * `available_from` governs.

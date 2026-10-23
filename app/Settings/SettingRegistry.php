@@ -76,6 +76,7 @@ final class SettingRegistry
             ...self::business(),
             ...self::brand(),
             ...self::commerce(),
+            ...self::payments(),
             ...self::catalogue(),
             ...self::certificates(),
             ...self::email(),
@@ -281,6 +282,41 @@ final class SettingRegistry
                 // A day at the outside. Longer stops being a safety window
                 // and starts being a customer wondering where their money is.
                 range: [0, 1440],
+            ),
+        ];
+    }
+
+    /**
+     * Which checkout gateways are switched on — §8 improvement #1.
+     *
+     * One boolean per customer-facing gateway. Edited on the dedicated Payment
+     * Gateways page (which also shows each one's connection status), not the
+     * generic settings screen, so the Payments group is deliberately absent from
+     * that screen's tabs. A gateway is offered at checkout only when its toggle
+     * is on; whether its credentials are actually present is checked separately,
+     * when payment is taken (PaymentController::start). Stripe ships off at the
+     * client's request; PayPal on.
+     *
+     * @return array<int, SettingDefinition>
+     */
+    private static function payments(): array
+    {
+        return [
+            new SettingDefinition(
+                key: 'payments.paypal_enabled',
+                group: SettingGroup::Payments,
+                label: 'Offer PayPal at checkout',
+                type: 'boolean',
+                default: true,
+                input: 'toggle',
+            ),
+            new SettingDefinition(
+                key: 'payments.stripe_enabled',
+                group: SettingGroup::Payments,
+                label: 'Offer Stripe (card) at checkout',
+                type: 'boolean',
+                default: false,
+                input: 'toggle',
             ),
         ];
     }

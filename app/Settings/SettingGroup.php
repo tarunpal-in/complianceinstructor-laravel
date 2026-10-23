@@ -21,6 +21,7 @@ enum SettingGroup: string
     case Business = 'business';
     case Brand = 'brand';
     case Commerce = 'commerce';
+    case Payments = 'payments';
     case Catalogue = 'catalogue';
     case Certificates = 'certificates';
     case Email = 'email';
@@ -32,6 +33,7 @@ enum SettingGroup: string
             self::Business => 'Business',
             self::Brand => 'Brand',
             self::Commerce => 'Commerce',
+            self::Payments => 'Payments',
             self::Catalogue => 'Catalogue',
             self::Certificates => 'Certificates',
             self::Email => 'Email & list',
@@ -45,6 +47,7 @@ enum SettingGroup: string
             self::Business => 'Who the business is, and where it is. Used on invoices, certificates and in the footer.',
             self::Brand => 'Logos and the promo bar.',
             self::Commerce => 'Order numbering and refunds.',
+            self::Payments => 'Which checkout payment methods are switched on, and whether each gateway is connected.',
             self::Catalogue => 'The wording shown beside what you sell.',
             self::Certificates => 'When a certificate is issued automatically. Individual accrediting bodies can override these.',
             self::Email => 'What goes out, and who has agreed to receive it.',
@@ -66,8 +69,9 @@ enum SettingGroup: string
             // Marketing copy and imagery: the content editor's job.
             self::Brand, self::Catalogue => 'update_setting',
             // Money: order numbering appears on every invoice and the refund
-            // window governs when money leaves.
-            self::Commerce => 'manage_commerce_setting',
+            // window governs when money leaves. Which gateways take that money
+            // belongs with the same permission.
+            self::Commerce, self::Payments => 'manage_commerce_setting',
             // Accreditation rules. Getting these wrong issues credits that
             // should not exist — §12 has them as prescribed and not negotiable.
             self::Certificates => 'manage_certificate_setting',
@@ -84,6 +88,6 @@ enum SettingGroup: string
     /** @return array<int, self> */
     public static function ordered(): array
     {
-        return [self::Business, self::Brand, self::Commerce, self::Catalogue, self::Certificates, self::Email, self::Integrations];
+        return [self::Business, self::Brand, self::Commerce, self::Payments, self::Catalogue, self::Certificates, self::Email, self::Integrations];
     }
 }

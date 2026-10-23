@@ -88,6 +88,20 @@ class Offering extends Model
     }
 
     /**
+     * The x-ui.icon shown beside this option in the purchase panel.
+     *
+     * A single-format offering wears that format's own icon; a multi-format
+     * bundle wears a single generic `monitor`, so the combined options read as
+     * one option rather than a cluster of per-format marks.
+     */
+    public function iconName(): string
+    {
+        $formats = $this->formatEnums();
+
+        return $formats->count() === 1 ? $formats->first()->iconName() : 'monitor';
+    }
+
+    /**
      * The tooltip text, joined from each format's site-wide description.
      *
      * Site-wide by decision: "Recorded" means the same thing on every webinar,

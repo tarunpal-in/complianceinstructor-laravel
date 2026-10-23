@@ -68,6 +68,12 @@ trait HasSeo
         // Keep the cached sitemap current. Only types with a public URL are in
         // it, so only their changes need to bust it.
         $bust = function (Model $model): void {
+            // A Seoable without a slug column (a fixed core page) has no
+            // slug-derived path; reading `slug` would throw under strict mode.
+            if (! array_key_exists('slug', $model->getAttributes())) {
+                return;
+            }
+
             /** @var self $model */
             if ($model->seoPathForSlug((string) $model->getAttribute('slug')) !== null) {
                 \Illuminate\Support\Facades\Cache::forget(\App\Seo\Sitemap::CACHE_KEY);

@@ -226,6 +226,28 @@ class AppServiceProvider extends ServiceProvider
         );
 
         /*
+         * Claim historical guest purchases (migration §5.2). ~2,352 migrated
+         * orders were guest checkouts with no account, so their buyers hold no
+         * entitlement. When the buyer verifies that email — or an imported
+         * customer whose guest orders were never linked logs in with a verified
+         * account — link the orders and grant the access they bought. Gated on
+         * proven email ownership (verification, or a verified login), never on
+         * an unverified registration, so one account cannot claim another's
+         * purchases.
+         */
+        Event::listen(\Illuminate\Auth\Events\Verified::class, static function (\Illuminate\Auth\Events\Verified $event): void {
+            if ($event->user instanceof User) {
+                app(\App\Actions\Orders\ClaimGuestOrders::class)($event->user);
+            }
+        });
+
+        Event::listen(\Illuminate\Auth\Events\Login::class, static function (\Illuminate\Auth\Events\Login $event): void {
+            if ($event->user instanceof User && $event->user->hasVerifiedEmail()) {
+                app(\App\Actions\Orders\ClaimGuestOrders::class)($event->user);
+            }
+        });
+
+        /*
          * One password policy, everywhere.
          *
          * Both password paths — Filament's reset page and its profile page — apply
