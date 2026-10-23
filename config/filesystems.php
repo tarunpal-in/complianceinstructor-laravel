@@ -63,6 +63,17 @@ return [
             'report' => false,
         ],
 
+        // A read-only view of the old WordPress wp-content/uploads backup, used
+        // once by `import:media` to attach the old site's images to the imported
+        // records. It is only ever READ from — the importer copies files out and
+        // never writes here, so the backup stays intact.
+        'uploads' => [
+            'driver' => 'local',
+            'root' => base_path('uploads/uploads'),
+            'throw' => false,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

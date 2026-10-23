@@ -31,6 +31,11 @@ class DatabaseSeeder extends Seeder
             MediaLibrarySeeder::class,
             HomePageSeeder::class,
             PageSeeder::class,
+            // The four policy pages behind the footer's legal links (§7).
+            LegalPagesSeeder::class,
+            // The fixed core pages (Speakers, Membership, Industries, Contact)
+            // and their editable heroes — §6.
+            CorePageSeeder::class,
             // The header and footer menus (§5.6), after the pages so the footer
             // can link to any that were seeded.
             NavigationSeeder::class,

@@ -46,6 +46,17 @@ class SettingSeeder extends Seeder
             ['certificates', 'live_delay_hours', 24, 'integer'],
             ['certificates', 'watch_tolerance_minutes', 10, 'integer'],
 
+            // Demo contact details so the footer and the contact page look
+            // complete; the client replaces these in Settings → Business.
+            ['business', 'email', 'support@complianceinstructor.com', 'string'],
+            ['business', 'phone', '(800) 555-0142', 'string'],
+            ['business', 'address', "123 Compliance Way, Suite 400\nAustin, TX 78701", 'string'],
+
+            // Which checkout gateways are switched on. Stripe off at the client's
+            // request (2026-10-22); PayPal on. Edited on the Payment Gateways page.
+            ['payments', 'paypal_enabled', true, 'boolean'],
+            ['payments', 'stripe_enabled', false, 'boolean'],
+
             ['promo_bar', 'enabled', true, 'boolean'],
             ['promo_bar', 'text', 'Purchase any webinar and use code :code at checkout to save $10.', 'string'],
             ['promo_bar', 'code', 'TRAINING', 'string'],

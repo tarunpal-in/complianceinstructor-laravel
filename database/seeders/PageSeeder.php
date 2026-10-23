@@ -9,13 +9,12 @@ use App\Models\Page;
 use Illuminate\Database\Seeder;
 
 /**
- * Two of the marketing pages §7 names, built from blocks — §5.9.
+ * The About page §7 names, built from blocks — §5.9.
  *
  * A page builder with no pages in it cannot be reviewed: the client cannot see
- * what a block looks like, and neither can anybody checking the work. These
- * two are chosen to exercise most of the library between them — About uses the
- * hero, statistics, feature grid and call to action; the privacy policy is the
- * prose case every policy page will be.
+ * what a block looks like, and neither can anybody checking the work. About is
+ * chosen to exercise most of the library — hero, statistics, feature grid and
+ * call to action. The prose policy pages live in LegalPagesSeeder.
  *
  * Copy is deliberately plain and obviously provisional. §12 has content
  * readiness as the most common cause of slipped launches, and placeholder text
@@ -79,48 +78,12 @@ class PageSeeder extends Seeder
             ]],
         ]);
 
-        $this->page('Contact Us', 'contact', PublishStatus::Published, [
-            ['hero', [
-                'eyebrow' => 'WE ARE HERE TO HELP',
-                'heading' => 'Get in touch',
-                'lede' => 'Questions about a webinar, a membership or your credits? Send us a note and the team will get back to you.',
-            ]],
-            ['contact', [
-                'heading' => 'Contact us',
-                'intro' => 'Reach us directly, or use the form — placeholder details, to be replaced with the client\'s own.',
-                'details' => [
-                    ['icon' => 'mail', 'label' => 'Email', 'value' => 'support@complianceinstructor.com', 'url' => 'mailto:support@complianceinstructor.com'],
-                    ['icon' => 'phone', 'label' => 'Phone', 'value' => '(800) 555-0142', 'url' => 'tel:+18005550142'],
-                    ['icon' => 'clock-3', 'label' => 'Hours', 'value' => 'Mon–Fri, 9am–5pm ET', 'url' => null],
-                ],
-                'form_heading' => 'Send us a message',
-                'button_label' => 'Send message',
-                'success_message' => 'Thanks — your message is on its way. We will be in touch shortly.',
-            ]],
-            ['faq', [
-                'heading' => 'Before you write',
-                'questions' => [
-                    ['question' => 'How do I access a webinar I bought?', 'answer' => 'Placeholder answer — sign in and open your dashboard.'],
-                    ['question' => 'Where are my certificates?', 'answer' => 'Placeholder answer — certificates appear in your dashboard once a session is completed.'],
-                ],
-            ]],
-        ]);
+        // Contact is a core page now (§6, CorePageSeeder), not a page-builder
+        // page — its hero and copy are edited under Core Pages, its details come
+        // from the business settings, and /contact has its own route.
 
-        $this->page('Privacy Policy', 'privacy-policy', PublishStatus::Draft, [
-            ['rich_text', [
-                'heading' => 'Privacy Policy',
-                'body' => '<p><strong>Placeholder.</strong> This page needs the client\'s own policy text before launch — it is not legal copy and must not be published as it stands.</p>'
-                    .'<h3>What we collect</h3><p>Account details, purchase history and attendance records.</p>'
-                    .'<h3>How to reach us</h3><p>Write to the address on the contact page.</p>',
-            ]],
-            ['faq', [
-                'heading' => 'Common questions',
-                'questions' => [
-                    ['question' => 'How long is my data kept?', 'answer' => 'Placeholder answer, pending the client\'s retention policy.'],
-                    ['question' => 'Can I ask for my data to be deleted?', 'answer' => 'Placeholder answer, pending the client\'s retention policy.'],
-                ],
-            ]],
-        ]);
+        // The four policy pages (Privacy, Terms, Refund, Cookie) live in
+        // LegalPagesSeeder, which owns the footer's legal links.
     }
 
     /**

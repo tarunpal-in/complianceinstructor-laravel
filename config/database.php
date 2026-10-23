@@ -86,6 +86,33 @@ return [
             ]) : [],
         ],
 
+        /*
+         * Read-only source for the WordPress/WooCommerce migration (one-off).
+         *
+         * The dump is loaded into its own MySQL schema and the importer reads it
+         * through this connection; nothing is ever written here. `prefix` is the
+         * WordPress table prefix, so queries name `posts`, `users`, … and reach
+         * `wp_posts`, `wp_users`. Non-strict because the legacy data carries
+         * values MySQL strict mode rejects (e.g. '0000-00-00' dates); it only
+         * affects writes, and this connection never writes. Left unconfigured
+         * (no database) on any environment that is not running the migration.
+         */
+        'legacy' => [
+            'driver' => 'mysql',
+            'host' => env('LEGACY_DB_HOST', '127.0.0.1'),
+            'port' => env('LEGACY_DB_PORT', '3306'),
+            'database' => env('LEGACY_DB_DATABASE'),
+            'username' => env('LEGACY_DB_USERNAME', 'root'),
+            'password' => env('LEGACY_DB_PASSWORD', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => env('LEGACY_DB_PREFIX', 'wp_'),
+            'prefix_indexes' => true,
+            'strict' => false,
+            'engine' => null,
+            'options' => [],
+        ],
+
         'pgsql' => [
             'driver' => 'pgsql',
             'url' => env('DB_URL'),

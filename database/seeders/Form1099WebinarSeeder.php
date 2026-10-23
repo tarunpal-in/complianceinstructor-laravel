@@ -77,36 +77,6 @@ class Form1099WebinarSeeder extends Seeder
                 'description' => 'Live, expert-led training on Form 1099 reporting for 2026 — covering '
                     .'1099-NEC, 1099-MISC and 1099-K, backup withholding, due diligence, and the '
                     .'proposed changes to the $600 threshold.',
-                'overview' => 'This live session goes beyond the basics of Form 1099 reporting into the '
-                    .'areas that trip filers up: due diligence, backup withholding, and missing SSNs. Led '
-                    .'by Jason Dinesen — known nationwide as "The 1099 Guy" — it covers Form 1099-NEC for '
-                    .'independent contractors, Form 1099-MISC for payments such as rent, and Form 1099-K, '
-                    ."including payments made through apps like PayPal and Venmo.\n\nWith IRS penalties for "
-                    .'incorrect or unfiled 1099s rising and enforcement of backup withholding increasing, '
-                    .'this session is built for AP professionals, accountants, and small business owners '
-                    .'who need to get it right. A live Q&A follows, where Jason answers your specific '
-                    .'reporting questions.',
-                'session_highlights' => implode("\n\n", [
-                    '• Determining when a payment is reportable on a 1099, and who must issue it',
-                    '• Due diligence for collecting and keeping Form W-9s — even when reporting isn\'t initially required',
-                    '• When backup withholding is mandatory under IRC § 3406, and how to calculate, deposit, and report it',
-                    '• Handling CP-2100 letters and B Notices, including the difference between first and second notices',
-                    '• Avoiding common pitfalls — missing TINs, late filings, improper e-filing — and building a reasonable-cause defense if penalties are assessed',
-                    '• Preparing for changes under the "One Big Beautiful Bill," including the possible end of the $600 reporting threshold and updates to IRIS and FIRE',
-                    '• Credit card and payment-app reporting (e.g. Venmo), the e-file mandate, corporate filing, Form W-9, and backup withholding',
-                ]),
-                'why_attend' => 'The One Big Beautiful Bill may significantly change Form 1099 reporting — '
-                    .'including the long-standing $600 threshold. This session helps businesses, freelancers, '
-                    .'and tax professionals understand what is changing and prepare for the new requirements '
-                    .'before filing season, rather than scrambling after a notice arrives.',
-                'who_should_attend' => implode("\n\n", [
-                    'This session is designed for:',
-                    '• Accountants and Bookkeepers',
-                    '• Office Managers',
-                    '• Human Resources Professionals',
-                    '• Compliance Professionals',
-                    '• Business Owners',
-                ]),
                 'attendee_instructions' => 'If you have enrolled in the Live Webinar, you will receive your '
                     .'instruction kit at least 24 hours before the live class. If you signed up for the '
                     .'Recorded or E-Transcript option, you will get access to the recording link or the PDF '
@@ -121,6 +91,58 @@ class Form1099WebinarSeeder extends Seeder
                 'seats_total' => null,
             ],
         );
+
+        // Content sections — delete-and-recreate keeps the seeder idempotent, the
+        // same way the webinar importer rebuilds them from the legacy blob.
+        $webinar->sections()->delete();
+        $webinar->sections()->createMany([
+            [
+                'heading' => 'Webinar Overview',
+                'body' => 'This live session goes beyond the basics of Form 1099 reporting into the '
+                    .'areas that trip filers up: due diligence, backup withholding, and missing SSNs. Led '
+                    .'by Jason Dinesen — known nationwide as "The 1099 Guy" — it covers Form 1099-NEC for '
+                    .'independent contractors, Form 1099-MISC for payments such as rent, and Form 1099-K, '
+                    ."including payments made through apps like PayPal and Venmo.\n\nWith IRS penalties for "
+                    .'incorrect or unfiled 1099s rising and enforcement of backup withholding increasing, '
+                    .'this session is built for AP professionals, accountants, and small business owners '
+                    .'who need to get it right. A live Q&A follows, where Jason answers your specific '
+                    .'reporting questions.',
+                'sort_order' => 0,
+            ],
+            [
+                'heading' => 'Session Highlights',
+                'body' => implode("\n\n", [
+                    '• Determining when a payment is reportable on a 1099, and who must issue it',
+                    '• Due diligence for collecting and keeping Form W-9s — even when reporting isn\'t initially required',
+                    '• When backup withholding is mandatory under IRC § 3406, and how to calculate, deposit, and report it',
+                    '• Handling CP-2100 letters and B Notices, including the difference between first and second notices',
+                    '• Avoiding common pitfalls — missing TINs, late filings, improper e-filing — and building a reasonable-cause defense if penalties are assessed',
+                    '• Preparing for changes under the "One Big Beautiful Bill," including the possible end of the $600 reporting threshold and updates to IRIS and FIRE',
+                    '• Credit card and payment-app reporting (e.g. Venmo), the e-file mandate, corporate filing, Form W-9, and backup withholding',
+                ]),
+                'sort_order' => 1,
+            ],
+            [
+                'heading' => 'Why You Should Attend',
+                'body' => 'The One Big Beautiful Bill may significantly change Form 1099 reporting — '
+                    .'including the long-standing $600 threshold. This session helps businesses, freelancers, '
+                    .'and tax professionals understand what is changing and prepare for the new requirements '
+                    .'before filing season, rather than scrambling after a notice arrives.',
+                'sort_order' => 2,
+            ],
+            [
+                'heading' => 'Who Should Attend',
+                'body' => implode("\n\n", [
+                    'This session is designed for:',
+                    '• Accountants and Bookkeepers',
+                    '• Office Managers',
+                    '• Human Resources Professionals',
+                    '• Compliance Professionals',
+                    '• Business Owners',
+                ]),
+                'sort_order' => 3,
+            ],
+        ]);
 
         // 1.5 CPE credits — 90 minutes under the CreditHours rule. sync() sets the
         // pivot idempotently, so a re-run never stacks a second row.
