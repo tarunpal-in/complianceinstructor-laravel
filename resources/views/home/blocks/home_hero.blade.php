@@ -48,6 +48,7 @@
     :heading-tail="$block->value('heading_tail')"
     :lede="$block->value('lede')"
     :primary-label="$block->value('primary_label')"
+    :primary-url="$block->value('primary_url')"
     :secondary-label="$block->value('secondary_label')"
     :secondary-url="$block->value('secondary_url')"
     :stats="$stats ?: null"

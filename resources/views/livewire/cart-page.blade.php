@@ -11,54 +11,70 @@
     @if ($cart->isEmpty())
         <div class="cart-empty">
             <p>Your cart is empty.</p>
-            <a class="btn-primary" href="{{ route('home') }}#training">Browse webinars</a>
+            <a class="btn-primary" href="{{ route('webinars.index') }}">Browse webinars</a>
         </div>
     @else
-        <div class="cart-grid">
-            <div class="cart-lines">
-                @foreach ($cart->items as $item)
-                    <div class="cart-row" wire:key="item-{{ $item->id }}">
-                        <div class="cart-row-main">
-                            <strong>{{ $item->offering?->offerable?->title ?? 'Item' }}</strong>
-                            <span>{{ $item->offering?->label() }}</span>
-                            @unless ($item->isAvailable())
-                                <em class="cart-unavailable">No longer available</em>
-                            @endunless
+        <div class="cart-grid @guest cart-grid--auth @endguest">
+            <div class="cart-main">
+                <div class="cart-lines">
+                    @foreach ($cart->items as $item)
+                        <div class="cart-row" wire:key="item-{{ $item->id }}">
+                            <div class="cart-row-main">
+                                <strong>{{ $item->offering?->offerable?->title ?? 'Item' }}</strong>
+                                <span>{{ $item->offering?->label() }}</span>
+                                @unless ($item->isAvailable())
+                                    <em class="cart-unavailable">No longer available</em>
+                                @endunless
+                            </div>
+
+                            <div class="cart-row-price">{{ Money::format($item->offering?->priceCents() ?? 0, $cart->currency) }}</div>
+
+                            <div class="cart-row-qty" role="group" aria-label="Quantity">
+                                <button type="button" wire:click="updateQuantity({{ $item->id }}, {{ $item->quantity - 1 }})" aria-label="Decrease quantity">−</button>
+                                <span aria-live="polite">{{ $item->quantity }}</span>
+                                <button type="button" wire:click="updateQuantity({{ $item->id }}, {{ $item->quantity + 1 }})" aria-label="Increase quantity">+</button>
+                            </div>
+
+                            <div class="cart-row-total">{{ Money::format($item->lineSubtotalCents(), $cart->currency) }}</div>
+
+                            <button type="button" class="cart-remove" wire:click="removeItem({{ $item->id }})" aria-label="Remove {{ $item->offering?->label() }}">
+                                <x-ui.icon name="x" :size="18" />
+                            </button>
                         </div>
+                    @endforeach
+                </div>
 
-                        <div class="cart-row-price">{{ Money::format($item->offering?->priceCents() ?? 0, $cart->currency) }}</div>
-
-                        <div class="cart-row-qty" role="group" aria-label="Quantity">
-                            <button type="button" wire:click="updateQuantity({{ $item->id }}, {{ $item->quantity - 1 }})" aria-label="Decrease quantity">−</button>
-                            <span aria-live="polite">{{ $item->quantity }}</span>
-                            <button type="button" wire:click="updateQuantity({{ $item->id }}, {{ $item->quantity + 1 }})" aria-label="Increase quantity">+</button>
+                @guest
+                    {{-- Signed out: the summary sits under the items, freeing the
+                         right rail for sign-in / registration. --}}
+                    <aside class="cart-summary cart-summary--under">
+                        <h2>Summary</h2>
+                        <div class="cart-summary-row">
+                            <span>Subtotal</span>
+                            <strong>{{ Money::format($cart->subtotalCents(), $cart->currency) }}</strong>
                         </div>
-
-                        <div class="cart-row-total">{{ Money::format($item->lineSubtotalCents(), $cart->currency) }}</div>
-
-                        <button type="button" class="cart-remove" wire:click="removeItem({{ $item->id }})" aria-label="Remove {{ $item->offering?->label() }}">
-                            <x-ui.icon name="x" :size="18" />
-                        </button>
-                    </div>
-                @endforeach
+                        <p class="cart-summary-note">Coupons and tax are applied at checkout.</p>
+                    </aside>
+                @endguest
             </div>
 
-            <aside class="cart-summary">
-                <h2>Summary</h2>
-                <div class="cart-summary-row">
-                    <span>Subtotal</span>
-                    <strong>{{ Money::format($cart->subtotalCents(), $cart->currency) }}</strong>
-                </div>
-                <p class="cart-summary-note">Coupons and tax are applied at checkout.</p>
-
-                @auth
+            @auth
+                <aside class="cart-summary">
+                    <h2>Summary</h2>
+                    <div class="cart-summary-row">
+                        <span>Subtotal</span>
+                        <strong>{{ Money::format($cart->subtotalCents(), $cart->currency) }}</strong>
+                    </div>
+                    <p class="cart-summary-note">Coupons and tax are applied at checkout.</p>
                     <a class="btn-primary cart-checkout" href="{{ route('checkout.index') }}">Proceed to checkout</a>
-                @else
-                    {{-- Checkout needs an account (no guest checkout): sign in or
-                         register right here, without losing the cart. --}}
+                </aside>
+            @else
+                {{-- Checkout needs an account (no guest checkout): sign in or
+                     register right here, without losing the cart. --}}
+                <aside class="cart-auth-rail">
                     <livewire:auth.cart-auth />
-                @endauth
-            </aside>
+                </aside>
+            @endauth
         </div>
     @endif
 </div>

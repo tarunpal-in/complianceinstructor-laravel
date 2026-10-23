@@ -44,14 +44,10 @@
         <livewire:cart-count />
 
         @auth
-            {{-- Send each user to the panel they can actually open: staff to the
-                 admin panel (the customer panel refuses them, which is the 403),
-                 customers to their account area. --}}
-            @php $isStaff = auth()->user()->isStaff(); @endphp
-            <a class="login-button"
-               href="{{ $isStaff ? \Filament\Facades\Filament::getPanel('admin')->getUrl() : route('filament.account.pages.upcoming-webinars') }}">
-                {{ $isStaff ? 'Admin' : 'My Account' }}
-            </a>
+            {{-- Everyone's button is the learner dashboard — customers and staff
+                 alike can open it. Staff reach the admin panel from the staff bar
+                 at the very top of the page (x-site.admin-bar). --}}
+            <a class="login-button" href="{{ route('filament.account.pages.upcoming-webinars') }}">My Account</a>
             <form method="POST" action="{{ route('logout') }}" class="nav-logout">
                 @csrf
                 <button type="submit" class="nav-logout-btn">Log out</button>

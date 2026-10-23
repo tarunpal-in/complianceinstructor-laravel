@@ -49,7 +49,7 @@
 
             <article class="webinar-card">
                 <div class="webinar-photo">
-                    <img src="{{ asset('images/home/workshop.jpg') }}" alt="Audience at a webinar" width="940" height="628" loading="lazy" decoding="async">
+                    <img src="{{ $webinar['image_url'] ?? asset('images/home/workshop.jpg') }}" alt="{{ $webinar['title'] ?? 'Audience at a webinar' }}" width="940" height="628" loading="lazy" decoding="async">
 
                     {{-- Badge and body date derive from one Carbon instance. The
                          comp badges "26 AUG" on a card whose body reads "Aug 22";
@@ -68,7 +68,7 @@
                 </div>
 
                 <div class="webinar-body">
-                    <h3>{{ $webinar['title'] }}</h3>
+                    <h3>@if (! empty($webinar['url']))<a class="card-link" href="{{ $webinar['url'] }}">{{ $webinar['title'] }}</a>@else{{ $webinar['title'] }}@endif</h3>
 
                     <div class="webinar-meta">
                         <p>

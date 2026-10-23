@@ -17,14 +17,10 @@
                     </span>
 
                     @if ($certificate->isValid())
-                        @if ($certificate->hasPdf())
-                            <a href="{{ route('learning.certificate', $certificate) }}"
-                               class="ld-btn" target="_blank" rel="noopener">
-                                Download certificate
-                            </a>
-                        @else
-                            <span class="ld-pending">Being prepared</span>
-                        @endif
+                        <a href="{{ route('learning.certificate', $certificate) }}"
+                           class="ld-btn" target="_blank" rel="noopener">
+                            Download certificate
+                        </a>
                     @endif
                 </div>
             </div>

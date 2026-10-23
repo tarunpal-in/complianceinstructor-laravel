@@ -40,7 +40,7 @@
     </div>
 
     <div class="webinar-body">
-        <h3><a href="{{ $url }}">{{ $webinar->title }}</a></h3>
+        <h3><a class="card-link" href="{{ $url }}">{{ $webinar->title }}</a></h3>
 
         <div class="webinar-meta">
             <p>

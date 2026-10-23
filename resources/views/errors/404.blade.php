@@ -51,8 +51,8 @@
         <nav class="nf-links" aria-label="Popular destinations">
             <a href="{{ route('home') }}#webinars">Upcoming webinars</a>
             <a href="{{ route('blog.index') }}">The blog</a>
-            <a href="{{ route('home') }}#pricing">Membership</a>
-            <a href="{{ route('home') }}#contact">Contact us</a>
+            <a href="{{ route('membership.index') }}">Membership</a>
+            <a href="{{ route('contact') }}">Contact us</a>
         </nav>
     </section>
 @endsection

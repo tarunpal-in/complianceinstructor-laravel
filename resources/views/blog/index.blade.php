@@ -24,13 +24,31 @@
         @if ($posts->isEmpty())
             <p class="blog-empty">Nothing published here yet.</p>
         @else
-            <div class="blog-grid">
-                @foreach ($posts as $post)
-                    <x-blog.card :post="$post" />
-                @endforeach
-            </div>
+            @php
+                // The first post leads as a featured card, but only on the first
+                // page — later pages are a plain grid so the hierarchy is not
+                // repeated down the pagination. Read off the underlying collection
+                // so first()/slice() are available whatever the paginator exposes.
+                $items = $posts->getCollection();
+                $featured = $posts->currentPage() === 1 ? $items->first() : null;
+                $rest = $featured ? $items->slice(1) : $items;
+            @endphp
 
-            <div class="blog-pagination">{{ $posts->links() }}</div>
+            @if ($featured)
+                <x-blog.featured :post="$featured" />
+            @endif
+
+            @if ($rest->isNotEmpty())
+                <div class="blog-grid">
+                    @foreach ($rest as $post)
+                        <x-blog.card :post="$post" />
+                    @endforeach
+                </div>
+            @endif
+
+            @if ($posts->hasPages())
+                <div class="blog-pagination">{{ $posts->links('pagination.default') }}</div>
+            @endif
         @endif
     </section>
 @endsection

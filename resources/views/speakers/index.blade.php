@@ -2,14 +2,8 @@
 
 
 @section('content')
-    {{-- Hero — design-ui/All Speakers Page.png --}}
-    <section class="spk-hero">
-        <div class="spk-hero-inner">
-            <span class="spk-eyebrow">JOIN OUR FACULTY</span>
-            <h1>Learn from the Best in Compliance</h1>
-            <p>Every {{ config('app.name') }} speaker is a working practitioner — an attorney, CPA, certified HR professional, or regulatory specialist with real-world authority in their field.</p>
-        </div>
-    </section>
+    {{-- Editable hero (Core Pages → Speakers). --}}
+    <x-site.page-hero :page="$corePage" />
 
     <section class="section spk-list">
         {{-- Filters are a plain GET form: no Livewire in this app, and a shareable
@@ -79,4 +73,8 @@
             </div>
         </div>
     </section>
+
+    <x-site.copy-blocks :sections="$corePage?->sections" />
+
+    <x-site.faq :items="$corePage?->faqItems() ?? []" />
 @endsection

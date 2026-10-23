@@ -1,4 +1,5 @@
 <a class="icon-button cart-link" href="{{ route('cart.index') }}"
+   @click.prevent="Livewire.dispatch('mini-cart:open')"
    aria-label="Shopping cart{{ $count > 0 ? ', '.$count.' '.\Illuminate\Support\Str::plural('item', $count) : '' }}">
     <x-ui.icon name="shopping-cart" :size="20" />
     @if ($count > 0)

@@ -69,6 +69,7 @@
             <span>Confirm password</span>
             <input type="password" wire:model="password_confirmation" autocomplete="new-password">
         </label>
+        <p class="auth-note">Your company and billing details are collected at checkout.</p>
         <button type="submit" class="auth-submit" wire:loading.attr="disabled" wire:target="register">
             <span wire:loading.remove wire:target="register">Create account</span>
             <span wire:loading wire:target="register">Creating…</span>

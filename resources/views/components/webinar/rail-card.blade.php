@@ -40,7 +40,7 @@
 
     <div class="wd-card-body">
         <h3>
-            <a href="{{ route('webinars.show', $webinar) }}">{{ $webinar->title }}</a>
+            <a class="card-link" href="{{ route('webinars.show', $webinar) }}">{{ $webinar->title }}</a>
         </h3>
 
         @if ($speaker)

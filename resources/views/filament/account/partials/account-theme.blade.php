@@ -87,6 +87,18 @@
     .ld-card-title { font-size: 1.15rem; font-weight: 800; color: var(--ld-ink); margin: 0; }
     .ld-card-speaker { margin: .25rem 0 0; font-size: .9rem; color: var(--ld-muted); }
     .ld-card-date { margin: .4rem 0 0; font-size: .9rem; font-weight: 700; color: var(--ld-blue); }
+    .ld-card-added { margin: .3rem 0 0; font-size: .82rem; color: var(--ld-muted); }
+
+    /* Membership summary -------------------------------------------------- */
+    .ld-mb-status { flex: none; display: inline-flex; align-items: center; padding: .3rem .8rem; border-radius: 999px; font-size: .7rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+    .ld-mb-status.is-active { background: #e4f3ea; color: #137a43; }
+    .ld-mb-status.is-inactive { background: #f1f3f6; color: #7a828f; }
+    .ld-mb-allowance { border-top: 1px solid #eef1f5; padding-top: 1.1rem; }
+    .ld-mb-allowance-label { display: block; font-size: .72rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #8a93a1; margin-bottom: .7rem; }
+    .ld-mb-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .55rem; }
+    .ld-mb-list li { display: flex; align-items: center; justify-content: space-between; gap: 1rem; font-size: .95rem; padding: .15rem 0; }
+    .ld-mb-list li span { color: var(--ld-muted); }
+    .ld-mb-list li strong { color: var(--ld-ink); font-weight: 700; }
 
     .ld-card-action { flex: none; display: flex; flex-direction: column; gap: .6rem; }
     @media (min-width: 640px) { .ld-card-action { align-items: flex-end; } }
@@ -124,6 +136,16 @@
     .ld-order-item-desc { flex: 1; min-width: 0; color: var(--ld-ink); font-weight: 600; }
     .ld-order-item-qty { flex: none; color: var(--ld-muted); font-variant-numeric: tabular-nums; }
     .ld-order-item-amt { flex: none; color: var(--ld-ink); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+    /* Expired-access notice ---------------------------------------------- */
+    .ld-notice {
+        display: flex; flex-direction: column; gap: .5rem; align-items: flex-start;
+        background: #fff6e6; border: 1px solid #f3dca6; border-radius: 12px; padding: .9rem 1.1rem;
+        color: #7a5406; font-size: .92rem; font-weight: 600;
+    }
+    @media (min-width: 640px) { .ld-notice { flex-direction: row; align-items: center; justify-content: space-between; } }
+    .ld-notice a { flex: none; color: var(--ld-ink); background: var(--ld-gold); font-weight: 800; text-decoration: none; padding: .5rem 1rem; border-radius: .6rem; transition: background .15s ease; }
+    .ld-notice a:hover { background: var(--ld-gold-dark); }
 
     /* Study materials (handouts) ---------------------------------------- */
     .ld-handouts { border-top: 1px dashed #e6eaef; padding-top: 1rem; }

@@ -79,9 +79,9 @@
             <p><strong>{{ $total }}</strong> {{ \Illuminate\Support\Str::plural('webinar', $total) }} found</p>
             <label class="cat-sort">Sort:
                 <select wire:model.live="sort">
+                    <option value="newest">Newest</option>
                     <option value="popular">Most Popular</option>
                     <option value="soonest">Starting Soonest</option>
-                    <option value="newest">Newest</option>
                 </select>
             </label>
         </div>
@@ -97,6 +97,10 @@
                     <x-webinar.catalogue-card :webinar="$webinar" wire:key="webinar-{{ $webinar->id }}" />
                 @endforeach
             </div>
+
+            @if ($webinars->hasPages())
+                <div class="cat-pagination">{{ $webinars->links() }}</div>
+            @endif
         @endif
     </div>
 </div>

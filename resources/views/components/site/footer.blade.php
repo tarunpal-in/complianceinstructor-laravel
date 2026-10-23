@@ -37,7 +37,18 @@
                 <label for="newsletter-email" class="sr-only">Email address</label>
                 <input id="newsletter-email" type="email" name="email" required
                        autocomplete="email" placeholder="your@email.com" value="{{ old('email') }}">
-                <button type="submit">Subscribe</button>
+
+                {{-- Subscribe and Unsubscribe share one email field. The second
+                     button posts the same form to the unsubscribe-request route
+                     via formaction — which emails a signed opt-out link rather
+                     than removing an address on sight, so nobody can take anybody
+                     else off the list by typing their address (§9). --}}
+                <div class="footer-newsletter-actions">
+                    <button type="submit">Subscribe</button>
+                    <button type="submit"
+                            class="footer-newsletter-unsubscribe"
+                            formaction="{{ route('mailing-list.unsubscribe.request') }}">Unsubscribe</button>
+                </div>
             </form>
 
             @error('email')

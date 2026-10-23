@@ -25,6 +25,7 @@
     <a href="#top" class="skip-link">Skip to content</a>
 
     <div class="site-shell" x-data="site" x-on:notice.window="showNotice($event.detail)">
+        <x-site.admin-bar />
         <x-site.promo-bar />
         <x-site.navbar />
 
@@ -33,6 +34,10 @@
         </main>
 
         <x-site.footer />
+
+        {{-- The header mini-cart, opened from the nav cart icon on every page.
+             Mounted once here, not per page, so the icon can open it anywhere. --}}
+        <livewire:mini-cart />
 
         {{-- Matches the comp's transient confirmation toast. Every action on this
              page is inert until P2/P3 wire real routes. --}}

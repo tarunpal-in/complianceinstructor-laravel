@@ -3,7 +3,17 @@
         $items = $this->items();
         $format = $this->learningFormat();
         $opensInNewTab = method_exists($this, 'opensInNewTab') && $this->opensInNewTab();
+        $expiredCount = $this->expiredAccessCount();
     @endphp
+
+    @if (! empty($items) && $expiredCount > 0)
+        {{-- Some access remains, but other grants have lapsed — say so rather than
+             letting them quietly disappear. --}}
+        <div class="ld-notice">
+            <span>Some of your access has expired. Renew your membership to see everything you had.</span>
+            <a href="{{ route('membership.index') }}">Renew membership</a>
+        </div>
+    @endif
 
     @forelse ($items as $row)
         @php
@@ -22,6 +32,9 @@
                     @endif
                     @if ($webinar->scheduled_at)
                         <p class="ld-card-date">{{ $webinar->scheduled_at->format('l j F Y, g:ia') }}</p>
+                    @endif
+                    @if ($row['grantedAt'])
+                        <p class="ld-card-added">Added to your account {{ $row['grantedAt']->format('j M Y') }}</p>
                     @endif
                 </div>
 
@@ -73,12 +86,24 @@
             @endif
         </div>
     @empty
-        <div class="ld-empty">
-            <span class="ld-empty-icon">
-                <x-filament::icon icon="heroicon-o-inbox" class="h-7 w-7" />
-            </span>
-            <p class="ld-empty-text">{{ $this->emptyText() }}</p>
-            <a href="{{ route('webinars.index') }}" class="ld-empty-link">Browse webinars</a>
-        </div>
+        @if ($expiredCount > 0)
+            {{-- The list is empty only because the access lapsed — don't tell a
+                 paying member they never had anything. --}}
+            <div class="ld-empty">
+                <span class="ld-empty-icon">
+                    <x-filament::icon icon="heroicon-o-clock" class="h-7 w-7" />
+                </span>
+                <p class="ld-empty-text">Your access has expired. Renew your membership to see them again.</p>
+                <a href="{{ route('membership.index') }}" class="ld-empty-link">Renew membership</a>
+            </div>
+        @else
+            <div class="ld-empty">
+                <span class="ld-empty-icon">
+                    <x-filament::icon icon="heroicon-o-inbox" class="h-7 w-7" />
+                </span>
+                <p class="ld-empty-text">{{ $this->emptyText() }}</p>
+                <a href="{{ route('webinars.index') }}" class="ld-empty-link">Browse webinars</a>
+            </div>
+        @endif
     @endforelse
 </x-filament-panels::page>

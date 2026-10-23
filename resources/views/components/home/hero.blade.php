@@ -5,6 +5,7 @@
     'headingTail' => null,
     'lede' => null,
     'primaryLabel' => null,
+    'primaryUrl' => null,
     'secondaryLabel' => null,
     'secondaryUrl' => null,
     'stats' => null,
@@ -28,6 +29,9 @@
     $headingTail = $headingTail ?: 'the Best.';
     $lede = $lede ?: 'Access live and recorded compliance webinars led by certified industry experts. Earn HRCI, SHRM, and NASBA/CPE recertification credits — complete with study materials, certificates, and transcripts.';
     $primaryLabel = $primaryLabel ?: 'Start Learning Now';
+    // Empty field falls back to the catalogue, so the main CTA is never a dead
+    // button — the gap that left it firing only a toast.
+    $primaryUrl = $primaryUrl ?: route('webinars.index');
     $secondaryLabel = $secondaryLabel ?: 'View Courses';
     $secondaryUrl = $secondaryUrl ?: '#webinars';
     $stats = $stats ?: [
@@ -94,7 +98,7 @@
             <p class="hero-lede">{{ $lede }}</p>
 
             <div class="hero-buttons">
-                <button class="button primary" @click="showNotice('Welcome to your learning journey')">{{ $primaryLabel }}</button>
+                <a class="button primary" href="{{ $primaryUrl }}">{{ $primaryLabel }}</a>
                 <a class="button secondary" href="{{ $secondaryUrl }}">{{ $secondaryLabel }}</a>
             </div>
 

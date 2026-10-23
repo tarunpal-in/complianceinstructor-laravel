@@ -7,7 +7,7 @@
          to avoid a second, duplicate trail. --}}
     <x-webinar.breadcrumb :webinar="$webinar" />
 
-    <x-webinar.hero :webinar="$webinar" :membership="$membership" />
+    <x-webinar.hero :webinar="$webinar" />
 
     <x-webinar.tabs :sections="$sections = $webinar->contentSections()" />
 

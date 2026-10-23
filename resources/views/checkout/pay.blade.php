@@ -44,7 +44,7 @@
     </section>
 
     @if ($gateway === App\Enums\PaymentGateway::PayPal && $clientId !== '')
-        <script src="https://www.paypal.com/sdk/js?client-id={{ $clientId }}&currency={{ $order->currency }}&intent=capture"></script>
+        <script src="https://www.paypal.com/sdk/js?client-id={{ $clientId }}&currency={{ $order->currency }}&intent=capture&enable-funding=card"></script>
         <script>
             (function () {
                 if (!window.paypal) {
@@ -58,7 +58,12 @@
                 const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf };
                 const errorBox = document.getElementById('pay-error');
 
-                paypal.Buttons({
+                // Both checkout options capture through PayPal — the server stored
+                // which funding the buyer chose, so we render that one button: the
+                // hosted card form for "Credit or Debit Card", the wallet for "PayPal".
+                const funding = @json($funding);
+
+                const handlers = {
                     createOrder: function () {
                         return fetch(startUrl, { method: 'POST', headers, body: JSON.stringify({ gateway: 'paypal' }) })
                             .then((r) => r.json())
@@ -75,7 +80,21 @@
                     onError: function () {
                         errorBox.textContent = 'Something went wrong with PayPal. Please try again.';
                     },
-                }).render('#paypal-buttons');
+                };
+
+                let source = null;
+                if (funding === 'card') source = paypal.FUNDING.CARD;
+                else if (funding === 'paypal') source = paypal.FUNDING.PAYPAL;
+
+                let buttons = paypal.Buttons(source ? Object.assign({ fundingSource: source }, handlers) : handlers);
+
+                // If the chosen funding is not available in this context, fall
+                // back to the full set of PayPal buttons rather than an empty box.
+                if (source && !buttons.isEligible()) {
+                    buttons = paypal.Buttons(handlers);
+                }
+
+                buttons.render('#paypal-buttons');
             })();
         </script>
     @endif

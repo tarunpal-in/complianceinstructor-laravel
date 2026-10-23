@@ -1,4 +1,4 @@
-@props(['webinar', 'membership' => null])
+@props(['webinar'])
 
 @php
     $banner = $webinar->bannerImageUrl() ?? $webinar->cardImageUrl();
@@ -64,10 +64,9 @@
         </div>
 
         <div class="wd-panel-stack">
+            {{-- One panel for everything: it shows a member their included
+                 formats and the redeem action itself (§5.2 / P5). --}}
             <livewire:purchase-panel :webinar="$webinar" />
-            @if ($membership)
-                <x-webinar.membership-panel :webinar="$webinar" :membership="$membership" />
-            @endif
         </div>
     </div>
 </section>

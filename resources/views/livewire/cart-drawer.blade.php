@@ -14,9 +14,12 @@
                     <div class="cd-cross">
                         @if (! empty($suggestions))
                             <h3>You might also like</h3>
-                            @foreach ($suggestions as $s)
-                                @php $w = $s['webinar']; $speaker = $w->speaker; @endphp
-                                <div class="cd-cross-card" wire:key="xsell-{{ $s['offering']->id }}">
+                            {{-- Grouped by webinar: the title and speaker show once
+                                 per webinar, then each format is just a compact
+                                 "Add … for $65" button — no repeated webinar name. --}}
+                            @foreach (collect($suggestions)->groupBy(fn (array $s) => $s['webinar']->id) as $group)
+                                @php $w = $group->first()['webinar']; $speaker = $w->speaker; @endphp
+                                <div class="cd-cross-card" wire:key="xsell-webinar-{{ $w->id }}">
                                     <div class="cd-cross-top">
                                         <div class="cd-cross-avatar">
                                             @if ($speaker && ($p = $speaker->getFirstMediaUrl('portrait', 'thumb')))
@@ -30,9 +33,13 @@
                                             @endif
                                         </div>
                                     </div>
-                                    <button type="button" class="cd-addon-btn" wire:click="addAddon({{ $s['offering']->id }})" wire:loading.attr="disabled">
-                                        Add {{ $s['format_label'] }} for {{ \App\Support\Money::format($s['price_cents'], $cart->currency) }}
-                                    </button>
+                                    <div class="cd-cross-addons">
+                                        @foreach ($group as $s)
+                                            <button type="button" class="cd-addon-btn" wire:key="xsell-{{ $s['offering']->id }}" wire:click="addAddon({{ $s['offering']->id }})" wire:loading.attr="disabled">
+                                                Add {{ $s['format_label'] }} for {{ \App\Support\Money::format($s['price_cents'], $cart->currency) }}
+                                            </button>
+                                        @endforeach
+                                    </div>
                                 </div>
                             @endforeach
                         @else

@@ -14,7 +14,7 @@
     </div>
 
     <div class="sp-webinar-main">
-        <a class="sp-webinar-title" href="{{ route('webinars.show', $webinar) }}">{{ $webinar->title }}</a>
+        <a class="sp-webinar-title card-link" href="{{ route('webinars.show', $webinar) }}">{{ $webinar->title }}</a>
 
         <p class="sp-webinar-meta">
             <span><x-ui.icon name="calendar-days" :size="15" /> {{ $date?->format('j M Y') ?? 'On demand' }}</span>
