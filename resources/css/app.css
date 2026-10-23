@@ -378,9 +378,10 @@ h1 span { color: #0c5484; }
  | sits only *between* items, so half the track height would be one set plus half
  | a gap, and the loop would jump.
  |
- | The mask fades cards in and out at the edges instead of cutting them off.
+ | Cards are clipped cleanly at the column edges — no edge fade, so each card
+ | reads crisp and whole, matching the design reference.
  */
-.faculty-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 282px)); justify-content: end; gap: 35px; position: relative; height: 620px; overflow: hidden; -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 9%, #000 91%, transparent 100%); mask-image: linear-gradient(180deg, transparent 0, #000 9%, #000 91%, transparent 100%); }
+.faculty-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 282px)); justify-content: end; gap: 35px; position: relative; height: 620px; overflow: hidden; }
 .faculty-track { will-change: transform; animation: faculty-down 44s linear infinite; }
 .faculty-track.is-up { animation-name: faculty-up; }
 .faculty-cards:hover .faculty-track, .faculty-cards:focus-within .faculty-track { animation-play-state: paused; }

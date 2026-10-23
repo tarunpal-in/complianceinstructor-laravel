@@ -72,8 +72,12 @@
                                     loading="lazy"
                                 >
                                 <h3>{{ $speaker['name'] }}</h3>
-                                <p>{{ $speaker['credentials'] }}</p>
-                                <span class="faculty-bodies">{{ $speaker['bodies'] }}</span>
+                                @if (! empty($speaker['credentials']))
+                                    <p>{{ $speaker['credentials'] }}</p>
+                                @endif
+                                @if (! empty($speaker['bodies']))
+                                    <span class="faculty-bodies">{{ $speaker['bodies'] }}</span>
+                                @endif
                             </a>
                         @endforeach
                     @endforeach
