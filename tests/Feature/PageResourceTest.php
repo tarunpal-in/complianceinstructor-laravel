@@ -420,8 +420,12 @@ it('seeds pages that exercise the block library', function (): void {
 
     $types = PageSection::query()->pluck('type')->unique();
 
-    expect(Page::query()->count())->toBe(2)
-        ->and($types)->toContain('hero', 'stat_band', 'feature_grid', 'cta', 'rich_text', 'faq');
+    // PageSeeder now owns the About page only; the policy pages (with the faq
+    // block) moved to LegalPagesSeeder, so About's five block types are what it
+    // exercises here. The faq block is covered on its own above and in the
+    // block dataset below.
+    expect(Page::query()->count())->toBe(1)
+        ->and($types)->toContain('hero', 'stat_band', 'feature_grid', 'cta', 'rich_text');
 
     // And the published ones actually render, with the richer About content.
     $this->get('/about')
@@ -438,7 +442,8 @@ it('seeds pages idempotently', function (): void {
     $this->seed(PageSeeder::class);
     $this->seed(PageSeeder::class);
 
-    // About (7) + Privacy (2). Contact is a core page now, not a page-builder page.
-    expect(Page::query()->count())->toBe(2)
-        ->and(PageSection::query()->count())->toBe(9);
+    // About (7 blocks). The policy pages moved to LegalPagesSeeder; Contact is a
+    // core page, not a page-builder page.
+    expect(Page::query()->count())->toBe(1)
+        ->and(PageSection::query()->count())->toBe(7);
 });
