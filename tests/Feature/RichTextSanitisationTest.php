@@ -214,8 +214,9 @@ it('echoes no rich text without sanitising it', function (): void {
         // have followed.
         'components/blog/comments.blade.php' => 'e() before nl2br, so the body is escaped.',
         // nl2br over an e()-escaped badge, so the line-break markup is the only
-        // HTML and the client's copy can never inject its own.
-        'components/home/accreditation.blade.php' => 'e() before nl2br, so the badge is escaped.',
+        // HTML and the client's copy can never inject its own. (The accreditation
+        // card markup lives in this shared partial.)
+        'components/home/credential-card.blade.php' => 'e() before nl2br, so the badge is escaped.',
         // Same pattern: nl2br over the e()-escaped business address, so the only
         // HTML is the line breaks and the setting's value cannot inject its own.
         'contact/index.blade.php' => 'e() before nl2br, so the address is escaped.',
@@ -262,7 +263,7 @@ it('has no stale entries in the list of raw echoes held on purpose', function (s
     );
 })->with([
     'components/blog/comments.blade.php',
-    'components/home/accreditation.blade.php',
+    'components/home/credential-card.blade.php',
     'contact/index.blade.php',
     'components/ui/icon.blade.php',
     'partials/schema.blade.php',
