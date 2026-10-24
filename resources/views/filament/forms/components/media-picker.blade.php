@@ -14,6 +14,9 @@
     $uploadEvent = 'library-uploaded-'.\Illuminate\Support\Str::slug($statePath);
 @endphp
 
+{{-- perPage/visible render the grid in batches (Load more) so a big library
+     does not fire hundreds of image requests at once. Keep this x-data free of
+     double quotes and // comments: both break the HTML attribute. --}}
 <x-dynamic-component :component="$getFieldWrapperView()" :field="$field">
     <div
         x-data="{
@@ -22,8 +25,6 @@
             state: $wire.$entangle('{{ $statePath }}'),
             items: {{ \Illuminate\Support\Js::from($items) }},
             fallback: {{ \Illuminate\Support\Js::from($selected) }},
-            // Render in batches so a big library does not fire hundreds of image
-            // requests at once — "Load more" reveals the next page.
             perPage: 24,
             visible: 24,
             get current() {
