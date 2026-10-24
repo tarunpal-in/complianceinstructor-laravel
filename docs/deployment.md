@@ -377,6 +377,49 @@ The least-effort, most-robust pattern (the `.env` already has R2):
 - Set `MEDIA_DISK=r2`, `WEBINAR_ASSETS_DISK=r2`, `FILESYSTEM_DISK=r2` on the server — and optionally locally too (use a `dev/` path prefix or a separate dev bucket so dev doesn't pollute production).
 - Then media uploaded through the admin, on either machine, lands in R2 and is immediately readable by the server. There is **nothing to copy** — the files are already where the server looks. Just make sure the `media` **rows** are present too (move them as a seeder or a table export, Part C). This is what I'd use for the demo and launch.
 
+## Keeping media on the VPS only (no object storage)
+
+If you don't want R2/S3 and prefer everything on the server's own disk:
+
+**1. Point every disk at the local filesystem** (server `.env`; leave the R2/AWS keys blank):
+
+```ini
+FILESYSTEM_DISK=local
+MEDIA_DISK=public            # media library → storage/app/public, served at /storage
+WEBINAR_ASSETS_DISK=local    # private recordings/handouts → storage/app/private, signed URLs
+```
+
+Then `php8.3 artisan config:cache`. Private media still serves through signed, expiring URLs — the local/private disk does this through Laravel, no object storage needed.
+
+**2. Upload the files**, preserving the directory structure — pick one:
+
+```bash
+# rsync (best: incremental, resumable)
+rsync -avz storage/app/public/  <site-user>@<server-ip>:/home/<site-user>/htdocs/<domain>/storage/app/public/
+rsync -avz storage/app/private/ <site-user>@<server-ip>:/home/<site-user>/htdocs/<domain>/storage/app/private/
+
+# or tar + scp (good for many small files)
+tar czf media.tgz -C storage/app public private
+scp media.tgz <site-user>@<server-ip>:~
+ssh <site-user>@<server-ip> 'tar xzf ~/media.tgz -C /home/<site-user>/htdocs/<domain>/storage/app'
+```
+
+Or a **SFTP GUI** (FileZilla with the CloudPanel site user's SSH credentials), or CloudPanel's web **File Manager** (upload a zip → extract) — dropping `storage/app/public` and `storage/app/private` into the same paths.
+
+**3. Link and fix permissions** (on the server):
+
+```bash
+cd /home/<site-user>/htdocs/<domain>
+php8.3 artisan storage:link      # public/storage -> storage/app/public (nginx serves /storage)
+chmod -R ug+rwX storage
+```
+
+Upload **as the site user** so ownership is correct; if you used root, `chown -R <site-user>:<site-user> storage`.
+
+**Two trade-offs with VPS-only storage:**
+- **Backups matter more** — no object-storage redundancy, so make sure `storage/app` is in your backup (`spatie/laravel-backup`) and stored **off the server**.
+- **Disk space** — the WordPress media library is ~900+ files; it all sits on the VPS disk now, so watch free space as the catalogue grows.
+
 ## Option B — Re-import from the WordPress source on the server
 
 Since the catalogue media came from the WordPress backup, the cleanest way to populate a fresh server is to **re-run the import there**, so the server writes both the `media` rows and the files itself — perfectly in sync, onto whatever `MEDIA_DISK` is set:
