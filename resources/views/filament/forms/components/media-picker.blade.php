@@ -22,6 +22,10 @@
             state: $wire.$entangle('{{ $statePath }}'),
             items: {{ \Illuminate\Support\Js::from($items) }},
             fallback: {{ \Illuminate\Support\Js::from($selected) }},
+            // Render in batches so a big library does not fire hundreds of image
+            // requests at once — "Load more" reveals the next page.
+            perPage: 24,
+            visible: 24,
             get current() {
                 if (! this.state) { return null; }
                 return this.items.find((i) => i.id == this.state) ?? this.fallback;
@@ -31,6 +35,9 @@
                 const needle = this.search.toLowerCase();
                 return this.items.filter((i) => i.name.toLowerCase().includes(needle));
             },
+            get visibleItems() { return this.filtered.slice(0, this.visible); },
+            loadMore() { this.visible += this.perPage; },
+            openModal() { this.visible = this.perPage; this.open = true; },
             pick(id) { this.state = id; this.open = false; },
             clear() { this.state = null; },
             onUploaded(item) {
@@ -39,6 +46,7 @@
                 this.pick(item.id);
             },
         }"
+        x-init="$watch('search', () => visible = perPage)"
         x-on:{{ $uploadEvent }}.window="onUploaded($event.detail.item)"
     >
         {{-- Preview + trigger --}}
@@ -58,7 +66,7 @@
             </div>
 
             <div class="flex flex-none gap-2">
-                <x-filament::button size="sm" icon="heroicon-m-photo" type="button" x-on:click="open = true">
+                <x-filament::button size="sm" icon="heroicon-m-photo" type="button" x-on:click="openModal()">
                     Choose
                 </x-filament::button>
                 <x-filament::button size="sm" color="gray" type="button" x-show="state" x-cloak x-on:click="clear()">
@@ -87,7 +95,7 @@
                     </div>
 
                     <div class="grid grid-cols-3 gap-3 overflow-y-auto p-4 sm:grid-cols-4 md:grid-cols-5">
-                        <template x-for="item in filtered" :key="item.id">
+                        <template x-for="item in visibleItems" :key="item.id">
                             <button type="button" x-on:click="pick(item.id)"
                                     class="group flex flex-col gap-1.5 rounded-lg border p-2 text-left transition hover:border-primary-500"
                                     :class="state == item.id ? 'border-primary-500 ring-2 ring-primary-500' : 'border-gray-200 dark:border-white/10'">
@@ -101,6 +109,14 @@
                         <p x-show="filtered.length === 0" class="col-span-full py-10 text-center text-sm text-gray-500">
                             No matching images. Use “Upload new” above to add one.
                         </p>
+
+                        {{-- Reveal the next batch rather than rendering every image up front. --}}
+                        <div x-show="filtered.length > visible" class="col-span-full flex flex-col items-center gap-1.5 py-3">
+                            <x-filament::button color="gray" size="sm" type="button" icon="heroicon-m-arrow-down" x-on:click="loadMore()">
+                                Load more
+                            </x-filament::button>
+                            <span class="text-xs text-gray-500" x-text="`Showing ${visibleItems.length} of ${filtered.length}`"></span>
+                        </div>
                     </div>
 
                     <div class="flex justify-end border-t border-gray-200 p-3 dark:border-white/10">

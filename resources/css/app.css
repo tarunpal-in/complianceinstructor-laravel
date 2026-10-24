@@ -410,13 +410,23 @@ h1 span { color: #0c5484; }
 
 /* Accreditation ----------------------------------------------------------- */
 .accreditation { max-width: none; background: #fffcf5; text-align: center; padding-left: 32px; padding-right: 32px; }
-.credential-grid { display: flex; justify-content: center; gap: 36px; margin-top: 58px; }
-.credential-grid > div { min-width: 216px; background: white; border: 1px solid #e3e7ec; border-radius: 10px; padding: 21px 12px 16px; display: flex; flex-direction: column; gap: 8px; }
-.credential-grid strong { color: #125a91; font: bold 38px 'DM Sans'; }
+/* A horizontal marquee of the accrediting bodies. The track holds the set
+   twice and slides by exactly half its width, so the loop is seamless; it
+   pauses on hover/focus so a logo can be read. No fade mask — the client asked
+   for the faculty fade to go, and the same applies here. */
+.credential-marquee { margin-top: 58px; overflow: hidden; }
+.credential-track { display: flex; gap: 36px; width: max-content; will-change: transform; animation: credential-scroll 36s linear infinite; }
+.credential-marquee:hover .credential-track, .credential-marquee:focus-within .credential-track { animation-play-state: paused; }
+.credential-card { flex: 0 0 auto; min-width: 216px; background: white; border: 1px solid #e3e7ec; border-radius: 10px; padding: 21px 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+.credential-card strong { color: #125a91; font: bold 38px 'DM Sans'; }
 .credential-logo { max-height: 56px; max-width: 160px; width: auto; object-fit: contain; align-self: center; margin-bottom: 2px; }
-.credential-grid div:nth-child(2) strong { font-family: Georgia, serif; }
-.credential-grid small { font-size: 10px; color: #4e5d6f; line-height: 1.35; font-weight: 700; }
-.credential-grid span { font-size: 12px; color: #8b929c; }
+.credential-card small { font-size: 10px; color: #4e5d6f; line-height: 1.35; font-weight: 700; }
+.credential-card span { font-size: 12px; color: #8b929c; }
+
+@keyframes credential-scroll {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+}
 
 /* Success stories --------------------------------------------------------- */
 .stories { padding-bottom: 121px; }
@@ -560,8 +570,12 @@ h1 span { color: #0c5484; }
     .faculty-cards { width: 100%; height: auto; overflow: visible; -webkit-mask-image: none; mask-image: none; }
     .faculty-track { animation: none; }
     .faculty-card[aria-hidden="true"] { display: none; }
-    .credential-grid { flex-direction: column; align-items: center; gap: 16px; }
-    .credential-grid > div { width: 240px; }
+    /* No auto-scroll on a phone: the track stacks into a plain column and the
+       seamless-loop duplicate is dropped, same as the faculty section. */
+    .credential-marquee { overflow: visible; }
+    .credential-track { animation: none; flex-direction: column; align-items: center; width: auto; gap: 16px; transform: none; }
+    .credential-card { width: 240px; }
+    .credential-card[aria-hidden="true"] { display: none; }
     .callback { flex-direction: column; align-items: flex-start; gap: 20px; padding: 24px; }
     .footer-grid { grid-template-columns: 1fr; }
     .footer-links { grid-template-columns: repeat(2, 1fr); }
@@ -587,6 +601,9 @@ h1 span { color: #0c5484; }
 
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+    /* Hold the track at the start rather than letting the near-instant animation
+       leave it mid-scroll on the duplicate set. */
+    .credential-track { transform: none !important; }
 }
 
 [x-cloak] { display: none !important; }

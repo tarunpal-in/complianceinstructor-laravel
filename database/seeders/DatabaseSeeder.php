@@ -39,6 +39,9 @@ class DatabaseSeeder extends Seeder
             // The header and footer menus (§5.6), after the pages so the footer
             // can link to any that were seeded.
             NavigationSeeder::class,
+            // Reference data: the accrediting bodies exist on every site, real
+            // catalogue or not, so the homepage never falls back to placeholders.
+            AccreditationSeeder::class,
             // Before the coupon and order seeders, which scope to an industry and
             // need a catalogue to sell. Populates the homepage's live sections.
             DemoCatalogueSeeder::class,

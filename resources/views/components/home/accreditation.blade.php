@@ -17,7 +17,8 @@
     // Real active accrediting bodies (with their uploaded logos) wherever the
     // catalogue has any, so the section is dynamic on every render path. The
     // hardcoded set is the fallback for a brand-new install with none yet.
-    $partners = $partners ?: \App\Support\HomepageContent::accreditations();
+    // All active bodies (not just a handful), so the slider shows the full set.
+    $partners = $partners ?: \App\Support\HomepageContent::accreditations(24);
     $partners = $partners ?: [
         ['code' => 'SHRM', 'badge' => "RECERTIFICATION\nPROVIDER", 'name' => 'Society for Human Resource Mgmt'],
         ['code' => 'CPE', 'badge' => "NATIONAL REGISTRY OF\nCPE SPONSORS", 'name' => 'Continuing Professional Education'],
@@ -32,21 +33,30 @@
         <p>{{ $intro }}</p>
     </div>
 
-    <div class="credential-grid">
-        @foreach ($partners as $partner)
-            <div>
-                {{-- The uploaded logo when the body has one, else its code set in
-                     the brand type — so a body with no logo yet still reads. --}}
-                @if (! empty($partner['logo_url']))
-                    <img class="credential-logo" src="{{ $partner['logo_url'] }}" alt="{{ $partner['name'] ?? ($partner['code'] ?? '') }}">
-                @else
-                    <strong>{{ $partner['code'] ?? '' }}</strong>
-                @endif
-                {{-- Escaped first, then nl2br: the badge is client copy, so it is
-                     never trusted as HTML. --}}
-                <small>{!! nl2br(e($partner['badge'] ?? '')) !!}</small>
-                <span>{{ $partner['name'] ?? '' }}</span>
-            </div>
-        @endforeach
+    {{-- A continuous slider of every accrediting body, the same marquee pattern
+         the faculty section uses. The set is rendered twice and the track moves
+         by exactly half its width, so the loop has no seam; the duplicate is
+         aria-hidden so a screen reader reads each body once. Pauses on hover. --}}
+    <div class="credential-marquee">
+        <div class="credential-track">
+            @foreach ([false, true] as $isDuplicate)
+                @foreach ($partners as $partner)
+                    <div class="credential-card" @if ($isDuplicate) aria-hidden="true" @endif>
+                        {{-- The uploaded logo when the body has one, else its code set
+                             in the brand type — so a body with no logo yet still reads. --}}
+                        @if (! empty($partner['logo_url']))
+                            <img class="credential-logo" src="{{ $partner['logo_url'] }}"
+                                 alt="{{ $isDuplicate ? '' : ($partner['name'] ?? ($partner['code'] ?? '')) }}" loading="lazy">
+                        @else
+                            <strong>{{ $partner['code'] ?? '' }}</strong>
+                        @endif
+                        {{-- Escaped first, then nl2br: the badge is client copy, so it
+                             is never trusted as HTML. --}}
+                        <small>{!! nl2br(e($partner['badge'] ?? '')) !!}</small>
+                        <span>{{ $partner['name'] ?? '' }}</span>
+                    </div>
+                @endforeach
+            @endforeach
+        </div>
     </div>
 </section>
