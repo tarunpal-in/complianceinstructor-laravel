@@ -148,6 +148,33 @@ it('renders each section in order and skips the invisible ones', function (): vo
         ->assertDontSee('Hidden reasons.');
 });
 
+it('links the type and industry crumbs in the breadcrumb', function (): void {
+    $webinar = publishedWebinar();
+
+    expect($webinar->industry)->not->toBeNull();
+
+    $this->get(route('webinars.show', $webinar))
+        ->assertSuccessful()
+        ->assertSee('href="'.e(route('webinars.index', ['type' => $webinar->type->value])).'"', escape: false)
+        ->assertSee('href="'.e(route('industries.show', $webinar->industry)).'"', escape: false);
+});
+
+it('anchors the overview section so the hero "Click to Know More" scrolls to it', function (): void {
+    $webinar = publishedWebinar(sections: [
+        ['heading' => 'Webinar Overview', 'body' => 'First overview paragraph.'],
+        ['heading' => 'Session Highlights', 'body' => 'What the session covers.'],
+    ]);
+
+    $this->get(route('webinars.show', $webinar))
+        ->assertSuccessful()
+        // The hero button links to #overview, and the first section carries that
+        // id as its scroll target, so the jump lands on the overview.
+        ->assertSee('href="#overview"', escape: false)
+        ->assertSee('id="overview"', escape: false);
+
+    expect($webinar->contentSections()[0]['id'])->toBe('overview');
+});
+
 it('renders a section with no heading as body only', function (): void {
     $webinar = publishedWebinar(sections: [
         ['heading' => 'Webinar Overview', 'body' => 'The overview.'],

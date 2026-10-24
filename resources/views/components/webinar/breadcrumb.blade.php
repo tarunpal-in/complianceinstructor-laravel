@@ -1,14 +1,13 @@
 @props(['webinar'])
 
-{{-- The middle two crumbs point at catalogue routes that land in P2. They are
-     rendered as plain text until then rather than as links to '#', which would
-     be announced as links by a screen reader and go nowhere. --}}
+{{-- The type crumb links to the catalogue filtered to that format, the industry
+     crumb to its landing page. Only the current page (the title) is plain text. --}}
 <nav class="wd-crumbs" aria-label="Breadcrumb">
     <ol>
         <li><a href="{{ route('home') }}">Home</a></li>
-        <li><span>{{ $webinar->type->label() }}s</span></li>
+        <li><a href="{{ route('webinars.index', ['type' => $webinar->type->value]) }}">{{ $webinar->type->label() }}s</a></li>
         @if ($webinar->industry)
-            <li><span>{{ $webinar->industry->name }}</span></li>
+            <li><a href="{{ route('industries.show', $webinar->industry) }}">{{ $webinar->industry->name }}</a></li>
         @endif
         <li><span aria-current="page">{{ $webinar->title }}</span></li>
     </ol>

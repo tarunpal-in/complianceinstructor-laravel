@@ -224,13 +224,15 @@ class Webinar extends Model implements ReferencesMedia, Seoable
      * Sections empty of both heading and body are dropped — a bare heading
      * reads as a fault. A section with a body but no heading is kept: it renders
      * its body and simply earns no tab. Anchors are derived from the row id, so
-     * they stay stable as headings are renamed.
+     * they stay stable as headings are renamed — except the first (the overview),
+     * which gets the fixed `overview` anchor the hero's "Click to Know More"
+     * button links to.
      *
      * @return array<int, array{id: string, heading: string, body: string}>
      */
     public function contentSections(): array
     {
-        return $this->sections
+        $sections = $this->sections
             ->where('is_visible', true)
             ->map(static fn (WebinarSection $section): array => [
                 'id' => 'section-'.$section->getKey(),
@@ -240,6 +242,14 @@ class Webinar extends Model implements ReferencesMedia, Seoable
             ->filter(static fn (array $section): bool => trim($section['body']) !== '' || trim($section['heading']) !== '')
             ->values()
             ->all();
+
+        // The overview is the first content section; give it the stable anchor
+        // the hero button (href="#overview") and its own tab point at.
+        if ($sections !== []) {
+            $sections[0]['id'] = 'overview';
+        }
+
+        return $sections;
     }
 
     /**
