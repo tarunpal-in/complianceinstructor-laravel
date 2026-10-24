@@ -33,30 +33,40 @@
         <p>{{ $intro }}</p>
     </div>
 
-    {{-- A continuous slider of every accrediting body, the same marquee pattern
-         the faculty section uses. The set is rendered twice and the track moves
-         by exactly half its width, so the loop has no seam; the duplicate is
-         aria-hidden so a screen reader reads each body once. Pauses on hover. --}}
-    <div class="credential-marquee">
-        <div class="credential-track">
-            @foreach ([false, true] as $isDuplicate)
-                @foreach ($partners as $partner)
-                    <div class="credential-card" @if ($isDuplicate) aria-hidden="true" @endif>
-                        {{-- The uploaded logo when the body has one, else its code set
-                             in the brand type — so a body with no logo yet still reads. --}}
-                        @if (! empty($partner['logo_url']))
-                            <img class="credential-logo" src="{{ $partner['logo_url'] }}"
-                                 alt="{{ $isDuplicate ? '' : ($partner['name'] ?? ($partner['code'] ?? '')) }}" loading="lazy">
-                        @else
-                            <strong>{{ $partner['code'] ?? '' }}</strong>
-                        @endif
-                        {{-- Escaped first, then nl2br: the badge is client copy, so it
-                             is never trusted as HTML. --}}
-                        <small>{!! nl2br(e($partner['badge'] ?? '')) !!}</small>
-                        <span>{{ $partner['name'] ?? '' }}</span>
-                    </div>
+    @php
+        // Two identical groups translate by one group's width, so the loop has
+        // no seam. Each group repeats the set enough to be wider than the strip
+        // — otherwise a few logos leave the empty gap before the loop repeats.
+        $count = max(1, count($partners));
+        $repeat = (int) max(2, ceil(9 / $count));
+        $loop = [];
+        for ($r = 0; $r < $repeat; $r++) {
+            foreach ($partners as $partner) {
+                $loop[] = $partner;
+            }
+        }
+        // A steady pace whatever the logo count — roughly one card every 1.8s.
+        $duration = round(count($loop) * 1.8, 1);
+    @endphp
+
+    {{-- The scrolling marquee is decorative (the bodies are listed for assistive
+         tech in .credential-list below), so it is aria-hidden. It is hidden
+         outright on small screens and when motion is reduced. --}}
+    <div class="credential-marquee" aria-hidden="true">
+        @foreach ([0, 1] as $group)
+            <div class="credential-track" style="animation-duration: {{ $duration }}s">
+                @foreach ($loop as $partner)
+                    <x-home.credential-card :partner="$partner" />
                 @endforeach
-            @endforeach
-        </div>
+            </div>
+        @endforeach
+    </div>
+
+    {{-- The real, readable list: visually hidden while the marquee scrolls, and
+         shown as a plain centred row on small screens / reduced motion. --}}
+    <div class="credential-list">
+        @foreach ($partners as $partner)
+            <x-home.credential-card :partner="$partner" />
+        @endforeach
     </div>
 </section>
