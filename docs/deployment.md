@@ -359,6 +359,74 @@ Local is MariaDB (XAMPP), the server is MySQL 8. Dumps import fine, but if MySQL
 
 ---
 
+# Part D — Moving images and media to the server
+
+## How media is stored here (so you move the right thing)
+
+- Files live on a **disk**; the `media` table stores only a **reference** (disk + path). Media is **never in git** (`storage/`, `uploads/`, `public/build` are gitignored), so it moves separately from code — and it must move **together with its `media` rows** (Part C), onto the disk those rows point at.
+- Which disk is chosen by env:
+  - **`MEDIA_DISK`** — the media library. Default `public` = `storage/app/public`, served via the `/storage` symlink. **In production set `MEDIA_DISK=r2`.**
+  - **`WEBINAR_ASSETS_DISK`** / **`FILESYSTEM_DISK`** — private files (recordings, downloads) and the default disk. Set to `r2` in production.
+- **Generated PDFs** (certificates, invoices) are **not** moved — Browsershot regenerates them on the server on demand.
+- **Private media** (recordings, handouts) is served through **signed, expiring URLs** (§9) — keep it on the private disk/bucket, never the public one.
+
+## Recommended: one R2 bucket, nothing to move
+
+The least-effort, most-robust pattern (the `.env` already has R2):
+
+- Set `MEDIA_DISK=r2`, `WEBINAR_ASSETS_DISK=r2`, `FILESYSTEM_DISK=r2` on the server — and optionally locally too (use a `dev/` path prefix or a separate dev bucket so dev doesn't pollute production).
+- Then media uploaded through the admin, on either machine, lands in R2 and is immediately readable by the server. There is **nothing to copy** — the files are already where the server looks. Just make sure the `media` **rows** are present too (move them as a seeder or a table export, Part C). This is what I'd use for the demo and launch.
+
+## Option B — Re-import from the WordPress source on the server
+
+Since the catalogue media came from the WordPress backup, the cleanest way to populate a fresh server is to **re-run the import there**, so the server writes both the `media` rows and the files itself — perfectly in sync, onto whatever `MEDIA_DISK` is set:
+
+```bash
+# 1. send the WordPress uploads backup up (it's gitignored, so transfer it by hand)
+rsync -avz uploads/uploads/ <site-user>@<server-ip>:/home/<site-user>/htdocs/<domain>/uploads/uploads/
+
+# 2. make the legacy WordPress DB available to the import's legacy connection, then on the server:
+php8.3 artisan import:media --force
+```
+
+It is idempotent and dedupes by content hash, so it is safe to re-run. This avoids transferring the Laravel media library at all.
+
+## Option C — Copy the files directly (curated media / filesystem disk)
+
+When you curated media in the local admin and aren't re-importing, copy the files to the matching disk, preserving paths.
+
+**If production media is on R2 (`MEDIA_DISK=r2`)** — sync the files into the bucket with **rclone** at the same relative paths spatie uses (`{media_id}/file.ext` under the disk root):
+
+```bash
+rclone config                               # once: type s3, provider Cloudflare R2, your key/secret/endpoint
+rclone copy storage/app/public  r2:<R2_BUCKET> --progress   # public media library
+rclone copy storage/app/private r2:<R2_BUCKET> --progress   # private media (match the prefix your disk uses)
+```
+
+**If production media is on the server filesystem (`MEDIA_DISK=public`)** — rsync the storage dirs up, then relink:
+
+```bash
+# from local — preserve the exact structure
+rsync -avz storage/app/public/  <site-user>@<server-ip>:/home/<site-user>/htdocs/<domain>/storage/app/public/
+rsync -avz storage/app/private/ <site-user>@<server-ip>:/home/<site-user>/htdocs/<domain>/storage/app/private/
+
+# on the server
+php8.3 artisan storage:link
+chmod -R ug+rwX storage
+```
+
+After moving **originals** without their generated thumbnails/conversions, rebuild them on the server:
+
+```bash
+php8.3 artisan media-library:regenerate
+```
+
+## The golden rule
+
+**Files and `media` rows are a pair.** After moving media, open a few records in admin (a webinar card, a speaker photo, an accreditation logo) and confirm the images resolve. A broken image means the file and its DB row disagree on disk or path — re-check that both landed on the same disk with the same relative path.
+
+---
+
 # Appendix A — `.env` essentials (production)
 
 Fill these in `<app-dir>/.env`. The full list is in `.env.example`; these are the ones that matter in production:
