@@ -27,15 +27,26 @@
     // The rotating "Approved" card cycles through every active accrediting body.
     $accreditationCodes = \App\Support\HomepageContent::accreditationCodes();
 
-    // The admin-uploaded hero image(s), stored on the public disk via the
-    // block's file field. One shows static; several rotate as a slider. Falls
-    // back to the shipped default inside the component when none are set. The
-    // legacy single `image` key is still honoured.
-    $heroImagePaths = $block->value('images');
-    $heroImagePaths = is_array($heroImagePaths) ? $heroImagePaths : array_filter([$block->value('image')]);
-    $heroImageUrls = collect($heroImagePaths)
+    // The hero image(s): now rows picked from the Media library (each {media_id}).
+    // One shows static; several rotate as a slider. Falls back to the shipped
+    // default inside the component when none are set. Legacy values are still
+    // honoured: a repeater row that is a plain stored path, or the old single
+    // `image` key.
+    $heroRows = $block->value('images');
+    $heroRows = is_array($heroRows) ? $heroRows : array_filter([$block->value('image')]);
+    $heroImageUrls = collect($heroRows)
+        ->map(function ($row): ?string {
+            // New: a repeater row holding a library media id.
+            if (is_array($row)) {
+                $id = $row['media_id'] ?? null;
+
+                return $id ? optional(\App\Models\Media::find($id))->detailImageUrl() : null;
+            }
+
+            // Legacy: a path stored on the public disk by the old upload field.
+            return filled($row) ? \Illuminate\Support\Facades\Storage::disk('public')->url($row) : null;
+        })
         ->filter()
-        ->map(fn ($path): string => \Illuminate\Support\Facades\Storage::disk('public')->url($path))
         ->values()
         ->all();
 @endphp

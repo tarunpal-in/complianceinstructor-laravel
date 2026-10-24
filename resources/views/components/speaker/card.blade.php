@@ -1,7 +1,7 @@
 @props(['speaker'])
 
 @php
-    $portrait = $speaker->getFirstMediaUrl('portrait', 'portrait') ?: $speaker->getFirstMediaUrl('portrait');
+    $portrait = $speaker->portraitUrl('portrait');
     $initials = \Illuminate\Support\Str::of($speaker->name)
         ->explode(' ')
         ->map(fn (string $part): string => \Illuminate\Support\Str::substr($part, 0, 1))

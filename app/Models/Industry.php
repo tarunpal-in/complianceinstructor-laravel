@@ -10,6 +10,7 @@ use App\Models\Concerns\ReleasesUniqueNameOnDelete;
 use Database\Factories\IndustryFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Image\Enums\Fit;
@@ -27,7 +28,7 @@ class Industry extends Model implements HasMedia, Seoable
     use HasFactory, HasSeo, InteractsWithMedia, ReleasesUniqueNameOnDelete, SoftDeletes;
 
     protected $fillable = [
-        'name', 'slug', 'description', 'is_active', 'sort_order',
+        'name', 'slug', 'description', 'is_active', 'sort_order', 'card_media_id',
     ];
 
     protected function casts(): array
@@ -35,7 +36,31 @@ class Industry extends Model implements HasMedia, Seoable
         return [
             'is_active' => 'boolean',
             'sort_order' => 'integer',
+            'card_media_id' => 'integer',
         ];
+    }
+
+    /**
+     * The library file picked as the card image (MediaPicker), or none.
+     *
+     * @return BelongsTo<\App\Models\Media, $this>
+     */
+    public function cardMedia(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Media::class, 'card_media_id');
+    }
+
+    /**
+     * The homepage card image — the picked library file when set, otherwise the
+     * old Spatie `card` upload, so images added before the switch still show.
+     */
+    public function cardImageUrl(): ?string
+    {
+        if ($this->card_media_id !== null) {
+            return $this->cardMedia?->detailImageUrl();
+        }
+
+        return $this->getFirstMediaUrl('card') ?: null;
     }
 
     /** @return HasMany<Webinar, $this> */

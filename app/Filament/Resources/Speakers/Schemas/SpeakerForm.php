@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Speakers\Schemas;
 
+use App\Filament\Forms\Components\MediaPicker;
 use App\Filament\Forms\Components\SeoFields;
-use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -110,16 +110,9 @@ class SpeakerForm
 
             Section::make('Portrait')
                 ->schema([
-                    SpatieMediaLibraryFileUpload::make('portrait')
-                        ->collection('portrait')
-                        ->image()
-                        ->imageEditor()
-                        // The faculty grid crops 1:1; editing here rather than
-                        // hoping the upload is already square.
-                        ->imageEditorAspectRatios(['1:1'])
-                        ->maxSize(4096)
-                        ->helperText('Square. Cropped to 254x254 for the faculty grid.')
-                        ->hiddenLabel(),
+                    MediaPicker::make('photo_media_id')
+                        ->hiddenLabel()
+                        ->helperText('Pick the portrait from the Media library — upload it there first if it is not listed. The faculty grid crops it square.'),
                 ]),
             SeoFields::make(),
 

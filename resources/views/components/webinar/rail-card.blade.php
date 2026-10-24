@@ -6,7 +6,7 @@
     $image = $webinar->cardImageUrl() ?? $webinar->bannerImageUrl() ?? asset('images/home/workshop.jpg');
     $date = $webinar->scheduled_at?->timezone($webinar->timezone);
     $speaker = $webinar->speaker;
-    $portrait = $speaker?->getFirstMediaUrl('portrait', 'thumb');
+    $portrait = $speaker?->portraitUrl('thumb');
 @endphp
 
 <article class="wd-card">

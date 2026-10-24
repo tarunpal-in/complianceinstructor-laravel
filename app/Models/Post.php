@@ -53,7 +53,7 @@ class Post extends Model implements HasMedia, Seoable
 
     protected $fillable = [
         'title', 'slug', 'excerpt', 'body', 'post_category_id', 'user_id',
-        'status', 'published_at', 'comments_enabled',
+        'status', 'published_at', 'comments_enabled', 'cover_media_id',
     ];
 
     protected function casts(): array
@@ -62,7 +62,18 @@ class Post extends Model implements HasMedia, Seoable
             'status' => PublishStatus::class,
             'published_at' => 'datetime',
             'comments_enabled' => 'boolean',
+            'cover_media_id' => 'integer',
         ];
+    }
+
+    /**
+     * The library file picked as the cover (MediaPicker), or none.
+     *
+     * @return BelongsTo<\App\Models\Media, $this>
+     */
+    public function coverMedia(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Media::class, 'cover_media_id');
     }
 
     /** §9 — the client publishes these, and "who changed this" gets asked. */
@@ -93,8 +104,16 @@ class Post extends Model implements HasMedia, Seoable
         $this->addMediaConversion('banner')->fit(Fit::Crop, 1600, 700);
     }
 
+    /**
+     * The cover URL — the picked library file when one is set, otherwise the old
+     * Spatie `cover` upload, so covers added before the switch still show.
+     */
     public function coverUrl(string $conversion = 'card'): ?string
     {
+        if ($this->cover_media_id !== null) {
+            return $this->coverMedia?->detailImageUrl();
+        }
+
         $media = $this->getFirstMedia('cover');
 
         return $media?->hasGeneratedConversion($conversion) === true

@@ -6,7 +6,7 @@
     @if ($speaker)
         <article class="wd-speaker">
             <div class="wd-speaker-aside">
-                @php $portrait = $speaker->getFirstMediaUrl('portrait', 'thumb') ?: $speaker->getFirstMediaUrl('portrait'); @endphp
+                @php $portrait = $speaker->portraitUrl('thumb'); @endphp
 
                 @if ($portrait)
                     <img src="{{ $portrait }}" alt="{{ $speaker->name }}" width="254" height="254" loading="lazy">

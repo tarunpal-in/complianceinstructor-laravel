@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Pages\Schemas;
 
+use App\Filament\Forms\Components\MediaPicker;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Builder;
-use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
@@ -172,15 +172,9 @@ class PageBlocks
                     ->toolbarButtons(['bold', 'italic', 'link', 'bulletList', 'orderedList', 'h3', 'blockquote', 'undo', 'redo'])
                     ->columnSpanFull(),
 
-                FileUpload::make('image')
+                MediaPicker::make('image')
                     ->label('Image')
-                    ->image()
-                    ->disk('public')
-                    ->directory('pages')
-                    ->visibility('public')
-                    ->imageEditor()
-                    ->maxSize(5120)
-                    ->helperText('Shown beside the text. Recommended ~940×628. Leave empty for full-width text.'),
+                    ->helperText('Pick from the Media library — upload it there first if it is not listed. Shown beside the text. Leave empty for full-width text.'),
 
                 Select::make('image_position')
                     ->label('Image position')

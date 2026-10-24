@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Industries\Schemas;
 
+use App\Filament\Forms\Components\MediaPicker;
 use App\Filament\Forms\Components\SeoFields;
-use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -59,14 +59,9 @@ class IndustryForm
 
             Section::make('Card image')
                 ->schema([
-                    SpatieMediaLibraryFileUpload::make('card')
-                        ->collection('card')
-                        ->image()
-                        ->imageEditor()
-                        ->imageEditorAspectRatios(['3:2'])
-                        ->maxSize(4096)
-                        ->helperText('Used on the homepage category cards. White text sits over it, so choose something with a dark or busy lower third.')
-                        ->hiddenLabel(),
+                    MediaPicker::make('card_media_id')
+                        ->hiddenLabel()
+                        ->helperText('Pick the card image from the Media library — upload it there first if it is not listed. White text sits over it, so choose something with a dark or busy lower third.'),
                 ]),
             SeoFields::make(),
 

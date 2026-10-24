@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Filament\Pages\Schemas;
 
+use App\Filament\Forms\Components\MediaPicker;
 use App\Models\Industry;
 use App\Models\Speaker;
 use App\Models\Webinar;
 use Closure;
-use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
@@ -167,18 +167,15 @@ class HomeBlocks
 
             Fieldset::make('Hero image')
                 ->schema([
-                    FileUpload::make('images')
+                    Repeater::make('images')
                         ->hiddenLabel()
-                        ->image()
-                        ->multiple()
                         ->reorderable()
-                        ->disk('public')
-                        ->directory('homepage')
-                        ->visibility('public')
-                        ->imageEditor()
-                        ->maxSize(5120)
-                        ->maxFiles(6)
-                        ->helperText('One image shows on its own; add several to rotate them as a slider (drag to set the order). Leave empty to use the default. Recommended ~940×628.')
+                        ->maxItems(6)
+                        ->addActionLabel('Add image')
+                        ->schema([
+                            MediaPicker::make('media_id')->hiddenLabel(),
+                        ])
+                        ->helperText('One image shows on its own; add several to rotate them as a slider (drag to reorder). Pick each from the Media library. Leave empty to use the default. Recommended ~940×628.')
                         ->columnSpanFull(),
                 ]),
 

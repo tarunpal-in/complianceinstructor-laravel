@@ -5,7 +5,7 @@
 
     $starts = $webinar->scheduled_at;
     $speaker = $webinar->speaker;
-    $portrait = $speaker?->getFirstMediaUrl('portrait', 'thumb');
+    $portrait = $speaker?->portraitUrl('thumb');
     $isLive = $webinar->type === WebinarType::Live;
     $image = $webinar->cardImageUrl() ?? asset('images/home/workshop.jpg');
     $url = route('webinars.show', $webinar);

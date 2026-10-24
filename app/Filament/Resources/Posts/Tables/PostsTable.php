@@ -14,7 +14,7 @@ use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Support\Icons\Heroicon;
-use Filament\Tables\Columns\SpatieMediaLibraryImageColumn;
+use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
@@ -27,10 +27,9 @@ class PostsTable
     {
         return $table
             ->columns([
-                SpatieMediaLibraryImageColumn::make('cover')
-                    ->collection('cover')
-                    ->conversion('card')
+                ImageColumn::make('cover')
                     ->label('')
+                    ->getStateUsing(fn (Post $record): ?string => $record->coverUrl('card'))
                     ->height(44)
                     ->width(70)
                     ->extraImgAttributes(['class' => 'rounded object-cover']),

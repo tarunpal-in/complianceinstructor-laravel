@@ -12,6 +12,7 @@ use Database\Factories\SpeakerFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Image\Enums\Fit;
@@ -30,7 +31,7 @@ class Speaker extends Model implements HasMedia, Seoable
 
     protected $fillable = [
         'name', 'slug', 'title', 'credentials', 'bio', 'linkedin_url', 'is_active',
-        'rating', 'reviews_count', 'years_teaching', 'expertise',
+        'rating', 'reviews_count', 'years_teaching', 'expertise', 'photo_media_id',
     ];
 
     protected function casts(): array
@@ -40,7 +41,34 @@ class Speaker extends Model implements HasMedia, Seoable
             'reviews_count' => 'integer',
             'years_teaching' => 'integer',
             'expertise' => 'array',
+            'photo_media_id' => 'integer',
         ];
+    }
+
+    /**
+     * The library file picked as the portrait (MediaPicker), or none.
+     *
+     * @return BelongsTo<\App\Models\Media, $this>
+     */
+    public function photoMedia(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Media::class, 'photo_media_id');
+    }
+
+    /**
+     * The portrait URL — the picked library file when one is set, otherwise the
+     * old Spatie `portrait` upload, so portraits added before the switch still
+     * show. CSS crops to the shape it needs, so the library's own preview serves.
+     */
+    public function portraitUrl(string $conversion = 'portrait'): ?string
+    {
+        if ($this->photo_media_id !== null) {
+            return $this->photoMedia?->detailImageUrl();
+        }
+
+        $url = $this->getFirstMediaUrl('portrait', $conversion);
+
+        return $url !== '' ? $url : ($this->getFirstMediaUrl('portrait') ?: null);
     }
 
     /** @return HasMany<Webinar, $this> */

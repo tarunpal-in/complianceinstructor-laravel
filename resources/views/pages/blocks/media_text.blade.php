@@ -1,7 +1,13 @@
 {{-- Prose beside a picture. With no image, it reads as full-width text. --}}
 @php
-    $imagePath = $block->value('image');
-    $imageUrl = filled($imagePath) ? \Illuminate\Support\Facades\Storage::disk('public')->url($imagePath) : null;
+    // The image is now a library file picked with MediaPicker (its id). A legacy
+    // value is a stored path on the public disk, so honour that too.
+    $imageRef = $block->value('image');
+    $imageUrl = match (true) {
+        blank($imageRef) => null,
+        is_numeric($imageRef) => optional(\App\Models\Media::find($imageRef))->detailImageUrl(),
+        default => \Illuminate\Support\Facades\Storage::disk('public')->url($imageRef),
+    };
     $position = $block->value('image_position') === 'left' ? 'left' : 'right';
 @endphp
 <section class="section pb-block pb-media-text {{ $imageUrl ? 'has-image image-'.$position : '' }}">

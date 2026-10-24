@@ -166,7 +166,7 @@ class HomepageContent
                 'count' => (int) ($i->webinars_count ?? 0),
                 // A real card image if the industry has one, else the comp's
                 // default asset (the component falls back on a null url).
-                'image_url' => ($url = $i->getFirstMediaUrl('card')) !== '' ? $url : null,
+                'image_url' => $i->cardImageUrl(),
                 'image' => 'seminar',
             ])
             ->values()
@@ -224,7 +224,7 @@ class HomepageContent
             'name' => $speaker->name,
             'credentials' => $speaker->credentials ?: ($speaker->title ?? ''),
             'bodies' => $speaker->title ?? '',
-            'image_url' => ($url = $speaker->getFirstMediaUrl('portrait')) !== '' ? $url : null,
+            'image_url' => $speaker->portraitUrl(),
             'image' => 'seminar',
             'url' => route('speakers.show', $speaker->slug),
         ];

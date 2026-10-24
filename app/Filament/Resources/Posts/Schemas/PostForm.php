@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Posts\Schemas;
 
 use App\Enums\PublishStatus;
+use App\Filament\Forms\Components\MediaPicker;
 use App\Filament\Forms\Components\SeoFields;
 use App\Models\PostCategory;
 use App\Models\Tag;
@@ -12,7 +13,6 @@ use App\Models\User;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -101,13 +101,9 @@ class PostForm
             Section::make('Presentation')
                 ->columns(2)
                 ->schema([
-                    SpatieMediaLibraryFileUpload::make('cover')
-                        ->collection('cover')
+                    MediaPicker::make('cover_media_id')
                         ->label('Cover image')
-                        ->image()
-                        ->imageEditor()
-                        ->maxSize(4096)
-                        ->helperText('Shown on the blog index and at the top of the article. Landscape works best.')
+                        ->helperText('Pick the cover from the Media library — upload it there first if it is not listed. Landscape works best.')
                         ->columnSpanFull(),
 
                     Select::make('tags')

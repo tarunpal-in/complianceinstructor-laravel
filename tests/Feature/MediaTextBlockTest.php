@@ -2,8 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Models\Media;
+use App\Models\MediaFolder;
 use App\Models\Page;
 use App\Models\PageSection;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
 /*
@@ -33,6 +36,26 @@ it('renders prose beside its image, on the chosen side, with alt text', function
         ->assertSee('image-left', escape: false)
         ->assertSee('A trainer leading a session', escape: false) // the alt text
         ->assertSee(Storage::disk('public')->url('pages/mission.jpg'), escape: false);
+});
+
+it('resolves a library image picked by its id', function (): void {
+    // The image field is now a MediaPicker storing a library media id.
+    $media = MediaFolder::uncategorised()
+        ->addMedia(UploadedFile::fake()->image('mission.png', 940, 628))
+        ->toMediaCollection(Media::LIBRARY_COLLECTION);
+
+    $page = Page::factory()->published()->create(['slug' => 'library-mission']);
+    PageSection::factory()->for($page)->type('media_text', [
+        'heading' => 'Our mission',
+        'body' => '<p>From the library.</p>',
+        'image' => $media->getKey(),
+        'image_alt' => 'A trainer leading a session',
+    ])->create();
+
+    $this->get('/library-mission')
+        ->assertSuccessful()
+        ->assertSee('pb-media-text-image', escape: false)
+        ->assertSee($media->detailImageUrl(), escape: false);
 });
 
 it('falls back to full-width text when no image is set', function (): void {

@@ -41,7 +41,7 @@ class IndustryController extends Controller
                 'count' => (int) ($industry->webinars_count ?? 0),
                 // A real card image if the industry has one, else the component
                 // falls back to the comp's default asset.
-                'image_url' => ($url = $industry->getFirstMediaUrl('card')) !== '' ? $url : null,
+                'image_url' => $industry->cardImageUrl(),
                 'image' => 'seminar',
             ])
             ->all();
