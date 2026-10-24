@@ -7,87 +7,87 @@ namespace App\Filament\Forms\Components;
 use App\Enums\MediaKind;
 use App\Models\Media;
 use App\Models\MediaFolder;
-use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Field;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 
 /**
- * Picks a file from the library, storing its id — with a thumbnail of each
- * option and of the current choice, so it reads as a visual picker rather than
- * a list of file names.
+ * Picks a file from the library through a visual modal browser, storing its id.
  *
- * A reference rather than a copy — docs/media-manager.md §3.1. Replacing the
- * file in the library then updates everywhere it is picked, which is the whole
- * point of having a library.
+ * A reference rather than a copy — docs/media-manager.md §3.1. Replacing the file
+ * in the library then updates everywhere it is picked, which is the whole point
+ * of having a library.
  *
- * The page builder's blocks use this at P6. Brand settings and the accreditation
- * logo use it now, which is also what makes the delete guard real: the site logo
- * is exactly the file a client is most likely to tidy away by accident.
+ * The field shows a thumbnail of the current choice and a "Choose" button that
+ * opens a grid of the library's images to pick from — a real picker, not a list
+ * of file names. Used by the accreditation logo, the webinar card/banner, the
+ * brand logo in Settings and the page-builder image blocks.
  */
-class MediaPicker
+class MediaPicker extends Field
 {
-    public static function make(string $name, ?MediaKind $kind = MediaKind::Image): Select
+    protected string $view = 'filament.forms.components.media-picker';
+
+    protected MediaKind $kind = MediaKind::Image;
+
+    public static function make(?string $name = null, ?MediaKind $kind = MediaKind::Image): static
     {
-        return Select::make($name)
-            ->searchable()
-            ->preload()
-            // Option labels carry an <img>, so HTML is allowed — every value in
-            // it is escaped in self::label(), so an admin-authored file name
-            // cannot inject markup.
-            ->allowHtml()
-            ->placeholder('Nothing selected')
-            ->options(fn (): array => self::labels(self::query($kind)->limit(50)->get()))
-            // Searched rather than fully preloaded past fifty: a mature library
-            // is thousands of files and a select holding all of them is a slow
-            // page and an unusable dropdown.
-            ->getSearchResultsUsing(fn (string $search): array => self::labels(self::query($kind)
-                ->where(fn (Builder $query): Builder => $query
-                    ->where('name', 'like', "%{$search}%")
-                    ->orWhere('file_name', 'like', "%{$search}%"))
-                ->limit(50)
-                ->get()))
-            ->getOptionLabelUsing(fn (mixed $value): ?string => ($media = Media::query()->find($value)) !== null
-                ? self::label($media)
-                : null);
+        $static = parent::make($name);
+        $static->kind = $kind ?? MediaKind::Image;
+
+        return $static;
     }
 
     /**
-     * Thumbnail-and-name labels keyed by media id.
+     * The library files to choose from — exposed to the view as $getLibraryItems().
      *
-     * @param  \Illuminate\Support\Collection<int, Media>  $media
-     * @return array<int, string>
+     * @return array<int, array{id: int, name: string, thumb: string|null}>
      */
-    private static function labels(\Illuminate\Support\Collection $media): array
+    public function getLibraryItems(): array
     {
-        return $media->mapWithKeys(fn (Media $item): array => [$item->getKey() => self::label($item)])->all();
+        return self::rows(self::query($this->kind)->limit(300)->get());
     }
 
-    /** One option's HTML: a small thumbnail (when the file is an image) plus its name. */
-    private static function label(Media $media): string
+    /**
+     * The currently selected file, so the preview can render before any picking.
+     *
+     * @return array{id: int, name: string, thumb: string|null}|null
+     */
+    public function getSelectedItem(): ?array
     {
-        $name = e($media->name);
-        $url = self::previewUrl($media);
+        $id = $this->getState();
 
-        if ($url === null) {
-            return '<span>'.$name.'</span>';
-        }
-
-        return '<span style="display:inline-flex;align-items:center;gap:8px;">'
-            .'<img src="'.e($url).'" alt="" loading="lazy" '
-            .'style="height:28px;width:28px;border-radius:5px;object-fit:cover;background:#eef2f7;flex:none;">'
-            .'<span>'.$name.'</span></span>';
-    }
-
-    /** The best small image URL: the generated thumb if present, else the original. */
-    private static function previewUrl(Media $media): ?string
-    {
-        $isImage = str_starts_with((string) $media->mime_type, 'image/')
-            || str_ends_with(strtolower((string) $media->file_name), '.svg');
-
-        if (! $isImage) {
+        if (blank($id)) {
             return null;
         }
 
-        return $media->hasGeneratedConversion('thumb') ? $media->getUrl('thumb') : $media->getUrl();
+        $media = Media::query()->find($id);
+
+        return $media !== null ? self::row($media) : null;
+    }
+
+    /**
+     * @param  Collection<int, Media>  $media
+     * @return array<int, array{id: int, name: string, thumb: string|null}>
+     */
+    private static function rows(Collection $media): array
+    {
+        return $media->map(fn (Media $item): array => self::row($item))->values()->all();
+    }
+
+    /** @return array{id: int, name: string, thumb: string|null} */
+    private static function row(Media $media): array
+    {
+        return ['id' => $media->getKey(), 'name' => $media->name, 'thumb' => self::previewUrl($media)];
+    }
+
+    /** The generated thumb when ready, otherwise the original so a visual always shows. */
+    private static function previewUrl(Media $media): ?string
+    {
+        if ($media->kind() !== MediaKind::Image) {
+            return $media->thumbnailUrl();
+        }
+
+        return $media->thumbnailUrl() ?? $media->getUrl();
     }
 
     /**
@@ -99,7 +99,7 @@ class MediaPicker
      *
      * @return Builder<Media>
      */
-    private static function query(?MediaKind $kind): Builder
+    private static function query(MediaKind $kind): Builder
     {
         return Media::query()
             ->where('model_type', MediaFolder::class)
