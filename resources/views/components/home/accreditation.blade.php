@@ -37,16 +37,19 @@
         // Two identical groups translate by one group's width, so the loop has
         // no seam. Each group repeats the set enough to be wider than the strip
         // — otherwise a few logos leave the empty gap before the loop repeats.
+        // NB: not named $loop — that is Blade's reserved @foreach variable, and
+        // the outer @foreach below would overwrite it with its loop object,
+        // leaving the inner loop iterating integers and the cards empty.
         $count = max(1, count($partners));
         $repeat = (int) max(2, ceil(9 / $count));
-        $loop = [];
+        $cards = [];
         for ($r = 0; $r < $repeat; $r++) {
             foreach ($partners as $partner) {
-                $loop[] = $partner;
+                $cards[] = $partner;
             }
         }
         // A steady pace whatever the logo count — roughly one card every 1.8s.
-        $duration = round(count($loop) * 1.8, 1);
+        $duration = round(count($cards) * 1.8, 1);
     @endphp
 
     {{-- The scrolling marquee is decorative (the bodies are listed for assistive
@@ -55,7 +58,7 @@
     <div class="credential-marquee" aria-hidden="true">
         @foreach ([0, 1] as $group)
             <div class="credential-track" style="animation-duration: {{ $duration }}s">
-                @foreach ($loop as $partner)
+                @foreach ($cards as $partner)
                     <x-home.credential-card :partner="$partner" />
                 @endforeach
             </div>

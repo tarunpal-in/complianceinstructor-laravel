@@ -32,10 +32,15 @@ it('shows an admin-assigned logo in the accreditation block', function (): void 
 
     $hrci->update(['logo_media_id' => $media->getKey()]);
 
-    $this->get('/')
-        ->assertSuccessful()
-        // The <img class="credential-logo"> only renders when a row has a logo.
-        ->assertSee('credential-logo', escape: false);
+    $html = $this->get('/')->assertSuccessful()->getContent();
+
+    // The logo must appear in the *visible* scrolling marquee, not only in the
+    // visually-hidden list — a $loop/$partner name clash once left the marquee
+    // cards empty while the hidden list still carried the logo, hiding the bug.
+    $marquee = Illuminate\Support\Str::between($html, 'credential-marquee', 'credential-list');
+
+    expect($marquee)->toContain('credential-logo')
+        ->toContain('HR Certification Institute');
 });
 
 it('falls back to the code text for a body with no logo', function (): void {
