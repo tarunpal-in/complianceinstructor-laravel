@@ -57,6 +57,14 @@ final class TrailingSlash
             return false;
         }
 
+        // Livewire 4 obfuscates its route prefix to livewire-<hash>, so the plain
+        // 'livewire' entry above no longer matches it. Left unhandled, its signed
+        // upload route is emitted with a trailing slash and fails signature
+        // validation (a 401) — the exact failure this exclusion exists to prevent.
+        if (str_starts_with($segments[0], 'livewire')) {
+            return false;
+        }
+
         // A signed preview route can sit deeper than the first segment
         // (/blog/preview/{post}). A trailing slash would break its signature.
         return ! in_array('preview', $segments, true);
