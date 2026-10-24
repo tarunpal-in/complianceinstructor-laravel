@@ -2,6 +2,9 @@
 
 @source '../../../../app/Filament/**/*';
 @source '../../../../resources/views/filament/**/*';
+/* The media picker's "Upload new" control is a Livewire view, so its classes
+   live outside the two globs above but still render inside the admin panel. */
+@source '../../../../resources/views/livewire/library-quick-upload.blade.php';
 
 /*
  | Compliance Instructor — admin panel theme

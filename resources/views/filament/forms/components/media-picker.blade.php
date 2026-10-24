@@ -9,6 +9,9 @@
     $statePath = $getStatePath();
     $items = $getLibraryItems();
     $selected = $getSelectedItem();
+    // One event name per picker (its state path), so a screen with two pickers
+    // only lets the one whose uploader ran receive the new file.
+    $uploadEvent = 'library-uploaded-'.\Illuminate\Support\Str::slug($statePath);
 @endphp
 
 <x-dynamic-component :component="$getFieldWrapperView()" :field="$field">
@@ -30,7 +33,13 @@
             },
             pick(id) { this.state = id; this.open = false; },
             clear() { this.state = null; },
+            onUploaded(item) {
+                if (! this.items.some((i) => i.id == item.id)) { this.items.unshift(item); }
+                this.fallback = item;
+                this.pick(item.id);
+            },
         }"
+        x-on:{{ $uploadEvent }}.window="onUploaded($event.detail.item)"
     >
         {{-- Preview + trigger --}}
         <div class="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-2 dark:border-white/10 dark:bg-white/5">
@@ -68,6 +77,7 @@
                      x-transition.opacity>
                     <div class="flex items-center gap-3 border-b border-gray-200 p-4 dark:border-white/10">
                         <h2 class="flex-1 text-base font-semibold text-gray-950 dark:text-white">Media library</h2>
+                        <livewire:library-quick-upload :channel="$uploadEvent" :key="'upload-'.$uploadEvent" />
                         <input type="search" x-model="search" placeholder="Search by name…"
                                class="w-56 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-white/10 dark:bg-white/5 dark:text-white">
                         <button type="button" x-on:click="open = false"
@@ -89,7 +99,7 @@
                         </template>
 
                         <p x-show="filtered.length === 0" class="col-span-full py-10 text-center text-sm text-gray-500">
-                            No matching images. Upload one under Media first.
+                            No matching images. Use “Upload new” above to add one.
                         </p>
                     </div>
 

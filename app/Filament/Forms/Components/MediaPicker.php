@@ -74,8 +74,13 @@ class MediaPicker extends Field
         return $media->map(fn (Media $item): array => self::row($item))->values()->all();
     }
 
-    /** @return array{id: int, name: string, thumb: string|null} */
-    private static function row(Media $media): array
+    /**
+     * One library file as the view's shape — shared with the quick-upload control
+     * so a just-uploaded file arrives in exactly the form the grid expects.
+     *
+     * @return array{id: int, name: string, thumb: string|null}
+     */
+    public static function row(Media $media): array
     {
         return ['id' => $media->getKey(), 'name' => $media->name, 'thumb' => self::previewUrl($media)];
     }
@@ -108,6 +113,10 @@ class MediaPicker extends Field
                 ->where(fn (Builder $inner): Builder => $inner
                     ->where('mime_type', 'like', 'image/%')
                     ->orWhere('file_name', 'like', '%.svg')))
-            ->orderBy('name');
+            // Newest upload first, so a file just added through the picker's own
+            // upload control sits at the top where the eye lands. The id breaks
+            // ties for a bulk import that shares a second.
+            ->orderByDesc('created_at')
+            ->orderByDesc('id');
     }
 }
