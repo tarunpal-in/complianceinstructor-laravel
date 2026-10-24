@@ -256,6 +256,109 @@ cd /home/<site-user>/htdocs/<domain>
 
 ---
 
+# Part C — Moving database content from local to the server (safely)
+
+## The rule first: schema vs content
+
+Two different things get confused here — keep them apart:
+
+- **Schema (tables, columns, indexes)** is **never** moved by importing SQL. It travels as **migrations**, which the deploy already runs (`php artisan migrate --force`). If you changed the structure locally, you did it by adding a migration, and that migration applies itself on the server. Importing a schema dump on top of migrations desyncs the two and breaks the next `migrate`.
+- **Content (rows)** — the catalogue, CMS pages, settings — is what you might legitimately want to move. Prefer **seeders** (versioned, re-runnable, safe) over raw SQL.
+
+> ⚠️ **Never import your whole local database over a live production database.** It overwrites real orders, users, payments and attendance with local test data — unrecoverable without a backup. A full-DB import is only safe **before go-live**, when the server has no real data yet.
+
+## Preferred: move content as a seeder
+
+For content you authored locally and want on the server, write a **seeder**, commit it, deploy, and run just that seeder:
+
+```bash
+# on the server, after deploying the code that contains the seeder
+php8.3 artisan db:seed --class=YourContentSeeder --force
+```
+
+Use `updateOrCreate`/`firstOrCreate` in it (like `LegalPagesSeeder`) so re-running never duplicates. This is the only method that is version-controlled, reviewable and safe to repeat — it is how this project is designed to move content (CLAUDE.md §4 / §5.9).
+
+## When you must move actual tables (initial load or reference data)
+
+Legitimate cases: the **first** data load before go-live, or copying a few **reference** tables (e.g. a catalogue you built in the admin locally). **Never** `orders`, `users`, `payments`, `subscriptions`, `entitlements` once the site is live.
+
+### Step 1 — Back up the server database first (always)
+
+```bash
+# on the server
+mysqldump -u root -p <db-name> | gzip > ~/backup-<db-name>-$(date +%F-%H%M).sql.gz
+```
+
+Or **CloudPanel → Databases → ⋯ → Export**. Do not skip this.
+
+### Step 2 — Export the chosen tables from your local machine
+
+Export **only** the tables you intend to move, as UTF-8MB4:
+
+```bash
+# locally — name the specific tables (not the whole DB, unless it's a first full load)
+mysqldump -u root -p --default-character-set=utf8mb4 \
+  --single-transaction --no-tablespaces \
+  ceu_platform webinars offerings speakers industries accreditations webinar_accreditation \
+  > catalogue.sql
+```
+
+- For a **first-time full load** onto an empty server DB: `mysqldump ... ceu_platform > full.sql`.
+- Add `--no-create-info` (data only) when the server tables already exist via migrations and you only want their rows — and truncate those tables on the server first if you want a clean replace rather than an append.
+
+### Step 3a — Import via phpMyAdmin (CloudPanel ships it)
+
+**CloudPanel → Databases → your DB → phpMyAdmin.**
+
+1. Select the **target database** in the left sidebar — the existing CloudPanel `<db-name>`, never a new one from the dump.
+2. **Import** tab → choose the `.sql` (or `.sql.gz`) → **Go**.
+3. Watch for collation / foreign-key errors. If the file is larger than phpMyAdmin's upload limit (often 2–256 MB) it is rejected — gzip it, or use the CLI method below.
+
+> The dump must **not** contain `CREATE DATABASE` / `USE <other-db>`, and must not `DROP` tables that hold server data.
+
+### Step 3b — Import via CLI (better for anything large)
+
+No upload limit, faster. Copy the dump up and import into the existing DB:
+
+```bash
+# from your local machine
+scp catalogue.sql <site-user>@<server-ip>:~
+
+# on the server
+mysql -u <db-user> -p <db-name> < ~/catalogue.sql
+```
+
+If foreign-key order causes errors on a full load:
+
+```bash
+( echo "SET FOREIGN_KEY_CHECKS=0;"; cat ~/catalogue.sql; echo "SET FOREIGN_KEY_CHECKS=1;" ) \
+  | mysql -u <db-user> -p <db-name>
+```
+
+### Step 4 — After any import
+
+```bash
+php8.3 artisan migrate --force        # apply any migrations the imported data predates
+php8.3 artisan optimize:clear && php8.3 artisan optimize
+php8.3 artisan horizon:terminate
+```
+
+## Quick decision guide
+
+| You changed… | Move it by… |
+|---|---|
+| Table structure | nothing extra — `migrate --force` runs on deploy |
+| Settings / CMS pages / roles | a **seeder** (`db:seed --class=…`) |
+| A catalogue built in local admin, **pre-launch** | export those tables → import (above) |
+| First-ever load on an **empty** server DB | full export → import, then `migrate --force` |
+| Orders / users / payments on a **live** site | **don't** — that data lives on the server; never overwrite it |
+
+## Charset note (MariaDB local → MySQL 8 server)
+
+Local is MariaDB (XAMPP), the server is MySQL 8. Dumps import fine, but if MySQL 8 rejects a collation (`utf8mb4_general_ci` vs `utf8mb4_0900_ai_ci`), add `--compatible=mysql` to the local `mysqldump`, or find-and-replace the collation in the `.sql` before importing. Always keep **`utf8mb4`**, never `utf8`.
+
+---
+
 # Appendix A — `.env` essentials (production)
 
 Fill these in `<app-dir>/.env`. The full list is in `.env.example`; these are the ones that matter in production:
