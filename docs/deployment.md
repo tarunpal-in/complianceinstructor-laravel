@@ -548,7 +548,18 @@ php8.3 artisan horizon:terminate
 **Common issues**
 - *500 after deploy* → check `storage/logs/laravel.log`; usually a missing `.env` var or stale cache. Run `php8.3 artisan optimize:clear` then re-`optimize`.
 - *Blank/old assets* → `npm run build` didn't run or browser cache; confirm `public/build/manifest.json` updated.
-- *Uploads fail in admin* → confirm Redis + the Livewire temp disk are writable and R2 creds are valid.
+- *Admin file uploads fail ("… failed to upload")* → see the dedicated section below.
 - *Queued jobs not running* → `supervisorctl status`; `php8.3 artisan horizon:status`.
 - *PDFs blank/failing* → Chromium not installed or not found by Browsershot; either install `chromium-browser` (step 2) or confirm the dompdf fallback is active.
 - *Permissions* → `chmod -R ug+rwX storage bootstrap/cache` as `<site-user>`.
+
+### Admin file uploads fail ("… failed to upload")
+
+Livewire/Filament uploads go through a **signed URL**, so on a proxied HTTPS host (CloudPanel's Nginx, Cloudflare) the usual causes are a scheme mismatch or a size limit. Open **F12 → Network**, retry the upload, and read the status of the `upload-file` request — then fix in this order:
+
+1. **403 (invalid signature) — most common.** Laravel saw the request as HTTP and signed the upload URL for the wrong scheme. The app trusts the proxy (`bootstrap/app.php` → `trustProxies`); make sure that commit is **deployed**, set `APP_URL=https://<domain>` in `.env`, then `php8.3 artisan config:cache`. Confirm the Vhost's PHP-FPM block passes `proxy_set_header X-Forwarded-Proto $scheme;` / `fastcgi_param HTTPS "on";`.
+2. **413 (too large).** Raise `client_max_body_size 64M;` in the Vhost, and `upload_max_filesize` / `post_max_size` = `64M` in **CloudPanel → PHP Settings**; save (reloads Nginx + FPM).
+3. **419 (session/CSRF).** Set `APP_URL` + `SESSION_DOMAIN=<domain>`, then `config:cache`.
+4. **500.** Check `storage/logs/laravel.log` — usually storage not writable: `chmod -R ug+rwX storage && chown -R <site-user>:<site-user> storage bootstrap/cache`.
+
+Quick map: **403 → #1**, **413 → #2**, **419 → #3**, **500 → #4**. Start with #1; it resolves the majority of CloudPanel cases.

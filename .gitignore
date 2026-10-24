@@ -43,6 +43,8 @@ Thumbs.db
 # large, contain live data, and are source material for the import, not source.
 /*.sql
 /*.zip
+/*.tgz
+/*.tar.gz
 /uploads/
 /CPE-logo.jpg
 /HRCI 2026.png
